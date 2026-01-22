@@ -5,6 +5,10 @@ import com.swebench.model.TaskInstance;
 import com.swebench.service.GitHubService;
 import com.swebench.service.PatchExtractor;
 import com.swebench.service.QualityValidator;
+import com.swebench.service.BugClassifier;
+import com.swebench.util.ConfigLoader;
+import com.swebench.util.PipelineLogger;
+import com.swebench.util.FileLogger;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -29,156 +33,222 @@ public class AttributeFilter {
     private static final Logger logger = LoggerFactory.getLogger(AttributeFilter.class);
     private static final String INPUT_FILE = "data/raw/discovered_repositories.json";
     private static final String OUTPUT_DIR = "data/processed";
-    private static final int TARGET_TASK_COUNT = 200;
-    private static final int MAX_FILES_CHANGED = 100;
 
     private final GitHubService gitHubService;
     private final PatchExtractor patchExtractor;
     private final QualityValidator qualityValidator;
+    private final BugClassifier bugClassifier;
     private final ObjectMapper objectMapper;
+    private final int targetTaskCount;
+    private final int maxFilesChanged;
 
     public AttributeFilter() {
         this.gitHubService = new GitHubService();
         this.patchExtractor = new PatchExtractor();
         this.qualityValidator = new QualityValidator();
+        this.bugClassifier = new BugClassifier();
         this.objectMapper = new ObjectMapper();
         this.objectMapper.registerModule(new JavaTimeModule());
         this.objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
+        this.targetTaskCount = ConfigLoader.getInt("filter.target.task.count", 200);
+        this.maxFilesChanged = ConfigLoader.getInt("filter.max.files.changed", 100);
     }
 
     public void execute() {
-        logger.info("Starting attribute filtering stage");
-        logger.info("Target: {} task instances", TARGET_TASK_COUNT);
+        PipelineLogger.startStage("Attribute Filtering");
+        PipelineLogger.info("Target: " + targetTaskCount + " task instances");
 
+        boolean success = false;
         try {
+            // Step 1: Load repositories
+            PipelineLogger.section("Loading Repositories");
             List<Repository> repositories = loadRepositories();
+
+            if (repositories.isEmpty()) {
+                PipelineLogger.fail("No repositories found. Run discovery stage first.",
+                    PipelineLogger.ErrorCategory.CONFIG_ERROR);
+                PipelineLogger.endStage(false);
+                return;
+            }
+            PipelineLogger.success("Loaded " + repositories.size() + " repositories");
+
+            // Step 2: Extract task candidates
+            PipelineLogger.section("Extracting Task Candidates");
             List<TaskInstance> taskInstances = extractTaskInstances(repositories);
+
+            if (taskInstances.isEmpty()) {
+                PipelineLogger.fail("No task candidates extracted from PRs",
+                    PipelineLogger.ErrorCategory.FILTER_REJECTED);
+                PipelineLogger.warn("Repositories may not have linked PR-Issue pairs");
+                PipelineLogger.endStage(false);
+                return;
+            }
+
+            // Step 3: Filter tasks by quality
+            PipelineLogger.section("Quality Filtering");
             List<TaskInstance> filteredTasks = filterTaskInstances(taskInstances);
 
-            logger.info("Extracted {} total task instances", taskInstances.size());
-            logger.info("Qualified {} tasks after attribute filtering", filteredTasks.size());
+            if (filteredTasks.isEmpty()) {
+                PipelineLogger.fail("No tasks passed quality filters",
+                    PipelineLogger.ErrorCategory.FILTER_REJECTED);
+                PipelineLogger.warn("Try lowering filter.min.quality.score in config");
+                PipelineLogger.endStage(false);
+                return;
+            }
 
+            // Step 4: Save results
+            PipelineLogger.section("Saving Results");
             saveResults(filteredTasks);
+
             generateReport(filteredTasks);
+            success = true;
 
         } catch (Exception e) {
             logger.error("Attribute filtering failed", e);
-            throw new RuntimeException("Attribute filtering stage failed", e);
+            PipelineLogger.fail("Filtering crashed: " + e.getMessage(),
+                PipelineLogger.ErrorCategory.UNKNOWN);
         }
+
+        PipelineLogger.endStage(success);
     }
 
     private List<Repository> loadRepositories() throws IOException {
         File inputFile = new File(INPUT_FILE);
         if (!inputFile.exists()) {
-            throw new IOException("Repository list not found. Run discovery stage first.");
+            throw new IOException("Repository list not found at " + INPUT_FILE);
         }
 
         Repository[] repos = objectMapper.readValue(inputFile, Repository[].class);
-        logger.info("Loaded {} repositories from {}", repos.length, INPUT_FILE);
-
         return List.of(repos);
     }
 
     private List<TaskInstance> extractTaskInstances(List<Repository> repositories) {
-        logger.info("Extracting task instances from repositories...");
-
         List<TaskInstance> allTasks = new ArrayList<>();
 
-        for (Repository repo : repositories) {
+        for (int i = 0; i < repositories.size(); i++) {
+            Repository repo = repositories.get(i);
+            PipelineLogger.progress(i + 1, repositories.size(), "Processing " + repo.getFullName());
+
             try {
-                logger.info("Processing repository: {}", repo.getFullName());
-
-                // Get merged PRs that reference issues
                 List<TaskInstance> repoTasks = gitHubService.extractTaskInstances(repo);
-
-                logger.info("Extracted {} task candidates from {}",
-                    repoTasks.size(), repo.getFullName());
+                PipelineLogger.info("Found " + repoTasks.size() + " PR-Issue pairs in " + repo.getFullName());
 
                 allTasks.addAll(repoTasks);
 
                 // Stop if we have enough candidates
-                if (allTasks.size() >= TARGET_TASK_COUNT * 2) {
-                    logger.info("Reached candidate threshold, stopping extraction");
+                if (allTasks.size() >= targetTaskCount * 2) {
+                    PipelineLogger.info("Reached candidate threshold (" + allTasks.size() + "), stopping extraction");
                     break;
                 }
 
             } catch (Exception e) {
-                logger.warn("Failed to process repository {}: {}",
-                    repo.getFullName(), e.getMessage());
+                PipelineLogger.warn("Failed to process " + repo.getFullName() + ": " + e.getMessage());
+                logger.debug("Error details", e);
             }
         }
 
+        PipelineLogger.success("Extracted " + allTasks.size() + " total task candidates");
         return allTasks;
     }
 
     private List<TaskInstance> filterTaskInstances(List<TaskInstance> tasks) {
-        logger.info("Applying attribute filters to {} tasks...", tasks.size());
+        PipelineLogger.step("Applying quality filters to " + tasks.size() + " candidates...");
+        PipelineLogger.info("Criteria: functional bug, problem statement, patch size, test coverage, quality >= 75");
 
         List<TaskInstance> qualified = new ArrayList<>();
+        int rejectedNoProblem = 0;
+        int rejectedNoPatch = 0;
+        int rejectedTooLarge = 0;
+        int rejectedNoTests = 0;
+        int rejectedNonFunctional = 0;
+        int rejectedLowQuality = 0;
 
         for (TaskInstance task : tasks) {
-            if (qualified.size() >= TARGET_TASK_COUNT) {
+            if (qualified.size() >= targetTaskCount) {
+                PipelineLogger.info("Reached target count, stopping filter");
                 break;
             }
 
-            if (passesAttributeFilters(task)) {
-                logger.debug("Task qualified: {}", task.getInstanceId());
-                qualified.add(task);
-            } else {
-                logger.debug("Task rejected: {}", task.getInstanceId());
+            // Check problem statement
+            if (task.getProblemStatement() == null || task.getProblemStatement().length() < 50) {
+                rejectedNoProblem++;
+                FileLogger.logTaskFilter(task.getInstanceId(), false, "PROBLEM_STATEMENT", "Too short or missing");
+                continue;
             }
+
+            // Check patch exists
+            if (task.getPatch() == null || task.getPatch().isEmpty()) {
+                rejectedNoPatch++;
+                FileLogger.logTaskFilter(task.getInstanceId(), false, "PATCH", "Missing patch");
+                continue;
+            }
+
+            // Check patch size
+            int filesChanged = countFilesInPatch(task.getPatch());
+            if (filesChanged > maxFilesChanged) {
+                rejectedTooLarge++;
+                FileLogger.logTaskFilter(task.getInstanceId(), false, "PATCH_SIZE", filesChanged + " files changed");
+                continue;
+            }
+
+            // Check has test changes
+            if (!hasTestChanges(task.getPatch())) {
+                rejectedNoTests++;
+                FileLogger.logTaskFilter(task.getInstanceId(), false, "TEST_CHANGES", "No test modifications");
+                continue;
+            }
+
+            // NEW: Bug classification - prioritize FUNCTIONAL bugs
+            BugClassifier.BugType bugType = bugClassifier.classify(task);
+            int functionalScore = bugClassifier.calculateFunctionalScore(task);
+
+            if (bugType == BugClassifier.BugType.NON_FUNCTIONAL) {
+                rejectedNonFunctional++;
+                FileLogger.logTaskFilter(task.getInstanceId(), false, "BUG_TYPE",
+                    "Non-functional (typo/doc/refactor). Score: " + functionalScore);
+                continue;
+            }
+
+            // Quality validation
+            if (!qualityValidator.isHighQuality(task)) {
+                rejectedLowQuality++;
+                FileLogger.logTaskFilter(task.getInstanceId(), false, "QUALITY", "Failed quality checks");
+                continue;
+            }
+
+            int qualityScore = qualityValidator.calculateQualityScore(task);
+            if (qualityScore < 75) {
+                rejectedLowQuality++;
+                FileLogger.logTaskFilter(task.getInstanceId(), false, "QUALITY_SCORE", "Score: " + qualityScore);
+                continue;
+            }
+
+            // Task passed all filters!
+            qualified.add(task);
+            String rating = qualityValidator.getQualityRating(qualityScore);
+            FileLogger.logTaskFilter(task.getInstanceId(), true, "ALL_FILTERS",
+                "BugType: " + bugType + ", FuncScore: " + functionalScore + ", Quality: " + qualityScore);
+
+            PipelineLogger.progress(qualified.size(), targetTaskCount, task.getInstanceId());
+            PipelineLogger.success("Qualified: " + task.getInstanceId() +
+                " (bug: " + bugType + ", funcScore: " + functionalScore + ", quality: " + qualityScore + ")");
         }
+
+        // Log rejection summary
+        PipelineLogger.section("Filter Results");
+        PipelineLogger.info("Qualified tasks: " + qualified.size());
+        if (rejectedNoProblem > 0) PipelineLogger.info("Rejected - no problem statement: " + rejectedNoProblem);
+        if (rejectedNoPatch > 0) PipelineLogger.info("Rejected - no patch: " + rejectedNoPatch);
+        if (rejectedTooLarge > 0) PipelineLogger.info("Rejected - too many files: " + rejectedTooLarge);
+        if (rejectedNoTests > 0) PipelineLogger.info("Rejected - no test changes: " + rejectedNoTests);
+        if (rejectedNonFunctional > 0) PipelineLogger.info("Rejected - non-functional bug: " + rejectedNonFunctional);
+        if (rejectedLowQuality > 0) PipelineLogger.info("Rejected - low quality: " + rejectedLowQuality);
 
         return qualified;
     }
 
-    private boolean passesAttributeFilters(TaskInstance task) {
-        // Basic checks first
-        if (task.getProblemStatement() == null ||
-            task.getProblemStatement().length() < 50) {
-            return false;
-        }
-
-        if (task.getPatch() == null || task.getPatch().isEmpty()) {
-            return false;
-        }
-
-        // Check patch size is reasonable
-        int filesChanged = countFilesInPatch(task.getPatch());
-        if (filesChanged > MAX_FILES_CHANGED) {
-            logger.debug("Task {} has too many files changed: {}",
-                task.getInstanceId(), filesChanged);
-            return false;
-        }
-
-        // Check has test-related changes
-        if (!hasTestChanges(task.getPatch())) {
-            return false;
-        }
-
-        // HIGH-QUALITY FILTER: Use QualityValidator for comprehensive checks
-        if (!qualityValidator.isHighQuality(task)) {
-            logger.debug("Task {} rejected by quality validator", task.getInstanceId());
-            return false;
-        }
-
-        // Calculate and log quality score
-        int qualityScore = qualityValidator.calculateQualityScore(task);
-        String rating = qualityValidator.getQualityRating(qualityScore);
-        logger.info("Task {} quality: {} (score: {})", task.getInstanceId(), rating, qualityScore);
-
-        // Only accept high-quality tasks (score >= 75)
-        if (qualityScore < 75) {
-            logger.debug("Task {} quality score too low: {}", task.getInstanceId(), qualityScore);
-            return false;
-        }
-
-        return true;
-    }
-
     private int countFilesInPatch(String patch) {
         if (patch == null) return 0;
-        // Count "diff --git" occurrences
         return patch.split("diff --git").length - 1;
     }
 
@@ -199,12 +269,11 @@ public class AttributeFilter {
         File outputFile = new File(outputDir, "candidate_tasks.json");
         objectMapper.writeValue(outputFile, tasks);
 
-        logger.info("Saved {} task instances to {}", tasks.size(), outputFile.getPath());
+        PipelineLogger.success("Saved " + tasks.size() + " tasks to " + outputFile.getPath());
     }
 
     private void generateReport(List<TaskInstance> tasks) {
-        logger.info("=== Attribute Filtering Report ===");
-        logger.info("Total qualified tasks: {}", tasks.size());
+        PipelineLogger.section("Attribute Filter Report");
 
         long mavenTasks = tasks.stream()
             .filter(t -> "maven".equalsIgnoreCase(t.getBuildTool()))
@@ -213,16 +282,14 @@ public class AttributeFilter {
             .filter(t -> "gradle".equalsIgnoreCase(t.getBuildTool()))
             .count();
 
-        logger.info("Maven tasks: {}", mavenTasks);
-        logger.info("Gradle tasks: {}", gradleTasks);
-
-        // Count unique repositories
         long uniqueRepos = tasks.stream()
             .map(TaskInstance::getRepo)
             .distinct()
             .count();
 
-        logger.info("Tasks from {} unique repositories", uniqueRepos);
-        logger.info("===================================");
+        PipelineLogger.info("Total qualified tasks: " + tasks.size());
+        PipelineLogger.info("Maven tasks: " + mavenTasks);
+        PipelineLogger.info("Gradle tasks: " + gradleTasks);
+        PipelineLogger.info("From " + uniqueRepos + " unique repositories");
     }
 }

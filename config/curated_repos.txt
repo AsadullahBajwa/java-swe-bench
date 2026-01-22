@@ -1,0 +1,29 @@
+# Curated list of high-quality Java repositories for benchmark collection
+# These repos are known to have:
+# - Good test coverage
+# - Clean PR-Issue linkage
+# - Active maintenance
+# - Well-structured bug fixes
+
+# Format: owner/repo
+
+# Apache Projects (excellent bug tracking)
+apache/commons-lang
+apache/commons-io
+apache/commons-collections
+apache/commons-math
+
+# Google Projects
+google/guava
+google/gson
+
+# Popular Libraries
+square/okhttp
+square/retrofit
+
+# Well-maintained Projects
+iluwatar/java-design-patterns
+ReactiveX/RxJava
+
+# Build Tools
+gradle/gradle

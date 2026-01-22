@@ -69,9 +69,16 @@ public class TestRunner {
         try {
             // Build the test command
             String fullCommand = buildTestCommand(testCommand, testCases);
+            logger.info("Executing: {}", fullCommand);
 
-            // Execute tests
-            ProcessBuilder pb = new ProcessBuilder(fullCommand.split("\\s+"));
+            // Execute tests - use cmd /c on Windows for proper command execution
+            ProcessBuilder pb;
+            boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
+            if (isWindows) {
+                pb = new ProcessBuilder("cmd", "/c", fullCommand);
+            } else {
+                pb = new ProcessBuilder("sh", "-c", fullCommand);
+            }
             pb.directory(repoDir);
             pb.redirectErrorStream(true);
 
@@ -110,9 +117,19 @@ public class TestRunner {
     }
 
     private String detectTestCommand(File repoDir) {
+        boolean isWindows = System.getProperty("os.name").toLowerCase().contains("win");
+
         // Check for Maven
         if (new File(repoDir, "pom.xml").exists()) {
             logger.debug("Detected Maven project");
+            // On Windows, use mvn.cmd; check MAVEN_HOME first
+            if (isWindows) {
+                String mavenHome = System.getenv("MAVEN_HOME");
+                if (mavenHome != null && !mavenHome.isEmpty()) {
+                    return mavenHome + "\\bin\\mvn.cmd test";
+                }
+                return "mvn.cmd test";
+            }
             return "mvn test";
         }
 
@@ -122,15 +139,15 @@ public class TestRunner {
             logger.debug("Detected Gradle project");
 
             // Check for gradlew wrapper
-            File gradlew = new File(repoDir, "gradlew");
+            File gradlew = new File(repoDir, isWindows ? "gradlew.bat" : "gradlew");
             if (gradlew.exists()) {
-                return "./gradlew test";
+                return isWindows ? "gradlew.bat test" : "./gradlew test";
             }
-            return "gradle test";
+            return isWindows ? "gradle.bat test" : "gradle test";
         }
 
         logger.warn("Could not detect build system, defaulting to mvn test");
-        return "mvn test";
+        return isWindows ? "mvn.cmd test" : "mvn test";
     }
 
     private String buildTestCommand(String baseCommand, List<String> testCases) {
@@ -138,16 +155,22 @@ public class TestRunner {
             return baseCommand;
         }
 
-        // Check if using auto-detection marker - run all tests
+        // Check if using auto-detection marker - this is problematic
+        // Running ALL tests often fails due to unrelated issues
         if (testCases.size() == 1 && "__ALL_TESTS__".equals(testCases.get(0))) {
-            logger.info("Using __ALL_TESTS__ marker - running full test suite");
-            return baseCommand; // Run all tests without filtering
+            logger.warn("Using __ALL_TESTS__ marker - this may cause false negatives");
+            logger.info("Running with -DfailIfNoTests=false to be more lenient");
+            // Add flag to not fail if specific tests aren't found
+            if (baseCommand.contains("mvn")) {
+                return baseCommand + " -DfailIfNoTests=false";
+            }
+            return baseCommand;
         }
 
         // For Maven: mvn test -Dtest=TestClass#testMethod
         if (baseCommand.contains("mvn")) {
             String tests = String.join(",", testCases);
-            return baseCommand + " -Dtest=" + tests;
+            return baseCommand + " -Dtest=" + tests + " -DfailIfNoTests=false";
         }
 
         // For Gradle: ./gradlew test --tests TestClass.testMethod

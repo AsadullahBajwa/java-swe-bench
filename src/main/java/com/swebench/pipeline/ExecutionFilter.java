@@ -4,6 +4,7 @@ import com.swebench.model.TaskInstance;
 import com.swebench.service.TestRunner;
 import com.swebench.service.PatchApplier;
 import com.swebench.service.QualityValidator;
+import com.swebench.util.PipelineLogger;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -22,14 +23,11 @@ import java.util.List;
  * - Tests pass after applying patch
  * - No other tests break (PASS_TO_PASS maintained)
  * - Build succeeds in both states
- *
- * This is the final validation stage that ensures task quality.
  */
 public class ExecutionFilter {
     private static final Logger logger = LoggerFactory.getLogger(ExecutionFilter.class);
     private static final String INPUT_FILE = "data/processed/candidate_tasks.json";
     private static final String OUTPUT_DIR = "data/tasks";
-    private static final int MAX_RETRIES = 2;
 
     private final TestRunner testRunner;
     private final PatchApplier patchApplier;
@@ -46,80 +44,101 @@ public class ExecutionFilter {
     }
 
     public void execute() {
-        logger.info("Starting execution filtering stage");
+        PipelineLogger.startStage("Execution Validation");
 
+        boolean success = false;
         try {
+            // Step 1: Load candidates
+            PipelineLogger.section("Loading Candidate Tasks");
             List<TaskInstance> candidateTasks = loadCandidateTasks();
+
+            if (candidateTasks.isEmpty()) {
+                PipelineLogger.fail("No candidate tasks found. Run attribute filter stage first.",
+                    PipelineLogger.ErrorCategory.CONFIG_ERROR);
+                PipelineLogger.endStage(false);
+                return;
+            }
+            PipelineLogger.success("Loaded " + candidateTasks.size() + " candidate tasks");
+
+            // Step 2: Validate each task
+            PipelineLogger.section("Validating Tasks");
+            PipelineLogger.info("Running fail-to-pass tests on each task...");
             List<TaskInstance> validatedTasks = validateTasks(candidateTasks);
 
-            logger.info("Validated {} tasks out of {} candidates",
-                validatedTasks.size(), candidateTasks.size());
-
+            // Step 3: Save results
+            PipelineLogger.section("Saving Results");
             saveResults(validatedTasks);
-            generateReport(validatedTasks);
+
+            generateReport(validatedTasks, candidateTasks.size());
+            success = validatedTasks.size() > 0;
 
         } catch (Exception e) {
             logger.error("Execution filtering failed", e);
-            throw new RuntimeException("Execution filtering stage failed", e);
+            PipelineLogger.fail("Execution crashed: " + e.getMessage(),
+                PipelineLogger.ErrorCategory.UNKNOWN);
         }
+
+        PipelineLogger.endStage(success);
     }
 
     private List<TaskInstance> loadCandidateTasks() throws IOException {
         File inputFile = new File(INPUT_FILE);
         if (!inputFile.exists()) {
-            throw new IOException("Candidate tasks not found. Run attribute filter stage first.");
+            throw new IOException("Candidate tasks not found at " + INPUT_FILE);
         }
 
         TaskInstance[] tasks = objectMapper.readValue(inputFile, TaskInstance[].class);
-        logger.info("Loaded {} candidate tasks from {}", tasks.length, INPUT_FILE);
-
         return List.of(tasks);
     }
 
     private List<TaskInstance> validateTasks(List<TaskInstance> tasks) {
-        logger.info("Validating {} task instances through execution...", tasks.size());
-
         List<TaskInstance> validated = new ArrayList<>();
-        int processed = 0;
 
-        for (TaskInstance task : tasks) {
-            processed++;
-            logger.info("Validating task {}/{}: {}", processed, tasks.size(), task.getInstanceId());
+        for (int i = 0; i < tasks.size(); i++) {
+            TaskInstance task = tasks.get(i);
+            PipelineLogger.progress(i + 1, tasks.size(), task.getInstanceId());
+            PipelineLogger.section("Validating: " + task.getInstanceId());
 
             try {
-                if (validateTask(task)) {
-                    logger.info("Task {} passed validation", task.getInstanceId());
+                ValidationResult result = validateTask(task);
+
+                if (result.success) {
                     validated.add(task);
+                    PipelineLogger.success("VALIDATED: " + task.getInstanceId());
                 } else {
-                    logger.warn("Task {} failed validation", task.getInstanceId());
+                    PipelineLogger.fail(task.getInstanceId() + ": " + result.failureReason,
+                        result.errorCategory);
                 }
             } catch (Exception e) {
-                logger.error("Error validating task {}: {}", task.getInstanceId(), e.getMessage());
+                PipelineLogger.fail(task.getInstanceId() + ": Exception - " + e.getMessage(),
+                    PipelineLogger.ErrorCategory.UNKNOWN);
+                logger.debug("Error details", e);
             }
         }
 
         return validated;
     }
 
-    private boolean validateTask(TaskInstance task) {
-        logger.debug("Setting up environment for {}", task.getInstanceId());
-
+    private ValidationResult validateTask(TaskInstance task) {
         // Pre-validation: Check fail-to-pass test structure
         if (!qualityValidator.hasValidFailToPassTests(task)) {
-            logger.warn("Task {} has invalid FAIL_TO_PASS structure", task.getInstanceId());
-            return false;
+            return ValidationResult.failed("Invalid FAIL_TO_PASS test structure",
+                PipelineLogger.ErrorCategory.FILTER_REJECTED);
         }
+        PipelineLogger.step("Test structure validated");
 
         // Clone repository and checkout base commit
+        PipelineLogger.step("Cloning repository...");
         File repoDir = testRunner.setupRepository(task);
         if (repoDir == null) {
-            logger.warn("Failed to setup repository for {}", task.getInstanceId());
-            return false;
+            return ValidationResult.failed("Failed to clone repository",
+                PipelineLogger.ErrorCategory.CLONE_FAILED);
         }
+        PipelineLogger.info("Repository cloned to: " + repoDir.getPath());
 
         try {
             // Step 1: Verify tests fail at base commit (CRITICAL)
-            logger.info("Running FAIL_TO_PASS tests at base commit for {}", task.getInstanceId());
+            PipelineLogger.step("Running tests at BASE commit (should FAIL)...");
             TestRunner.TestResult baseResult = testRunner.runTests(
                 repoDir,
                 task.getTestCommand(),
@@ -127,24 +146,21 @@ public class ExecutionFilter {
             );
 
             if (!baseResult.hasFailing()) {
-                logger.warn("❌ Task {} REJECTED: Tests did NOT fail at base commit (false positive)",
-                    task.getInstanceId());
-                return false;
+                return ValidationResult.failed("Tests did NOT fail at base commit (false positive)",
+                    PipelineLogger.ErrorCategory.TEST_FAILED);
             }
-
-            logger.info("✓ Tests correctly fail at base commit");
+            PipelineLogger.info("Tests correctly FAIL at base commit");
 
             // Step 2: Apply patch
-            logger.info("Applying patch for {}", task.getInstanceId());
+            PipelineLogger.step("Applying patch...");
             if (!patchApplier.applyPatch(repoDir, task.getPatch())) {
-                logger.warn("❌ Task {} REJECTED: Failed to apply patch", task.getInstanceId());
-                return false;
+                return ValidationResult.failed("Failed to apply patch",
+                    PipelineLogger.ErrorCategory.PATCH_FAILED);
             }
-
-            logger.info("✓ Patch applied successfully");
+            PipelineLogger.info("Patch applied successfully");
 
             // Step 3: Verify tests pass after patch (CRITICAL)
-            logger.info("Running FAIL_TO_PASS tests after patch for {}", task.getInstanceId());
+            PipelineLogger.step("Running tests AFTER patch (should PASS)...");
             TestRunner.TestResult patchResult = testRunner.runTests(
                 repoDir,
                 task.getTestCommand(),
@@ -152,16 +168,14 @@ public class ExecutionFilter {
             );
 
             if (!patchResult.allPassing()) {
-                logger.warn("❌ Task {} REJECTED: Tests still failing after patch", task.getInstanceId());
-                logger.warn("Test output: {}", patchResult.getSummary());
-                return false;
+                return ValidationResult.failed("Tests still failing after patch",
+                    PipelineLogger.ErrorCategory.TEST_FAILED);
             }
-
-            logger.info("✓ Tests pass after patch (FAIL → PASS verified)");
+            PipelineLogger.info("Tests now PASS after patch");
 
             // Step 4: Verify PASS_TO_PASS tests still pass (NO REGRESSION)
             if (task.getPassToPass() != null && !task.getPassToPass().isEmpty()) {
-                logger.info("Running PASS_TO_PASS tests for {}", task.getInstanceId());
+                PipelineLogger.step("Running regression tests...");
                 TestRunner.TestResult regressionCheck = testRunner.runTests(
                     repoDir,
                     task.getTestCommand(),
@@ -169,16 +183,14 @@ public class ExecutionFilter {
                 );
 
                 if (!regressionCheck.allPassing()) {
-                    logger.warn("❌ Task {} REJECTED: PASS_TO_PASS tests broken (regression detected)",
-                        task.getInstanceId());
-                    return false;
+                    return ValidationResult.failed("PASS_TO_PASS tests broken (regression)",
+                        PipelineLogger.ErrorCategory.TEST_FAILED);
                 }
-
-                logger.info("✓ No regression (PASS → PASS maintained)");
+                PipelineLogger.info("No regression detected");
             }
 
-            // Step 5: Run validation again to ensure consistency (test stability)
-            logger.info("Re-running FAIL_TO_PASS tests to verify stability for {}", task.getInstanceId());
+            // Step 5: Stability check
+            PipelineLogger.step("Re-running tests for stability check...");
             TestRunner.TestResult stabilityCheck = testRunner.runTests(
                 repoDir,
                 task.getTestCommand(),
@@ -186,17 +198,16 @@ public class ExecutionFilter {
             );
 
             if (!stabilityCheck.allPassing()) {
-                logger.warn("❌ Task {} REJECTED: Tests are flaky (not stable)", task.getInstanceId());
-                return false;
+                return ValidationResult.failed("Tests are flaky (not stable)",
+                    PipelineLogger.ErrorCategory.TEST_FAILED);
             }
+            PipelineLogger.info("Tests are stable");
 
-            logger.info("✓ Tests are stable");
-
-            logger.info("✅ Task {} VALIDATED: All checks passed", task.getInstanceId());
-            return true;
+            return ValidationResult.success();
 
         } finally {
             // Cleanup
+            PipelineLogger.step("Cleaning up workspace...");
             testRunner.cleanup(repoDir);
         }
     }
@@ -217,33 +228,63 @@ public class ExecutionFilter {
             objectMapper.writeValue(taskFile, task);
         }
 
-        logger.info("Saved {} validated tasks to {}", tasks.size(), outputDir.getPath());
+        PipelineLogger.success("Saved " + tasks.size() + " validated tasks to " + outputDir.getPath());
     }
 
-    private void generateReport(List<TaskInstance> tasks) {
-        logger.info("=== Execution Filtering Report ===");
-        logger.info("Total validated tasks: {}", tasks.size());
+    private void generateReport(List<TaskInstance> tasks, int totalCandidates) {
+        PipelineLogger.section("Execution Validation Report");
 
-        // Count by repository
-        tasks.stream()
-            .collect(java.util.stream.Collectors.groupingBy(
-                TaskInstance::getRepo,
-                java.util.stream.Collectors.counting()
-            ))
-            .forEach((repo, count) ->
-                logger.info("  {}: {} tasks", repo, count)
-            );
+        double successRate = totalCandidates > 0 ?
+            (tasks.size() * 100.0 / totalCandidates) : 0;
 
-        // Count by build tool
-        long mavenTasks = tasks.stream()
-            .filter(t -> "maven".equalsIgnoreCase(t.getBuildTool()))
-            .count();
-        long gradleTasks = tasks.stream()
-            .filter(t -> "gradle".equalsIgnoreCase(t.getBuildTool()))
-            .count();
+        PipelineLogger.info("Candidates: " + totalCandidates);
+        PipelineLogger.info("Validated: " + tasks.size());
+        PipelineLogger.info("Success rate: " + String.format("%.1f%%", successRate));
 
-        logger.info("Maven tasks: {}", mavenTasks);
-        logger.info("Gradle tasks: {}", gradleTasks);
-        logger.info("===================================");
+        if (!tasks.isEmpty()) {
+            long mavenTasks = tasks.stream()
+                .filter(t -> "maven".equalsIgnoreCase(t.getBuildTool()))
+                .count();
+            long gradleTasks = tasks.stream()
+                .filter(t -> "gradle".equalsIgnoreCase(t.getBuildTool()))
+                .count();
+
+            PipelineLogger.info("Maven tasks: " + mavenTasks);
+            PipelineLogger.info("Gradle tasks: " + gradleTasks);
+
+            // Group by repo
+            PipelineLogger.info("Tasks per repository:");
+            tasks.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                    TaskInstance::getRepo,
+                    java.util.stream.Collectors.counting()
+                ))
+                .forEach((repo, count) ->
+                    PipelineLogger.info("  " + repo + ": " + count)
+                );
+        }
+    }
+
+    /**
+     * Result of task validation
+     */
+    private static class ValidationResult {
+        boolean success;
+        String failureReason;
+        PipelineLogger.ErrorCategory errorCategory;
+
+        static ValidationResult success() {
+            ValidationResult r = new ValidationResult();
+            r.success = true;
+            return r;
+        }
+
+        static ValidationResult failed(String reason, PipelineLogger.ErrorCategory category) {
+            ValidationResult r = new ValidationResult();
+            r.success = false;
+            r.failureReason = reason;
+            r.errorCategory = category;
+            return r;
+        }
     }
 }

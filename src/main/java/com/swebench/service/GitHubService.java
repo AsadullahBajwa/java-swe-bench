@@ -37,6 +37,15 @@ public class GitHubService {
     }
 
     /**
+     * Get a single repository by its full name (owner/repo)
+     */
+    public Repository getRepository(String fullName) throws IOException {
+        logger.info("Fetching repository: {}", fullName);
+        GHRepository ghRepo = github.getRepository(fullName);
+        return convertToRepository(ghRepo);
+    }
+
+    /**
      * Search for repositories matching the given query
      */
     public List<Repository> searchRepositories(String query, int limit) throws IOException {
@@ -69,7 +78,14 @@ public class GitHubService {
      * Extract task instances from a repository by finding merged PRs linked to issues
      */
     public List<TaskInstance> extractTaskInstances(Repository repo) throws IOException {
-        logger.info("Extracting task instances from {}", repo.getFullName());
+        return extractTaskInstances(repo, 200); // Default to 200 PRs
+    }
+
+    /**
+     * Extract task instances from a repository with configurable PR limit
+     */
+    public List<TaskInstance> extractTaskInstances(Repository repo, int maxPRs) throws IOException {
+        logger.info("Extracting task instances from {} (max {} PRs)", repo.getFullName(), maxPRs);
 
         List<TaskInstance> tasks = new ArrayList<>();
         GHRepository ghRepo = github.getRepository(repo.getFullName());
@@ -83,7 +99,7 @@ public class GitHubService {
         int withLinkedIssues = 0;
 
         for (GHPullRequest pr : allPRs) {
-            if (prCount >= 200) break; // Increased limit to find more candidates
+            if (prCount >= maxPRs) break; // Use configurable limit
 
             try {
                 if (pr.isMerged()) {
@@ -195,6 +211,13 @@ public class GitHubService {
             return testMethods;
         }
 
+        // First, try to extract test classes from modified test files
+        List<String> testClasses = extractTestClassesFromPatch(patch);
+        if (!testClasses.isEmpty()) {
+            logger.info("Found {} test classes in patch", testClasses.size());
+            return testClasses; // Return test class names for running
+        }
+
         String[] lines = patch.split("\n");
         String currentFile = null;
         String currentPackage = null;
@@ -262,6 +285,56 @@ public class GitHubService {
         }
 
         return testMethods;
+    }
+
+    /**
+     * Extract test class names from modified test files in the patch
+     * Returns simple class names like "StringUtilsTest" for running with Maven -Dtest=
+     */
+    private List<String> extractTestClassesFromPatch(String patch) {
+        List<String> testClasses = new ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+
+        if (patch == null || patch.isEmpty()) {
+            return testClasses;
+        }
+
+        String[] lines = patch.split("\n");
+        for (String line : lines) {
+            // Look for modified/added test files: +++ b/path/to/SomeTest.java
+            if (line.startsWith("+++ b/") || line.startsWith("--- a/")) {
+                String filePath = line.substring(6).trim();
+
+                if (isTestFile(filePath)) {
+                    // Extract class name from file path
+                    String className = extractClassNameFromPath(filePath);
+                    if (className != null && !seen.contains(className)) {
+                        testClasses.add(className);
+                        seen.add(className);
+                        logger.debug("Found test class in patch: {}", className);
+                    }
+                }
+            }
+        }
+
+        return testClasses;
+    }
+
+    /**
+     * Extract class name from a file path
+     * e.g., "src/test/java/org/apache/commons/lang3/StringUtilsTest.java" -> "StringUtilsTest"
+     */
+    private String extractClassNameFromPath(String filePath) {
+        if (filePath == null || !filePath.endsWith(".java")) {
+            return null;
+        }
+
+        // Get the file name without extension
+        int lastSlash = filePath.lastIndexOf('/');
+        String fileName = lastSlash >= 0 ? filePath.substring(lastSlash + 1) : filePath;
+
+        // Remove .java extension
+        return fileName.replace(".java", "");
     }
 
     /**
@@ -363,6 +436,92 @@ public class GitHubService {
         }
 
         return issues;
+    }
+
+    /**
+     * Extract tasks directly from merged PRs (relaxed - no issue link required)
+     * Uses PR title/body as problem statement, targets bug-fix PRs
+     */
+    public List<TaskInstance> extractTasksFromMergedPRs(Repository repo, int maxPRs) throws IOException {
+        logger.info("Extracting tasks from merged PRs in {} (max {})", repo.getFullName(), maxPRs);
+
+        List<TaskInstance> tasks = new ArrayList<>();
+        GHRepository ghRepo = github.getRepository(repo.getFullName());
+
+        // Keywords that indicate bug-fix PRs
+        String[] bugKeywords = {"fix", "bug", "error", "issue", "problem", "crash", "fail",
+                                "incorrect", "wrong", "broken", "null", "exception"};
+
+        List<GHPullRequest> closedPRs = ghRepo.getPullRequests(GHIssueState.CLOSED);
+        logger.info("Found {} closed PRs in {}", closedPRs.size(), repo.getFullName());
+
+        int checked = 0;
+        for (GHPullRequest pr : closedPRs) {
+            if (checked >= maxPRs) break;
+            checked++;
+
+            try {
+                if (!pr.isMerged()) continue;
+
+                String title = pr.getTitle() != null ? pr.getTitle().toLowerCase() : "";
+                String body = pr.getBody() != null ? pr.getBody() : "";
+
+                // Check if PR looks like a bug fix
+                boolean isBugFix = false;
+                for (String keyword : bugKeywords) {
+                    if (title.contains(keyword) || body.toLowerCase().contains(keyword)) {
+                        isBugFix = true;
+                        break;
+                    }
+                }
+
+                if (!isBugFix) continue;
+
+                // Create task from PR
+                TaskInstance task = new TaskInstance();
+                task.setInstanceId(String.format("%s-PR-%d",
+                    repo.getFullName().replace("/", "-"), pr.getNumber()));
+                task.setRepo(repo.getFullName());
+                task.setPullNumber(pr.getNumber());
+                task.setBaseCommit(pr.getBase().getSha());
+
+                // Use PR title + body as problem statement
+                String problemStatement = pr.getTitle() + "\n\n" + (body.isEmpty() ? "No description" : body);
+                task.setProblemStatement(problemStatement);
+                task.setCreatedAt(pr.getCreatedAt().toString());
+
+                // Get patch
+                try {
+                    String patch = fetchPRPatch(pr);
+                    if (patch == null || patch.isEmpty()) continue;
+                    task.setPatch(patch);
+
+                    // Extract test methods
+                    List<String> testMethods = extractTestMethodsFromPatch(patch);
+                    if (!testMethods.isEmpty()) {
+                        task.setFailToPass(testMethods);
+                    } else {
+                        task.setFailToPass(java.util.Arrays.asList("__ALL_TESTS__"));
+                    }
+                } catch (Exception e) {
+                    logger.debug("Failed to fetch patch for PR #{}: {}", pr.getNumber(), e.getMessage());
+                    continue;
+                }
+
+                // Detect build system
+                detectBuildSystem(ghRepo, task);
+                generateTestCommand(task);
+
+                tasks.add(task);
+                logger.info("Extracted bug-fix task from PR #{}: {}", pr.getNumber(), title);
+
+            } catch (Exception e) {
+                logger.debug("Failed to process PR #{}: {}", pr.getNumber(), e.getMessage());
+            }
+        }
+
+        logger.info("Extracted {} bug-fix tasks from {} merged PRs", tasks.size(), checked);
+        return tasks;
     }
 
     private void detectBuildSystem(GHRepository repo, TaskInstance task) {
