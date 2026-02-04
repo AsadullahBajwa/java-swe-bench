@@ -1,0 +1,14 @@
+diff --git a/src/test/java/org/apache/commons/lang3/ArrayUtilsTest.java b/src/test/java/org/apache/commons/lang3/ArrayUtilsTest.java
+index cb3a38eeaeb..a6ff321b9c5 100644
+--- a/src/test/java/org/apache/commons/lang3/ArrayUtilsTest.java
++++ b/src/test/java/org/apache/commons/lang3/ArrayUtilsTest.java
+@@ -6958,4 +6958,9 @@ void testToStringDefault() {
+         assertEquals("{<null>}", ArrayUtils.toString(new String[]{null}, "<empty>"));
+         assertEquals("{pink,blue}", ArrayUtils.toString(new String[]{"pink", "blue"}, "<empty>"));
+     }
++
++    @Test
++    void testMaxArrayLength() {
++        assertEquals(Integer.MAX_VALUE - 8, ArrayUtils.SAFE_MAX_ARRAY_LENGTH);
++    }
+ }

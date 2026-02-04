@@ -1,0 +1,244 @@
+diff --git a/android/guava/src/com/google/common/base/Preconditions.java b/android/guava/src/com/google/common/base/Preconditions.java
+index bf09fa93db54..00c7caeacbfa 100644
+--- a/android/guava/src/com/google/common/base/Preconditions.java
++++ b/android/guava/src/com/google/common/base/Preconditions.java
+@@ -458,7 +458,7 @@ public static void checkArgument(
+    */
+   public static void checkArgument(
+       boolean expression,
+-      // TODO: user - Make errorMessageTemplate consistently @Nullable across overloads.
++      // TODO: cl/604933487 - Make errorMessageTemplate consistently @Nullable across overloads.
+       @Nullable String errorMessageTemplate,
+       @Nullable Object p1,
+       @Nullable Object p2) {
+diff --git a/android/guava/src/com/google/common/collect/ImmutableSortedMap.java b/android/guava/src/com/google/common/collect/ImmutableSortedMap.java
+index 9ee0f06fac03..a906fb295a71 100644
+--- a/android/guava/src/com/google/common/collect/ImmutableSortedMap.java
++++ b/android/guava/src/com/google/common/collect/ImmutableSortedMap.java
+@@ -63,6 +63,25 @@
+ @GwtCompatible
+ public final class ImmutableSortedMap<K, V> extends ImmutableMap<K, V>
+     implements NavigableMap<K, V> {
++  /**
++   * Returns a {@link Collector} that accumulates elements into an {@code ImmutableSortedMap} whose
++   * keys and values are the result of applying the provided mapping functions to the input
++   * elements. The generated map is sorted by the natural ordering of the keys.
++   *
++   * <p>If the mapped keys contain duplicates, an {@code IllegalArgumentException} is thrown when
++   * the collection operation is performed. (This differs from the {@code Collector} returned by
++   * {@link Collectors#toMap(Function, Function)}, which throws an {@code IllegalStateException}.)
++   *
++   * @since NEXT
++   */
++  @IgnoreJRERequirement // Users will use this only if they're already using streams.
++  public static <T extends @Nullable Object, K extends Comparable<? super K>, V>
++      Collector<T, ?, ImmutableSortedMap<K, V>> toImmutableSortedMap(
++          Function<? super T, ? extends K> keyFunction,
++          Function<? super T, ? extends V> valueFunction) {
++    return CollectCollectors.toImmutableSortedMap(Ordering.natural(), keyFunction, valueFunction);
++  }
++
+   /**
+    * Returns a {@link Collector} that accumulates elements into an {@code ImmutableSortedMap} whose
+    * keys and values are the result of applying the provided mapping functions to the input
+@@ -84,14 +103,33 @@ public final class ImmutableSortedMap<K, V> extends ImmutableMap<K, V>
+     return CollectCollectors.toImmutableSortedMap(comparator, keyFunction, valueFunction);
+   }
+ 
++  /**
++   * Returns a {@link Collector} that accumulates elements into an {@code ImmutableSortedMap} whose
++   * keys and values are the result of applying the provided mapping functions to the input
++   * elements.
++   *
++   * <p>If the mapped keys contain duplicates, the values are merged using the specified merging
++   * function.
++   *
++   * @since NEXT
++   */
++  @IgnoreJRERequirement // Users will use this only if they're already using streams.
++  public static <T extends @Nullable Object, K extends Comparable<? super K>, V>
++      Collector<T, ?, ImmutableSortedMap<K, V>> toImmutableSortedMap(
++          Function<? super T, ? extends K> keyFunction,
++          Function<? super T, ? extends V> valueFunction,
++          BinaryOperator<V> mergeFunction) {
++    return CollectCollectors.toImmutableSortedMap(
++        Ordering.natural(), keyFunction, valueFunction, mergeFunction);
++  }
++
+   /**
+    * Returns a {@link Collector} that accumulates elements into an {@code ImmutableSortedMap} whose
+    * keys and values are the result of applying the provided mapping functions to the input
+    * elements.
+    *
+    * <p>If the mapped keys contain duplicates (according to the comparator), the values are merged
+-   * using the specified merging function. Entries will appear in the encounter order of the first
+-   * occurrence of the key.
++   * using the specified merging function.
+    *
+    * @since 33.2.0 (available since 21.0 in guava-jre)
+    */
+diff --git a/android/guava/src/com/google/common/util/concurrent/MoreExecutors.java b/android/guava/src/com/google/common/util/concurrent/MoreExecutors.java
+index 7cc11f78b37c..3e05328f0e54 100644
+--- a/android/guava/src/com/google/common/util/concurrent/MoreExecutors.java
++++ b/android/guava/src/com/google/common/util/concurrent/MoreExecutors.java
+@@ -529,7 +529,7 @@ public final List<Runnable> shutdownNow() {
+     }
+ 
+     /*
+-     * TODO: user - In addition to overriding `execute`, also
++     * TODO: https://github.com/google/guava/issues/2143 - In addition to overriding `execute`, also
+      * override the `Future`-returning methods of `ExecutorService` to propagate cancellation from
+      * our `TrustedListenableFutureTask` to a `Future` returned by the delegate executor?
+      */
+diff --git a/guava-gwt/src-super/com/google/common/collect/super/com/google/common/collect/ImmutableSortedMap.java b/guava-gwt/src-super/com/google/common/collect/super/com/google/common/collect/ImmutableSortedMap.java
+index 069c12fac86b..9c6786733c73 100644
+--- a/guava-gwt/src-super/com/google/common/collect/super/com/google/common/collect/ImmutableSortedMap.java
++++ b/guava-gwt/src-super/com/google/common/collect/super/com/google/common/collect/ImmutableSortedMap.java
+@@ -27,11 +27,9 @@
+ import java.util.Iterator;
+ import java.util.Map;
+ import java.util.SortedMap;
+-import java.util.TreeMap;
+ import java.util.function.BinaryOperator;
+ import java.util.function.Function;
+ import java.util.stream.Collector;
+-import java.util.stream.Collectors;
+ import org.jspecify.annotations.Nullable;
+ 
+ /**
+@@ -62,6 +60,13 @@ public final class ImmutableSortedMap<K, V> extends ForwardingImmutableMap<K, V>
+     this.sortedDelegate = delegate;
+   }
+ 
++  public static <T extends @Nullable Object, K extends Comparable<? super K>, V>
++      Collector<T, ?, ImmutableSortedMap<K, V>> toImmutableSortedMap(
++          Function<? super T, ? extends K> keyFunction,
++          Function<? super T, ? extends V> valueFunction) {
++    return CollectCollectors.toImmutableSortedMap(Ordering.natural(), keyFunction, valueFunction);
++  }
++
+   public static <T extends @Nullable Object, K, V>
+       Collector<T, ?, ImmutableSortedMap<K, V>> toImmutableSortedMap(
+           Comparator<? super K> comparator,
+@@ -70,20 +75,23 @@ public final class ImmutableSortedMap<K, V> extends ForwardingImmutableMap<K, V>
+     return CollectCollectors.toImmutableSortedMap(comparator, keyFunction, valueFunction);
+   }
+ 
++  public static <T extends @Nullable Object, K extends Comparable<? super K>, V>
++      Collector<T, ?, ImmutableSortedMap<K, V>> toImmutableSortedMap(
++          Function<? super T, ? extends K> keyFunction,
++          Function<? super T, ? extends V> valueFunction,
++          BinaryOperator<V> mergeFunction) {
++    return CollectCollectors.toImmutableSortedMap(
++        Ordering.natural(), keyFunction, valueFunction, mergeFunction);
++  }
++
+   public static <T extends @Nullable Object, K, V>
+       Collector<T, ?, ImmutableSortedMap<K, V>> toImmutableSortedMap(
+           Comparator<? super K> comparator,
+           Function<? super T, ? extends K> keyFunction,
+           Function<? super T, ? extends V> valueFunction,
+           BinaryOperator<V> mergeFunction) {
+-    checkNotNull(comparator);
+-    checkNotNull(keyFunction);
+-    checkNotNull(valueFunction);
+-    checkNotNull(mergeFunction);
+-    return Collectors.collectingAndThen(
+-        Collectors.toMap(
+-            keyFunction, valueFunction, mergeFunction, () -> new TreeMap<K, V>(comparator)),
+-        ImmutableSortedMap::copyOfSorted);
++    return CollectCollectors.toImmutableSortedMap(
++        comparator, keyFunction, valueFunction, mergeFunction);
+   }
+ 
+   // unsafe, comparator() returns a comparator on the specified type
+diff --git a/guava/src/com/google/common/base/Preconditions.java b/guava/src/com/google/common/base/Preconditions.java
+index bf09fa93db54..00c7caeacbfa 100644
+--- a/guava/src/com/google/common/base/Preconditions.java
++++ b/guava/src/com/google/common/base/Preconditions.java
+@@ -458,7 +458,7 @@ public static void checkArgument(
+    */
+   public static void checkArgument(
+       boolean expression,
+-      // TODO: user - Make errorMessageTemplate consistently @Nullable across overloads.
++      // TODO: cl/604933487 - Make errorMessageTemplate consistently @Nullable across overloads.
+       @Nullable String errorMessageTemplate,
+       @Nullable Object p1,
+       @Nullable Object p2) {
+diff --git a/guava/src/com/google/common/collect/ImmutableSortedMap.java b/guava/src/com/google/common/collect/ImmutableSortedMap.java
+index ebe1dec39a5f..ea0bc22841a8 100644
+--- a/guava/src/com/google/common/collect/ImmutableSortedMap.java
++++ b/guava/src/com/google/common/collect/ImmutableSortedMap.java
+@@ -65,6 +65,24 @@
+ @GwtCompatible
+ public final class ImmutableSortedMap<K, V> extends ImmutableMap<K, V>
+     implements NavigableMap<K, V> {
++  /**
++   * Returns a {@link Collector} that accumulates elements into an {@code ImmutableSortedMap} whose
++   * keys and values are the result of applying the provided mapping functions to the input
++   * elements. The generated map is sorted by the natural ordering of the keys.
++   *
++   * <p>If the mapped keys contain duplicates, an {@code IllegalArgumentException} is thrown when
++   * the collection operation is performed. (This differs from the {@code Collector} returned by
++   * {@link Collectors#toMap(Function, Function)}, which throws an {@code IllegalStateException}.)
++   *
++   * @since NEXT
++   */
++  public static <T extends @Nullable Object, K extends Comparable<? super K>, V>
++      Collector<T, ?, ImmutableSortedMap<K, V>> toImmutableSortedMap(
++          Function<? super T, ? extends K> keyFunction,
++          Function<? super T, ? extends V> valueFunction) {
++    return CollectCollectors.toImmutableSortedMap(Ordering.natural(), keyFunction, valueFunction);
++  }
++
+   /**
+    * Returns a {@link Collector} that accumulates elements into an {@code ImmutableSortedMap} whose
+    * keys and values are the result of applying the provided mapping functions to the input
+@@ -85,14 +103,32 @@ public final class ImmutableSortedMap<K, V> extends ImmutableMap<K, V>
+     return CollectCollectors.toImmutableSortedMap(comparator, keyFunction, valueFunction);
+   }
+ 
++  /**
++   * Returns a {@link Collector} that accumulates elements into an {@code ImmutableSortedMap} whose
++   * keys and values are the result of applying the provided mapping functions to the input
++   * elements.
++   *
++   * <p>If the mapped keys contain duplicates, the values are merged using the specified merging
++   * function.
++   *
++   * @since NEXT
++   */
++  public static <T extends @Nullable Object, K extends Comparable<? super K>, V>
++      Collector<T, ?, ImmutableSortedMap<K, V>> toImmutableSortedMap(
++          Function<? super T, ? extends K> keyFunction,
++          Function<? super T, ? extends V> valueFunction,
++          BinaryOperator<V> mergeFunction) {
++    return CollectCollectors.toImmutableSortedMap(
++        Ordering.natural(), keyFunction, valueFunction, mergeFunction);
++  }
++
+   /**
+    * Returns a {@link Collector} that accumulates elements into an {@code ImmutableSortedMap} whose
+    * keys and values are the result of applying the provided mapping functions to the input
+    * elements.
+    *
+    * <p>If the mapped keys contain duplicates (according to the comparator), the values are merged
+-   * using the specified merging function. Entries will appear in the encounter order of the first
+-   * occurrence of the key.
++   * using the specified merging function.
+    *
+    * @since 21.0
+    */
+diff --git a/guava/src/com/google/common/util/concurrent/MoreExecutors.java b/guava/src/com/google/common/util/concurrent/MoreExecutors.java
+index de19ad784c19..17ef7ae0b435 100644
+--- a/guava/src/com/google/common/util/concurrent/MoreExecutors.java
++++ b/guava/src/com/google/common/util/concurrent/MoreExecutors.java
+@@ -526,7 +526,7 @@ public final List<Runnable> shutdownNow() {
+     }
+ 
+     /*
+-     * TODO: user - In addition to overriding `execute`, also
++     * TODO: https://github.com/google/guava/issues/2143 - In addition to overriding `execute`, also
+      * override the `Future`-returning methods of `ExecutorService` to propagate cancellation from
+      * our `TrustedListenableFutureTask` to a `Future` returned by the delegate executor?
+      */

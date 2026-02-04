@@ -1,0 +1,1319 @@
+diff --git a/common/src/main/java/io/netty/util/concurrent/AbstractEventExecutor.java b/common/src/main/java/io/netty/util/concurrent/AbstractEventExecutor.java
+index aabcd15b521..aa5dd345259 100644
+--- a/common/src/main/java/io/netty/util/concurrent/AbstractEventExecutor.java
++++ b/common/src/main/java/io/netty/util/concurrent/AbstractEventExecutor.java
+@@ -24,16 +24,16 @@
+ import java.util.Collection;
+ import java.util.Collections;
+ import java.util.Iterator;
+-import java.util.List;
+-import java.util.concurrent.AbstractExecutorService;
++import java.util.Objects;
+ import java.util.concurrent.Callable;
++import java.util.concurrent.RejectedExecutionException;
+ import java.util.concurrent.RunnableFuture;
+ import java.util.concurrent.TimeUnit;
+ 
+ /**
+  * Abstract base class for {@link EventExecutor} implementations.
+  */
+-public abstract class AbstractEventExecutor extends AbstractExecutorService implements EventExecutor {
++public abstract class AbstractEventExecutor implements EventExecutor {
+     private static final InternalLogger logger = InternalLoggerFactory.getInstance(AbstractEventExecutor.class);
+ 
+     static final long DEFAULT_SHUTDOWN_QUIET_PERIOD = 2;
+@@ -72,69 +72,44 @@ public Future<?> shutdownGracefully() {
+         return shutdownGracefully(DEFAULT_SHUTDOWN_QUIET_PERIOD, DEFAULT_SHUTDOWN_TIMEOUT, TimeUnit.SECONDS);
+     }
+ 
+-    /**
+-     * @deprecated {@link #shutdownGracefully(long, long, TimeUnit)} or {@link #shutdownGracefully()} instead.
+-     */
+-    @Override
+-    @Deprecated
+-    public abstract void shutdown();
+-
+-    /**
+-     * @deprecated {@link #shutdownGracefully(long, long, TimeUnit)} or {@link #shutdownGracefully()} instead.
+-     */
+-    @Override
+-    @Deprecated
+-    public List<Runnable> shutdownNow() {
+-        shutdown();
+-        return Collections.emptyList();
+-    }
+-
+     @Override
+-    public Future<?> submit(Runnable task) {
+-        return (Future<?>) super.submit(task);
++    public final Future<?> submit(Runnable task) {
++        Objects.requireNonNull(task, "task");
++        RunnableFuture<Void> ftask = newTaskFor(task, null);
++        execute(ftask);
++        return (Future<?>) ftask;
+     }
+ 
+     @Override
+-    public <T> Future<T> submit(Runnable task, T result) {
+-        return (Future<T>) super.submit(task, result);
++    @SuppressWarnings("unchecked")
++    public final <T> Future<T> submit(Runnable task, T result) {
++        Objects.requireNonNull(task, "task");
++        RunnableFuture<T> ftask = newTaskFor(task, result);
++        execute(ftask);
++        return (Future<T>) ftask;
+     }
+ 
++    /**
++     * @throws RejectedExecutionException {@inheritDoc}
++     * @throws NullPointerException       {@inheritDoc}
++     */
+     @Override
+-    public <T> Future<T> submit(Callable<T> task) {
+-        return (Future<T>) super.submit(task);
++    @SuppressWarnings("unchecked")
++    public final <T> Future<T> submit(Callable<T> task) {
++        Objects.requireNonNull(task, "task");
++        RunnableFuture<T> ftask = newTaskFor(task);
++        execute(ftask);
++        return (Future<T>) ftask;
+     }
+ 
+-    @Override
+     protected final <T> RunnableFuture<T> newTaskFor(Runnable runnable, T value) {
+         return new PromiseTask<T>(this, runnable, value);
+     }
+ 
+-    @Override
+     protected final <T> RunnableFuture<T> newTaskFor(Callable<T> callable) {
+         return new PromiseTask<T>(this, callable);
+     }
+ 
+-    @Override
+-    public ScheduledFuture<?> schedule(Runnable command, long delay,
+-                                       TimeUnit unit) {
+-        throw new UnsupportedOperationException();
+-    }
+-
+-    @Override
+-    public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
+-        throw new UnsupportedOperationException();
+-    }
+-
+-    @Override
+-    public ScheduledFuture<?> scheduleAtFixedRate(Runnable command, long initialDelay, long period, TimeUnit unit) {
+-        throw new UnsupportedOperationException();
+-    }
+-
+-    @Override
+-    public ScheduledFuture<?> scheduleWithFixedDelay(Runnable command, long initialDelay, long delay, TimeUnit unit) {
+-        throw new UnsupportedOperationException();
+-    }
+-
+     @SuppressWarnings("unchecked")
+     @Override
+     public <V> Future<V> newSucceededFuture(V result) {
+@@ -144,6 +119,10 @@ public <V> Future<V> newSucceededFuture(V result) {
+         return EventExecutor.super.newSucceededFuture(result);
+     }
+ 
++    protected final <T> ScheduledFuture<T> newFailedScheduledFuture(Throwable cause) {
++        return new FailedScheduledFuture<>(this, cause);
++    }
++
+     /**
+      * Try to execute the given {@link Runnable} and just log if it throws a {@link Throwable}.
+      */
+diff --git a/common/src/main/java/io/netty/util/concurrent/AbstractEventExecutorGroup.java b/common/src/main/java/io/netty/util/concurrent/AbstractEventExecutorGroup.java
+index abcfb7087f4..024166da644 100644
+--- a/common/src/main/java/io/netty/util/concurrent/AbstractEventExecutorGroup.java
++++ b/common/src/main/java/io/netty/util/concurrent/AbstractEventExecutorGroup.java
+@@ -70,46 +70,6 @@ public Future<?> shutdownGracefully() {
+         return shutdownGracefully(DEFAULT_SHUTDOWN_QUIET_PERIOD, DEFAULT_SHUTDOWN_TIMEOUT, TimeUnit.SECONDS);
+     }
+ 
+-    /**
+-     * @deprecated {@link #shutdownGracefully(long, long, TimeUnit)} or {@link #shutdownGracefully()} instead.
+-     */
+-    @Override
+-    @Deprecated
+-    public abstract void shutdown();
+-
+-    /**
+-     * @deprecated {@link #shutdownGracefully(long, long, TimeUnit)} or {@link #shutdownGracefully()} instead.
+-     */
+-    @Override
+-    @Deprecated
+-    public List<Runnable> shutdownNow() {
+-        shutdown();
+-        return Collections.emptyList();
+-    }
+-
+-    @Override
+-    public <T> List<java.util.concurrent.Future<T>> invokeAll(Collection<? extends Callable<T>> tasks)
+-            throws InterruptedException {
+-        return next().invokeAll(tasks);
+-    }
+-
+-    @Override
+-    public <T> List<java.util.concurrent.Future<T>> invokeAll(
+-            Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) throws InterruptedException {
+-        return next().invokeAll(tasks, timeout, unit);
+-    }
+-
+-    @Override
+-    public <T> T invokeAny(Collection<? extends Callable<T>> tasks) throws InterruptedException, ExecutionException {
+-        return next().invokeAny(tasks);
+-    }
+-
+-    @Override
+-    public <T> T invokeAny(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit)
+-            throws InterruptedException, ExecutionException, TimeoutException {
+-        return next().invokeAny(tasks, timeout, unit);
+-    }
+-
+     @Override
+     public void execute(Runnable command) {
+         next().execute(command);
+diff --git a/common/src/main/java/io/netty/util/concurrent/EventExecutorGroup.java b/common/src/main/java/io/netty/util/concurrent/EventExecutorGroup.java
+index 421e70b5794..842f73739a3 100644
+--- a/common/src/main/java/io/netty/util/concurrent/EventExecutorGroup.java
++++ b/common/src/main/java/io/netty/util/concurrent/EventExecutorGroup.java
+@@ -16,9 +16,11 @@
+ package io.netty.util.concurrent;
+ 
+ import java.util.Iterator;
+-import java.util.List;
+ import java.util.concurrent.Callable;
+-import java.util.concurrent.ScheduledExecutorService;
++import java.util.concurrent.ExecutionException;
++import java.util.concurrent.Executor;
++import java.util.concurrent.Executors;
++import java.util.concurrent.RejectedExecutionException;
+ import java.util.concurrent.TimeUnit;
+ 
+ /**
+@@ -27,7 +29,202 @@
+  * life-cycle and allows shutting them down in a global fashion.
+  *
+  */
+-public interface EventExecutorGroup extends ScheduledExecutorService, Iterable<EventExecutor> {
++public interface EventExecutorGroup extends Executor, Iterable<EventExecutor> {
++
++    /**
++     * Submits a one-shot task that becomes enabled after the given delay.
++     *
++     * @param command the task to execute
++     * @param delay the time from now to delay execution
++     * @param unit the time unit of the delay parameter
++     * @return a ScheduledFuture representing pending completion of
++     *         the task and whose {@code get()} method will return
++     *         {@code null} upon completion
++     * @throws RejectedExecutionException if the task cannot be
++     *         scheduled for execution
++     * @throws NullPointerException if command or unit is null
++     */
++    ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit);
++
++    /**
++     * Submits a value-returning one-shot task that becomes enabled
++     * after the given delay.
++     *
++     * @param callable the function to execute
++     * @param delay the time from now to delay execution
++     * @param unit the time unit of the delay parameter
++     * @param <V> the type of the callable's result
++     * @return a ScheduledFuture that can be used to extract result or cancel
++     * @throws RejectedExecutionException if the task cannot be
++     *         scheduled for execution
++     * @throws NullPointerException if callable or unit is null
++     */
++     <V> ScheduledFuture<V> schedule(Callable<V> callable,
++                                     long delay, TimeUnit unit);
++
++    /**
++     * Submits a periodic action that becomes enabled first after the
++     * given initial delay, and subsequently with the given period;
++     * that is, executions will commence after
++     * {@code initialDelay}, then {@code initialDelay + period}, then
++     * {@code initialDelay + 2 * period}, and so on.
++     *
++     * <p>The sequence of task executions continues indefinitely until
++     * one of the following exceptional completions occur:
++     * <ul>
++     * <li>The task is {@linkplain java.util.concurrent.Future#cancel explicitly cancelled}
++     * via the returned future.
++     * <li>The executor terminates, also resulting in task cancellation.
++     * <li>An execution of the task throws an exception.  In this case
++     * calling {@link java.util.concurrent.Future#get() get} on the returned future will throw
++     * {@link ExecutionException}, holding the exception as its cause.
++     * </ul>
++     * Subsequent executions are suppressed.  Subsequent calls to
++     * {@link java.util.concurrent.Future#isDone isDone()} on the returned future will
++     * return {@code true}.
++     *
++     * <p>If any execution of this task takes longer than its period, then
++     * subsequent executions may start late, but will not concurrently
++     * execute.
++     *
++     * @param command the task to execute
++     * @param initialDelay the time to delay first execution
++     * @param period the period between successive executions
++     * @param unit the time unit of the initialDelay and period parameters
++     * @return a ScheduledFuture representing pending completion of
++     *         the series of repeated tasks.  The future's {@link
++     *         java.util.concurrent.Future#get() get()} method will never return normally,
++     *         and will throw an exception upon task cancellation or
++     *         abnormal termination of a task execution.
++     * @throws RejectedExecutionException if the task cannot be
++     *         scheduled for execution
++     * @throws NullPointerException if command or unit is null
++     * @throws IllegalArgumentException if period less than or equal to zero
++     */
++    ScheduledFuture<?> scheduleAtFixedRate(Runnable command, long initialDelay,
++                                           long period, TimeUnit unit);
++
++    /**
++     * Submits a periodic action that becomes enabled first after the
++     * given initial delay, and subsequently with the given delay
++     * between the termination of one execution and the commencement of
++     * the next.
++     *
++     * <p>The sequence of task executions continues indefinitely until
++     * one of the following exceptional completions occur:
++     * <ul>
++     * <li>The task is {@linkplain java.util.concurrent.Future#cancel explicitly cancelled}
++     * via the returned future.
++     * <li>The executor terminates, also resulting in task cancellation.
++     * <li>An execution of the task throws an exception.  In this case
++     * calling {@link java.util.concurrent.Future#get() get} on the returned future will throw
++     * {@link ExecutionException}, holding the exception as its cause.
++     * </ul>
++     * Subsequent executions are suppressed.  Subsequent calls to
++     * {@link java.util.concurrent.Future#isDone isDone()} on the returned future will
++     * return {@code true}.
++     *
++     * @param command the task to execute
++     * @param initialDelay the time to delay first execution
++     * @param delay the delay between the termination of one
++     * execution and the commencement of the next
++     * @param unit the time unit of the initialDelay and delay parameters
++     * @return a ScheduledFuture representing pending completion of
++     *         the series of repeated tasks.  The future's {@link
++     *         java.util.concurrent.Future#get() get()} method will never return normally,
++     *         and will throw an exception upon task cancellation or
++     *         abnormal termination of a task execution.
++     * @throws RejectedExecutionException if the task cannot be
++     *         scheduled for execution
++     * @throws NullPointerException if command or unit is null
++     * @throws IllegalArgumentException if delay less than or equal to zero
++     */
++    ScheduledFuture<?> scheduleWithFixedDelay(Runnable command,
++                                              long initialDelay,
++                                              long delay,
++                                              TimeUnit unit);
++
++    /**
++     * Returns {@code true} if this executor has been shut down.
++     *
++     * @return {@code true} if this executor has been shut down
++     */
++    boolean isShutdown();
++
++    /**
++     * Returns {@code true} if all tasks have completed following shut down.
++     * Note that {@code isTerminated} is never {@code true} unless
++     * either {@code shutdown} or {@code shutdownNow} was called first.
++     *
++     * @return {@code true} if all tasks have completed following shut down
++     */
++    boolean isTerminated();
++
++    /**
++     * Blocks until all tasks have completed execution after a shutdown
++     * request, or the timeout occurs, or the current thread is
++     * interrupted, whichever happens first.
++     *
++     * @param timeout the maximum time to wait
++     * @param unit the time unit of the timeout argument
++     * @return {@code true} if this executor terminated and
++     *         {@code false} if the timeout elapsed before termination
++     * @throws InterruptedException if interrupted while waiting
++     */
++    boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException;
++
++    /**
++     * Submits a value-returning task for execution and returns a
++     * Future representing the pending results of the task. The
++     * Future's {@code get} method will return the task's result upon
++     * successful completion.
++     *
++     * <p>
++     * If you would like to immediately block waiting
++     * for a task, you can use constructions of the form
++     * {@code result = exec.submit(aCallable).get();}
++     *
++     * <p>Note: The {@link Executors} class includes a set of methods
++     * that can convert some other common closure-like objects,
++     * for example, {@link java.security.PrivilegedAction} to
++     * {@link Callable} form so they can be submitted.
++     *
++     * @param task the task to submit
++     * @param <T> the type of the task's result
++     * @return a Future representing pending completion of the task
++     * @throws RejectedExecutionException if the task cannot be
++     *         scheduled for execution
++     * @throws NullPointerException if the task is null
++     */
++    <T> Future<T> submit(Callable<T> task);
++
++    /**
++     * Submits a Runnable task for execution and returns a Future
++     * representing that task. The Future's {@code get} method will
++     * return the given result upon successful completion.
++     *
++     * @param task the task to submit
++     * @param result the result to return
++     * @param <T> the type of the result
++     * @return a Future representing pending completion of the task
++     * @throws RejectedExecutionException if the task cannot be
++     *         scheduled for execution
++     * @throws NullPointerException if the task is null
++     */
++    <T> Future<T> submit(Runnable task, T result);
++
++    /**
++     * Submits a Runnable task for execution and returns a Future
++     * representing that task. The Future's {@code get} method will
++     * return {@code null} upon <em>successful</em> completion.
++     *
++     * @param task the task to submit
++     * @return a Future representing pending completion of the task
++     * @throws RejectedExecutionException if the task cannot be
++     *         scheduled for execution
++     * @throws NullPointerException if the task is null
++     */
++    Future<?> submit(Runnable task);
+ 
+     /**
+      * Returns {@code true} if and only if all {@link EventExecutor}s managed by this {@link EventExecutorGroup}
+@@ -45,12 +242,11 @@ public interface EventExecutorGroup extends ScheduledExecutorService, Iterable<E
+     /**
+      * Signals this executor that the caller wants the executor to be shut down.  Once this method is called,
+      * {@link #isShuttingDown()} starts to return {@code true}, and the executor prepares to shut itself down.
+-     * Unlike {@link #shutdown()}, graceful shutdown ensures that no tasks are submitted for <i>'the quiet period'</i>
+-     * (usually a couple seconds) before it shuts itself down.  If a task is submitted during the quiet period,
++     * If a task is submitted during the quiet period,
+      * it is guaranteed to be accepted and the quiet period will start over.
+      *
+      * @param quietPeriod the quiet period as described in the documentation
+-     * @param timeout     the maximum amount of time to wait until the executor is {@linkplain #shutdown()}
++     * @param timeout     the maximum amount of time to wait until the executor is shutdown
+      *                    regardless if a task was submitted during the quiet period
+      * @param unit        the unit of {@code quietPeriod} and {@code timeout}
+      *
+@@ -63,21 +259,6 @@ public interface EventExecutorGroup extends ScheduledExecutorService, Iterable<E
+      * {@link EventExecutorGroup} have been terminated.
+      */
+     Future<?> terminationFuture();
+-
+-    /**
+-     * @deprecated {@link #shutdownGracefully(long, long, TimeUnit)} or {@link #shutdownGracefully()} instead.
+-     */
+-    @Override
+-    @Deprecated
+-    void shutdown();
+-
+-    /**
+-     * @deprecated {@link #shutdownGracefully(long, long, TimeUnit)} or {@link #shutdownGracefully()} instead.
+-     */
+-    @Override
+-    @Deprecated
+-    List<Runnable> shutdownNow();
+-
+     /**
+      * Returns one of the {@link EventExecutor}s managed by this {@link EventExecutorGroup}.
+      */
+@@ -86,15 +267,6 @@ public interface EventExecutorGroup extends ScheduledExecutorService, Iterable<E
+     @Override
+     Iterator<EventExecutor> iterator();
+ 
+-    @Override
+-    Future<?> submit(Runnable task);
+-
+-    @Override
+-    <T> Future<T> submit(Runnable task, T result);
+-
+-    @Override
+-    <T> Future<T> submit(Callable<T> task);
+-
+     /**
+      * The ticker for this executor. Usually the {@link #schedule} methods will follow the
+      * {@link Ticker#systemTicker() system ticker} (i.e. {@link System#nanoTime()}), but especially for testing it is
+@@ -107,16 +279,4 @@ public interface EventExecutorGroup extends ScheduledExecutorService, Iterable<E
+     default Ticker ticker() {
+         return Ticker.systemTicker();
+     }
+-
+-    @Override
+-    ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit);
+-
+-    @Override
+-    <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit);
+-
+-    @Override
+-    ScheduledFuture<?> scheduleAtFixedRate(Runnable command, long initialDelay, long period, TimeUnit unit);
+-
+-    @Override
+-    ScheduledFuture<?> scheduleWithFixedDelay(Runnable command, long initialDelay, long delay, TimeUnit unit);
+ }
+diff --git a/common/src/main/java/io/netty/util/concurrent/FailedFuture.java b/common/src/main/java/io/netty/util/concurrent/FailedFuture.java
+index 1e6035931d6..fe6584e8a35 100644
+--- a/common/src/main/java/io/netty/util/concurrent/FailedFuture.java
++++ b/common/src/main/java/io/netty/util/concurrent/FailedFuture.java
+@@ -23,7 +23,7 @@
+  * recommended to use {@link EventExecutor#newFailedFuture(Throwable)}
+  * instead of calling the constructor of this future.
+  */
+-public final class FailedFuture<V> extends CompleteFuture<V> {
++public class FailedFuture<V> extends CompleteFuture<V> {
+ 
+     private final Throwable cause;
+ 
+diff --git a/common/src/main/java/io/netty/util/concurrent/FailedScheduledFuture.java b/common/src/main/java/io/netty/util/concurrent/FailedScheduledFuture.java
+new file mode 100644
+index 00000000000..de7df6bad6a
+--- /dev/null
++++ b/common/src/main/java/io/netty/util/concurrent/FailedScheduledFuture.java
+@@ -0,0 +1,38 @@
++/*
++ * Copyright 2026 The Netty Project
++ *
++ * The Netty Project licenses this file to you under the Apache License,
++ * version 2.0 (the "License"); you may not use this file except in compliance
++ * with the License. You may obtain a copy of the License at:
++ *
++ *   https://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
++ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
++ * License for the specific language governing permissions and limitations
++ * under the License.
++ */
++package io.netty.util.concurrent;
++
++import org.jetbrains.annotations.NotNull;
++
++import java.util.concurrent.Delayed;
++import java.util.concurrent.TimeUnit;
++
++final class FailedScheduledFuture<V> extends FailedFuture<V> implements ScheduledFuture<V> {
++
++    FailedScheduledFuture(EventExecutor executor, Throwable cause) {
++        super(executor, cause);
++    }
++
++    @Override
++    public long getDelay(@NotNull TimeUnit unit) {
++        return 0;
++    }
++
++    @Override
++    public int compareTo(@NotNull Delayed o) {
++        return Long.compare(0L, o.getDelay(TimeUnit.NANOSECONDS));
++    }
++}
+diff --git a/common/src/main/java/io/netty/util/concurrent/GlobalEventExecutor.java b/common/src/main/java/io/netty/util/concurrent/GlobalEventExecutor.java
+index fc630dd394c..a684249a5df 100644
+--- a/common/src/main/java/io/netty/util/concurrent/GlobalEventExecutor.java
++++ b/common/src/main/java/io/netty/util/concurrent/GlobalEventExecutor.java
+@@ -178,12 +178,6 @@ public Future<?> terminationFuture() {
+         return terminationFuture;
+     }
+ 
+-    @Override
+-    @Deprecated
+-    public void shutdown() {
+-        throw new UnsupportedOperationException();
+-    }
+-
+     @Override
+     public boolean isShuttingDown() {
+         return false;
+diff --git a/common/src/main/java/io/netty/util/concurrent/ImmediateEventExecutor.java b/common/src/main/java/io/netty/util/concurrent/ImmediateEventExecutor.java
+index c3d0edec1b5..f4c50971255 100644
+--- a/common/src/main/java/io/netty/util/concurrent/ImmediateEventExecutor.java
++++ b/common/src/main/java/io/netty/util/concurrent/ImmediateEventExecutor.java
+@@ -21,6 +21,7 @@
+ 
+ import java.util.ArrayDeque;
+ import java.util.Queue;
++import java.util.concurrent.Callable;
+ import java.util.concurrent.TimeUnit;
+ 
+ /**
+@@ -77,10 +78,6 @@ public Future<?> terminationFuture() {
+         return terminationFuture;
+     }
+ 
+-    @Override
+-    @Deprecated
+-    public void shutdown() { }
+-
+     @Override
+     public boolean isShuttingDown() {
+         return false;
+@@ -127,6 +124,26 @@ public void execute(Runnable command) {
+         }
+     }
+ 
++    @Override
++    public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
++        return newFailedScheduledFuture(new UnsupportedOperationException());
++    }
++
++    @Override
++    public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
++        return newFailedScheduledFuture(new UnsupportedOperationException());
++    }
++
++    @Override
++    public ScheduledFuture<?> scheduleAtFixedRate(Runnable command, long initialDelay, long period, TimeUnit unit) {
++        return newFailedScheduledFuture(new UnsupportedOperationException());
++    }
++
++    @Override
++    public ScheduledFuture<?> scheduleWithFixedDelay(Runnable command, long initialDelay, long delay, TimeUnit unit) {
++        return newFailedScheduledFuture(new UnsupportedOperationException());
++    }
++
+     @Override
+     public <V> Promise<V> newPromise() {
+         return new ImmediatePromise<V>(this);
+diff --git a/common/src/main/java/io/netty/util/concurrent/MultithreadEventExecutorGroup.java b/common/src/main/java/io/netty/util/concurrent/MultithreadEventExecutorGroup.java
+index e5f5becc35a..d751429553f 100644
+--- a/common/src/main/java/io/netty/util/concurrent/MultithreadEventExecutorGroup.java
++++ b/common/src/main/java/io/netty/util/concurrent/MultithreadEventExecutorGroup.java
+@@ -198,14 +198,6 @@ public Future<?> terminationFuture() {
+         return terminationFuture;
+     }
+ 
+-    @Override
+-    @Deprecated
+-    public void shutdown() {
+-        for (EventExecutor l: children) {
+-            l.shutdown();
+-        }
+-    }
+-
+     @Override
+     public boolean isShuttingDown() {
+         for (EventExecutor l: children) {
+diff --git a/common/src/main/java/io/netty/util/concurrent/NonStickyEventExecutorGroup.java b/common/src/main/java/io/netty/util/concurrent/NonStickyEventExecutorGroup.java
+index b316ab621ed..5f76fa05531 100644
+--- a/common/src/main/java/io/netty/util/concurrent/NonStickyEventExecutorGroup.java
++++ b/common/src/main/java/io/netty/util/concurrent/NonStickyEventExecutorGroup.java
+@@ -19,15 +19,11 @@
+ import io.netty.util.internal.PlatformDependent;
+ import io.netty.util.internal.UnstableApi;
+ 
+-import java.util.Collection;
+ import java.util.Iterator;
+-import java.util.List;
+ import java.util.Queue;
+ import java.util.concurrent.Callable;
+-import java.util.concurrent.ExecutionException;
+ import java.util.concurrent.RejectedExecutionException;
+ import java.util.concurrent.TimeUnit;
+-import java.util.concurrent.TimeoutException;
+ import java.util.concurrent.atomic.AtomicInteger;
+ import java.util.concurrent.atomic.AtomicReference;
+ 
+@@ -96,18 +92,6 @@ public Future<?> terminationFuture() {
+         return group.terminationFuture();
+     }
+ 
+-    @SuppressWarnings("deprecation")
+-    @Override
+-    public void shutdown() {
+-        group.shutdown();
+-    }
+-
+-    @SuppressWarnings("deprecation")
+-    @Override
+-    public List<Runnable> shutdownNow() {
+-        return group.shutdownNow();
+-    }
+-
+     @Override
+     public EventExecutor next() {
+         return newExecutor(group.next());
+@@ -184,29 +168,6 @@ public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedE
+         return group.awaitTermination(timeout, unit);
+     }
+ 
+-    @Override
+-    public <T> List<java.util.concurrent.Future<T>> invokeAll(
+-            Collection<? extends Callable<T>> tasks) throws InterruptedException {
+-        return group.invokeAll(tasks);
+-    }
+-
+-    @Override
+-    public <T> List<java.util.concurrent.Future<T>> invokeAll(
+-            Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) throws InterruptedException {
+-        return group.invokeAll(tasks, timeout, unit);
+-    }
+-
+-    @Override
+-    public <T> T invokeAny(Collection<? extends Callable<T>> tasks) throws InterruptedException, ExecutionException {
+-        return group.invokeAny(tasks);
+-    }
+-
+-    @Override
+-    public <T> T invokeAny(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit)
+-            throws InterruptedException, ExecutionException, TimeoutException {
+-        return group.invokeAny(tasks, timeout, unit);
+-    }
+-
+     @Override
+     public void execute(Runnable command) {
+         group.execute(command);
+@@ -313,11 +274,6 @@ public Future<?> terminationFuture() {
+             return executor.terminationFuture();
+         }
+ 
+-        @Override
+-        public void shutdown() {
+-            executor.shutdown();
+-        }
+-
+         @Override
+         public boolean isShutdown() {
+             return executor.isShutdown();
+@@ -344,5 +300,26 @@ public void execute(Runnable command) {
+                 executor.execute(this);
+             }
+         }
++
++        @Override
++        public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
++            return newFailedScheduledFuture(new UnsupportedOperationException());
++        }
++
++        @Override
++        public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
++            return newFailedScheduledFuture(new UnsupportedOperationException());
++        }
++
++        @Override
++        public ScheduledFuture<?> scheduleAtFixedRate(Runnable command, long initialDelay, long period, TimeUnit unit) {
++            return newFailedScheduledFuture(new UnsupportedOperationException());
++        }
++
++        @Override
++        public ScheduledFuture<?> scheduleWithFixedDelay(
++                Runnable command, long initialDelay, long delay, TimeUnit unit) {
++            return newFailedScheduledFuture(new UnsupportedOperationException());
++        }
+     }
+ }
+diff --git a/common/src/main/java/io/netty/util/concurrent/SingleThreadEventExecutor.java b/common/src/main/java/io/netty/util/concurrent/SingleThreadEventExecutor.java
+index b568d17690c..14fec47acac 100644
+--- a/common/src/main/java/io/netty/util/concurrent/SingleThreadEventExecutor.java
++++ b/common/src/main/java/io/netty/util/concurrent/SingleThreadEventExecutor.java
+@@ -25,24 +25,18 @@
+ 
+ import java.lang.Thread.State;
+ import java.util.ArrayList;
+-import java.util.Collection;
+ import java.util.LinkedHashSet;
+ import java.util.List;
+ import java.util.Queue;
+ import java.util.Set;
+ import java.util.concurrent.BlockingQueue;
+-import java.util.concurrent.Callable;
+ import java.util.concurrent.CountDownLatch;
+-import java.util.concurrent.ExecutionException;
+ import java.util.concurrent.Executor;
+ import java.util.concurrent.LinkedBlockingQueue;
+ import java.util.concurrent.RejectedExecutionException;
+ import java.util.concurrent.ThreadFactory;
+ import java.util.concurrent.TimeUnit;
+-import java.util.concurrent.TimeoutException;
+-import java.util.concurrent.atomic.AtomicInteger;
+ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+-import java.util.concurrent.atomic.AtomicLong;
+ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+ import java.util.concurrent.locks.Lock;
+@@ -841,12 +835,6 @@ public Future<?> terminationFuture() {
+         return terminationFuture;
+     }
+ 
+-    @Override
+-    @Deprecated
+-    public void shutdown() {
+-        shutdown0(-1, -1, ST_SHUTDOWN);
+-    }
+-
+     @Override
+     public boolean isShuttingDown() {
+         return state >= ST_SHUTTING_DOWN;
+@@ -1049,39 +1037,6 @@ private void execute(Runnable task, boolean immediate) {
+         }
+     }
+ 
+-    @Override
+-    public <T> T invokeAny(Collection<? extends Callable<T>> tasks) throws InterruptedException, ExecutionException {
+-        throwIfInEventLoop("invokeAny");
+-        return super.invokeAny(tasks);
+-    }
+-
+-    @Override
+-    public <T> T invokeAny(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit)
+-            throws InterruptedException, ExecutionException, TimeoutException {
+-        throwIfInEventLoop("invokeAny");
+-        return super.invokeAny(tasks, timeout, unit);
+-    }
+-
+-    @Override
+-    public <T> List<java.util.concurrent.Future<T>> invokeAll(Collection<? extends Callable<T>> tasks)
+-            throws InterruptedException {
+-        throwIfInEventLoop("invokeAll");
+-        return super.invokeAll(tasks);
+-    }
+-
+-    @Override
+-    public <T> List<java.util.concurrent.Future<T>> invokeAll(
+-            Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) throws InterruptedException {
+-        throwIfInEventLoop("invokeAll");
+-        return super.invokeAll(tasks, timeout, unit);
+-    }
+-
+-    private void throwIfInEventLoop(String method) {
+-        if (inEventLoop()) {
+-            throw new RejectedExecutionException("Calling " + method + " from within the EventLoop is not allowed");
+-        }
+-    }
+-
+     /**
+      * Returns the {@link ThreadProperties} of the {@link Thread} that powers the {@link SingleThreadEventExecutor}.
+      * If the {@link SingleThreadEventExecutor} is not started yet, this operation will start it and block until
+diff --git a/handler/src/main/java/io/netty/handler/traffic/GlobalChannelTrafficCounter.java b/handler/src/main/java/io/netty/handler/traffic/GlobalChannelTrafficCounter.java
+index aa0ec578087..60a73cfe73c 100644
+--- a/handler/src/main/java/io/netty/handler/traffic/GlobalChannelTrafficCounter.java
++++ b/handler/src/main/java/io/netty/handler/traffic/GlobalChannelTrafficCounter.java
+@@ -18,6 +18,7 @@
+ import static io.netty.util.internal.ObjectUtil.checkNotNullWithIAE;
+ 
+ import io.netty.handler.traffic.GlobalChannelTrafficShapingHandler.PerChannel;
++import io.netty.util.concurrent.EventExecutor;
+ 
+ import java.util.concurrent.ScheduledExecutorService;
+ import java.util.concurrent.TimeUnit;
+@@ -36,7 +37,7 @@ public class GlobalChannelTrafficCounter extends TrafficCounter {
+      * @param checkInterval the checkInterval in millisecond between two computations.
+      */
+     public GlobalChannelTrafficCounter(GlobalChannelTrafficShapingHandler trafficShapingHandler,
+-            ScheduledExecutorService executor, String name, long checkInterval) {
++                                       EventExecutor executor, String name, long checkInterval) {
+         super(trafficShapingHandler, executor, name, checkInterval);
+         checkNotNullWithIAE(executor, "executor");
+     }
+diff --git a/handler/src/main/java/io/netty/handler/traffic/GlobalChannelTrafficShapingHandler.java b/handler/src/main/java/io/netty/handler/traffic/GlobalChannelTrafficShapingHandler.java
+index b981cf13ce0..93196030826 100644
+--- a/handler/src/main/java/io/netty/handler/traffic/GlobalChannelTrafficShapingHandler.java
++++ b/handler/src/main/java/io/netty/handler/traffic/GlobalChannelTrafficShapingHandler.java
+@@ -35,7 +35,6 @@
+ import java.util.Iterator;
+ import java.util.concurrent.ConcurrentHashMap;
+ import java.util.concurrent.ConcurrentMap;
+-import java.util.concurrent.ScheduledExecutorService;
+ import java.util.concurrent.TimeUnit;
+ import java.util.concurrent.atomic.AtomicLong;
+ 
+@@ -146,7 +145,7 @@ static final class PerChannel {
+     /**
+      * Create the global TrafficCounter
+      */
+-    void createGlobalTrafficCounter(ScheduledExecutorService executor) {
++    void createGlobalTrafficCounter(EventExecutor executor) {
+         // Default
+         setMaxDeviation(DEFAULT_DEVIATION, DEFAULT_SLOWDOWN, DEFAULT_ACCELERATION);
+         checkNotNullWithIAE(executor, "executor");
+@@ -164,7 +163,7 @@ protected int userDefinedWritabilityIndex() {
+      * Create a new instance.
+      *
+      * @param executor
+-     *            the {@link ScheduledExecutorService} to use for the {@link TrafficCounter}.
++     *            the {@link EventExecutor} to use for the {@link TrafficCounter}.
+      * @param writeGlobalLimit
+      *            0 or a limit in bytes/s
+      * @param readGlobalLimit
+@@ -179,7 +178,7 @@ protected int userDefinedWritabilityIndex() {
+      * @param maxTime
+      *            The maximum delay to wait in case of traffic excess.
+      */
+-    public GlobalChannelTrafficShapingHandler(ScheduledExecutorService executor,
++    public GlobalChannelTrafficShapingHandler(EventExecutor executor,
+             long writeGlobalLimit, long readGlobalLimit,
+             long writeChannelLimit, long readChannelLimit,
+             long checkInterval, long maxTime) {
+@@ -193,7 +192,7 @@ public GlobalChannelTrafficShapingHandler(ScheduledExecutorService executor,
+      * Create a new instance.
+      *
+      * @param executor
+-     *          the {@link ScheduledExecutorService} to use for the {@link TrafficCounter}.
++     *          the {@link EventExecutor} to use for the {@link TrafficCounter}.
+      * @param writeGlobalLimit
+      *            0 or a limit in bytes/s
+      * @param readGlobalLimit
+@@ -206,7 +205,7 @@ public GlobalChannelTrafficShapingHandler(ScheduledExecutorService executor,
+      *          The delay between two computations of performances for
+      *            channels or 0 if no stats are to be computed.
+      */
+-    public GlobalChannelTrafficShapingHandler(ScheduledExecutorService executor,
++    public GlobalChannelTrafficShapingHandler(EventExecutor executor,
+             long writeGlobalLimit, long readGlobalLimit,
+             long writeChannelLimit, long readChannelLimit,
+             long checkInterval) {
+@@ -220,7 +219,7 @@ public GlobalChannelTrafficShapingHandler(ScheduledExecutorService executor,
+      * Create a new instance.
+      *
+      * @param executor
+-     *          the {@link ScheduledExecutorService} to use for the {@link TrafficCounter}.
++     *          the {@link EventExecutor} to use for the {@link TrafficCounter}.
+      * @param writeGlobalLimit
+      *            0 or a limit in bytes/s
+      * @param readGlobalLimit
+@@ -230,7 +229,7 @@ public GlobalChannelTrafficShapingHandler(ScheduledExecutorService executor,
+      * @param readChannelLimit
+      *            0 or a limit in bytes/s
+      */
+-    public GlobalChannelTrafficShapingHandler(ScheduledExecutorService executor,
++    public GlobalChannelTrafficShapingHandler(EventExecutor executor,
+             long writeGlobalLimit, long readGlobalLimit,
+             long writeChannelLimit, long readChannelLimit) {
+         super(writeGlobalLimit, readGlobalLimit);
+@@ -243,12 +242,12 @@ public GlobalChannelTrafficShapingHandler(ScheduledExecutorService executor,
+      * Create a new instance.
+      *
+      * @param executor
+-     *          the {@link ScheduledExecutorService} to use for the {@link TrafficCounter}.
++     *          the {@link EventExecutor} to use for the {@link TrafficCounter}.
+      * @param checkInterval
+      *          The delay between two computations of performances for
+      *            channels or 0 if no stats are to be computed.
+      */
+-    public GlobalChannelTrafficShapingHandler(ScheduledExecutorService executor, long checkInterval) {
++    public GlobalChannelTrafficShapingHandler(EventExecutor executor, long checkInterval) {
+         super(checkInterval);
+         createGlobalTrafficCounter(executor);
+     }
+@@ -257,9 +256,9 @@ public GlobalChannelTrafficShapingHandler(ScheduledExecutorService executor, lon
+      * Create a new instance.
+      *
+      * @param executor
+-     *          the {@link ScheduledExecutorService} to use for the {@link TrafficCounter}.
++     *          the {@link EventExecutor} to use for the {@link TrafficCounter}.
+      */
+-    public GlobalChannelTrafficShapingHandler(ScheduledExecutorService executor) {
++    public GlobalChannelTrafficShapingHandler(EventExecutor executor) {
+         createGlobalTrafficCounter(executor);
+     }
+ 
+diff --git a/handler/src/main/java/io/netty/handler/traffic/GlobalTrafficShapingHandler.java b/handler/src/main/java/io/netty/handler/traffic/GlobalTrafficShapingHandler.java
+index da9f3978e8e..ea8af6e429a 100644
+--- a/handler/src/main/java/io/netty/handler/traffic/GlobalTrafficShapingHandler.java
++++ b/handler/src/main/java/io/netty/handler/traffic/GlobalTrafficShapingHandler.java
+@@ -101,7 +101,7 @@ private static final class PerChannel {
+     /**
+      * Create the global TrafficCounter.
+      */
+-    void createGlobalTrafficCounter(ScheduledExecutorService executor) {
++    void createGlobalTrafficCounter(EventExecutor executor) {
+         TrafficCounter tc = new TrafficCounter(this,
+                 ObjectUtil.checkNotNull(executor, "executor"),
+                 "GlobalTC",
+@@ -120,7 +120,7 @@ protected int userDefinedWritabilityIndex() {
+      * Create a new instance.
+      *
+      * @param executor
+-     *            the {@link ScheduledExecutorService} to use for the {@link TrafficCounter}.
++     *            the {@link EventExecutor} to use for the {@link TrafficCounter}.
+      * @param writeLimit
+      *            0 or a limit in bytes/s
+      * @param readLimit
+@@ -131,7 +131,7 @@ protected int userDefinedWritabilityIndex() {
+      * @param maxTime
+      *            The maximum delay to wait in case of traffic excess.
+      */
+-    public GlobalTrafficShapingHandler(ScheduledExecutorService executor, long writeLimit, long readLimit,
++    public GlobalTrafficShapingHandler(EventExecutor executor, long writeLimit, long readLimit,
+             long checkInterval, long maxTime) {
+         super(writeLimit, readLimit, checkInterval, maxTime);
+         createGlobalTrafficCounter(executor);
+@@ -142,7 +142,7 @@ public GlobalTrafficShapingHandler(ScheduledExecutorService executor, long write
+      * default max time as delay allowed value of 15000 ms.
+      *
+      * @param executor
+-     *          the {@link ScheduledExecutorService} to use for the {@link TrafficCounter}.
++     *          the {@link EventExecutor} to use for the {@link TrafficCounter}.
+      * @param writeLimit
+      *          0 or a limit in bytes/s
+      * @param readLimit
+@@ -151,7 +151,7 @@ public GlobalTrafficShapingHandler(ScheduledExecutorService executor, long write
+      *          The delay between two computations of performances for
+      *            channels or 0 if no stats are to be computed.
+      */
+-    public GlobalTrafficShapingHandler(ScheduledExecutorService executor, long writeLimit,
++    public GlobalTrafficShapingHandler(EventExecutor executor, long writeLimit,
+             long readLimit, long checkInterval) {
+         super(writeLimit, readLimit, checkInterval);
+         createGlobalTrafficCounter(executor);
+@@ -168,7 +168,7 @@ public GlobalTrafficShapingHandler(ScheduledExecutorService executor, long write
+      * @param readLimit
+      *          0 or a limit in bytes/s
+      */
+-    public GlobalTrafficShapingHandler(ScheduledExecutorService executor, long writeLimit,
++    public GlobalTrafficShapingHandler(EventExecutor executor, long writeLimit,
+             long readLimit) {
+         super(writeLimit, readLimit);
+         createGlobalTrafficCounter(executor);
+@@ -184,7 +184,7 @@ public GlobalTrafficShapingHandler(ScheduledExecutorService executor, long write
+      *          The delay between two computations of performances for
+      *            channels or 0 if no stats are to be computed.
+      */
+-    public GlobalTrafficShapingHandler(ScheduledExecutorService executor, long checkInterval) {
++    public GlobalTrafficShapingHandler(EventExecutor executor, long checkInterval) {
+         super(checkInterval);
+         createGlobalTrafficCounter(executor);
+     }
+diff --git a/handler/src/main/java/io/netty/handler/traffic/TrafficCounter.java b/handler/src/main/java/io/netty/handler/traffic/TrafficCounter.java
+index cc4fd0b3564..8c449ae25ff 100644
+--- a/handler/src/main/java/io/netty/handler/traffic/TrafficCounter.java
++++ b/handler/src/main/java/io/netty/handler/traffic/TrafficCounter.java
+@@ -17,6 +17,8 @@
+ 
+ import static io.netty.util.internal.ObjectUtil.checkNotNull;
+ import static io.netty.util.internal.ObjectUtil.checkNotNullWithIAE;
++
++import io.netty.util.concurrent.EventExecutor;
+ import io.netty.util.internal.logging.InternalLogger;
+ import io.netty.util.internal.logging.InternalLoggerFactory;
+ 
+@@ -147,7 +149,7 @@ public static long milliSecondFromNano() {
+     /**
+      * Executor that will run the monitor
+      */
+-    final ScheduledExecutorService executor;
++    final EventExecutor executor;
+     /**
+      * Monitor created once in start()
+      */
+@@ -251,7 +253,7 @@ synchronized void resetAccounting(long newLastTime) {
+      * @param checkInterval
+      *            the checkInterval in millisecond between two computations.
+      */
+-    public TrafficCounter(ScheduledExecutorService executor, String name, long checkInterval) {
++    public TrafficCounter(EventExecutor executor, String name, long checkInterval) {
+ 
+         this.name = checkNotNull(name, "name");
+         trafficShapingHandler = null;
+@@ -275,7 +277,7 @@ public TrafficCounter(ScheduledExecutorService executor, String name, long check
+      *            the checkInterval in millisecond between two computations.
+      */
+     public TrafficCounter(
+-            AbstractTrafficShapingHandler trafficShapingHandler, ScheduledExecutorService executor,
++            AbstractTrafficShapingHandler trafficShapingHandler, EventExecutor executor,
+             String name, long checkInterval) {
+         this.name = checkNotNull(name, "name");
+         this.trafficShapingHandler = checkNotNullWithIAE(trafficShapingHandler, "trafficShapingHandler");
+diff --git a/microbench/src/main/java/io/netty/microbench/concurrent/BurstCostExecutorsBenchmark.java b/microbench/src/main/java/io/netty/microbench/concurrent/BurstCostExecutorsBenchmark.java
+index e73d7cedd4e..34cddf71f9c 100644
+--- a/microbench/src/main/java/io/netty/microbench/concurrent/BurstCostExecutorsBenchmark.java
++++ b/microbench/src/main/java/io/netty/microbench/concurrent/BurstCostExecutorsBenchmark.java
+@@ -34,10 +34,12 @@
+ import java.util.Queue;
+ import java.util.concurrent.Callable;
+ import java.util.concurrent.ExecutionException;
++import java.util.concurrent.Executor;
+ import java.util.concurrent.ExecutorService;
+ import java.util.concurrent.Executors;
+ import java.util.concurrent.Future;
+ import java.util.concurrent.RejectedExecutionException;
++import java.util.concurrent.ScheduledExecutorService;
+ import java.util.concurrent.TimeUnit;
+ import java.util.concurrent.TimeoutException;
+ import java.util.concurrent.atomic.AtomicBoolean;
+@@ -176,8 +178,8 @@ private enum ExecutorType {
+     @Param({ "0", "10" })
+     private int work;
+ 
+-    private ExecutorService executor;
+-    private ExecutorService executorToShutdown;
++    private Executor executor;
++    private AutoCloseable executorToShutdown;
+ 
+     @Setup
+     public void setup() {
+@@ -188,23 +190,27 @@ public void setup() {
+             //4 is to leave some room between the offers and 1024 is to leave some room
+             //between producer/consumer when work is > 0 and 1 producer.
+             //If work = 0 then the task queue is supposed to be near empty most of the time.
+-            executor = new SpinExecutorService(Math.min(1024, burstLength * 4));
+-            executorToShutdown = executor;
++            io.netty.microbench.concurrent.BurstCostExecutorsBenchmark.SpinExecutorService spinExecutor
++                    = new SpinExecutorService(Math.min(1024, burstLength * 4));
++            executor = spinExecutor;
++            executorToShutdown = spinExecutor;
+             break;
+         case defaultEventExecutor:
+-            executor = new DefaultEventExecutor();
+-            executorToShutdown = executor;
++            io.netty.util.concurrent.EventExecutor eventExecutor = new DefaultEventExecutor();
++            executor = eventExecutor;
++            executorToShutdown = eventExecutor::shutdownGracefully;
+             break;
+         case juc:
+-            executor = Executors.newSingleThreadScheduledExecutor();
+-            executorToShutdown = executor;
++            java.util.concurrent.ScheduledExecutorService scheduled = Executors.newSingleThreadScheduledExecutor();
++            executor = scheduled;
++            executorToShutdown = scheduled;
+             break;
+         }
+     }
+ 
+     @TearDown
+-    public void tearDown() {
+-        executorToShutdown.shutdown();
++    public void tearDown() throws Exception {
++        executorToShutdown.close();
+     }
+ 
+     @State(Scope.Thread)
+@@ -293,7 +299,7 @@ public int test3Producers(final PerThreadState state) {
+     }
+ 
+     private int executeBurst(final PerThreadState state) {
+-        final ExecutorService executor = this.executor;
++        final Executor executor = this.executor;
+         final int burstLength = this.burstLength;
+         final Runnable completeTask = state.completeTask;
+         for (int i = 0; i < burstLength; i++) {
+diff --git a/microbench/src/main/java/io/netty/microbench/util/AbstractMicrobenchmark.java b/microbench/src/main/java/io/netty/microbench/util/AbstractMicrobenchmark.java
+index 20f7b18b148..2537757e96d 100644
+--- a/microbench/src/main/java/io/netty/microbench/util/AbstractMicrobenchmark.java
++++ b/microbench/src/main/java/io/netty/microbench/util/AbstractMicrobenchmark.java
+@@ -20,6 +20,7 @@
+ import io.netty.util.concurrent.EventExecutor;
+ import io.netty.util.concurrent.FastThreadLocalThread;
+ import io.netty.util.concurrent.Future;
++import io.netty.util.concurrent.ScheduledFuture;
+ import io.netty.util.internal.EmptyArrays;
+ import io.netty.util.internal.PlatformDependent;
+ import io.netty.util.internal.SystemPropertyUtil;
+@@ -30,6 +31,7 @@
+ import java.util.ArrayList;
+ import java.util.Arrays;
+ import java.util.List;
++import java.util.concurrent.Callable;
+ import java.util.concurrent.LinkedBlockingQueue;
+ import java.util.concurrent.ThreadPoolExecutor;
+ import java.util.concurrent.TimeUnit;
+@@ -53,10 +55,6 @@ public HarnessExecutor(int maxThreads, String prefix) {
+                     new LinkedBlockingQueue<Runnable>(),
+                     new DefaultThreadFactory(prefix));
+             EventExecutor eventExecutor = new AbstractEventExecutor() {
+-                @Override
+-                public void shutdown() {
+-                    throw new UnsupportedOperationException();
+-                }
+ 
+                 @Override
+                 public boolean inEventLoop(Thread thread) {
+@@ -97,6 +95,28 @@ public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedE
+                 public void execute(Runnable command) {
+                     throw new UnsupportedOperationException();
+                 }
++
++                @Override
++                public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
++                    throw new UnsupportedOperationException();
++                }
++
++                @Override
++                public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
++                    throw new UnsupportedOperationException();
++                }
++
++                @Override
++                public ScheduledFuture<?> scheduleAtFixedRate(
++                        Runnable command, long initialDelay, long period, TimeUnit unit) {
++                    throw new UnsupportedOperationException();
++                }
++
++                @Override
++                public ScheduledFuture<?> scheduleWithFixedDelay(
++                        Runnable command, long initialDelay, long delay, TimeUnit unit) {
++                    throw new UnsupportedOperationException();
++                }
+             };
+             setThreadFactory(ThreadExecutorMap.apply(getThreadFactory(), eventExecutor));
+ 
+diff --git a/microbench/src/main/java/io/netty/microbench/util/AbstractSharedExecutorMicrobenchmark.java b/microbench/src/main/java/io/netty/microbench/util/AbstractSharedExecutorMicrobenchmark.java
+index c90d88bfb29..f2b753d52da 100644
+--- a/microbench/src/main/java/io/netty/microbench/util/AbstractSharedExecutorMicrobenchmark.java
++++ b/microbench/src/main/java/io/netty/microbench/util/AbstractSharedExecutorMicrobenchmark.java
+@@ -19,9 +19,11 @@
+ import io.netty.util.concurrent.AbstractEventExecutor;
+ import io.netty.util.concurrent.Future;
+ import io.netty.util.concurrent.Promise;
++import io.netty.util.concurrent.ScheduledFuture;
+ import io.netty.util.internal.logging.InternalLogger;
+ import io.netty.util.internal.logging.InternalLoggerFactory;
+ 
++import java.util.concurrent.Callable;
+ import java.util.concurrent.TimeUnit;
+ 
+ import org.openjdk.jmh.annotations.Fork;
+@@ -99,13 +101,6 @@ public Future<?> terminationFuture() {
+             return executor.terminationFuture();
+         }
+ 
+-        @Override
+-        @Deprecated
+-        public void shutdown() {
+-            executor.shutdown();
+-        }
+-
+-        @Override
+         public boolean isShuttingDown() {
+             return executor.isShuttingDown();
+         }
+@@ -139,6 +134,27 @@ public void execute(Runnable command) {
+         public <V> Promise<V> newPromise() {
+             return executor.newPromise();
+         }
++
++        @Override
++        public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
++            return executor.schedule(command, delay, unit);
++        }
++
++        @Override
++        public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
++            return executor.schedule(callable, delay, unit);
++        }
++
++        @Override
++        public ScheduledFuture<?> scheduleAtFixedRate(Runnable command, long initialDelay, long period, TimeUnit unit) {
++            return executor.scheduleAtFixedRate(command, initialDelay, period, unit);
++        }
++
++        @Override
++        public ScheduledFuture<?> scheduleWithFixedDelay(
++                Runnable command, long initialDelay, long delay, TimeUnit unit) {
++            return executor.scheduleWithFixedDelay(command, initialDelay, delay, unit);
++        }
+     }
+ 
+     @Override
+diff --git a/transport/src/main/java/io/netty/channel/ManualIoEventLoop.java b/transport/src/main/java/io/netty/channel/ManualIoEventLoop.java
+index 0c49547c1bd..5109673432e 100644
+--- a/transport/src/main/java/io/netty/channel/ManualIoEventLoop.java
++++ b/transport/src/main/java/io/netty/channel/ManualIoEventLoop.java
+@@ -26,15 +26,10 @@
+ import io.netty.util.internal.PlatformDependent;
+ import io.netty.util.internal.ThreadExecutorMap;
+ 
+-import java.util.Collection;
+-import java.util.List;
+ import java.util.Objects;
+ import java.util.Queue;
+-import java.util.concurrent.Callable;
+-import java.util.concurrent.ExecutionException;
+ import java.util.concurrent.RejectedExecutionException;
+ import java.util.concurrent.TimeUnit;
+-import java.util.concurrent.TimeoutException;
+ import java.util.concurrent.atomic.AtomicInteger;
+ import java.util.concurrent.atomic.AtomicReference;
+ 
+@@ -469,12 +464,6 @@ public final Future<?> shutdownGracefully(long quietPeriod, long timeout, TimeUn
+         return terminationFuture();
+     }
+ 
+-    @Override
+-    @Deprecated
+-    public final void shutdown() {
+-        shutdown0(-1, -1, ST_SHUTDOWN);
+-    }
+-
+     @Override
+     public final Future<?> terminationFuture() {
+         return terminationFuture;
+@@ -585,45 +574,6 @@ private boolean confirmShutdown() {
+         return true;
+     }
+ 
+-    @Override
+-    public final <T> T invokeAny(Collection<? extends Callable<T>> tasks)
+-            throws InterruptedException, ExecutionException {
+-        // We need to check if the method was called from within the EventLoop as this would cause a deadlock.
+-        throwIfInEventLoop("invokeAny");
+-        return super.invokeAny(tasks);
+-    }
+-
+-    @Override
+-    public final <T> T invokeAny(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit)
+-            throws InterruptedException, ExecutionException, TimeoutException {
+-        // We need to check if the method was called from within the EventLoop as this would cause a deadlock.
+-        throwIfInEventLoop("invokeAny");
+-        return super.invokeAny(tasks, timeout, unit);
+-    }
+-
+-    @Override
+-    public final <T> List<java.util.concurrent.Future<T>> invokeAll(Collection<? extends Callable<T>> tasks)
+-            throws InterruptedException {
+-        // We need to check if the method was called from within the EventLoop as this would cause a deadlock.
+-        throwIfInEventLoop("invokeAll");
+-        return super.invokeAll(tasks);
+-    }
+-
+-    @Override
+-    public final <T> List<java.util.concurrent.Future<T>> invokeAll(
+-            Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit) throws InterruptedException {
+-        // We need to check if the method was called from within the EventLoop as this would cause a deadlock.
+-        throwIfInEventLoop("invokeAll");
+-        return super.invokeAll(tasks, timeout, unit);
+-    }
+-
+-    private void throwIfInEventLoop(String method) {
+-        if (inEventLoop()) {
+-            throw new RejectedExecutionException(
+-                    "Calling " + method + " from within the EventLoop is not allowed as it would deadlock");
+-        }
+-    }
+-
+     private class BlockingIoHandlerContext implements IoHandlerContext {
+         // this is a positive amount of nanos or Long.MAX_VALUE for no limit
+         long maxBlockingNanos = Long.MAX_VALUE;
+diff --git a/transport/src/main/java/io/netty/channel/embedded/EmbeddedEventLoop.java b/transport/src/main/java/io/netty/channel/embedded/EmbeddedEventLoop.java
+index d3bc417fb96..c56120097ae 100644
+--- a/transport/src/main/java/io/netty/channel/embedded/EmbeddedEventLoop.java
++++ b/transport/src/main/java/io/netty/channel/embedded/EmbeddedEventLoop.java
+@@ -110,12 +110,6 @@ public Future<?> terminationFuture() {
+         throw new UnsupportedOperationException();
+     }
+ 
+-    @Override
+-    @Deprecated
+-    public void shutdown() {
+-        throw new UnsupportedOperationException();
+-    }
+-
+     @Override
+     public boolean isShuttingDown() {
+         return false;

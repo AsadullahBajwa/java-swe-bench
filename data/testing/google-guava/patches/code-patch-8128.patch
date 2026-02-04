@@ -1,0 +1,168 @@
+diff --git a/android/guava-testlib/src/com/google/common/collect/testing/TestsForMapsInJavaUtil.java b/android/guava-testlib/src/com/google/common/collect/testing/TestsForMapsInJavaUtil.java
+index 593878d75ce7..244019dea657 100644
+--- a/android/guava-testlib/src/com/google/common/collect/testing/TestsForMapsInJavaUtil.java
++++ b/android/guava-testlib/src/com/google/common/collect/testing/TestsForMapsInJavaUtil.java
+@@ -135,7 +135,8 @@ protected Collection<Method> suppressForConcurrentSkipListMap() {
+     return asList(
+         MapEntrySetTester.getSetValueMethod(),
+         MapEntrySetTester.getSetValueWithNullValuesAbsentMethod(),
+-        MapEntrySetTester.getSetValueWithNullValuesPresentMethod());
++        MapEntrySetTester.getSetValueWithNullValuesPresentMethod(),
++        MapEntrySetTester.getIteratorSetValueAndRemove());
+   }
+ 
+   public Test testsForCheckedMap() {
+diff --git a/android/guava-testlib/src/com/google/common/collect/testing/testers/MapEntrySetTester.java b/android/guava-testlib/src/com/google/common/collect/testing/testers/MapEntrySetTester.java
+index 4c9c8bcd6cd2..dd7e0d9c5d95 100644
+--- a/android/guava-testlib/src/com/google/common/collect/testing/testers/MapEntrySetTester.java
++++ b/android/guava-testlib/src/com/google/common/collect/testing/testers/MapEntrySetTester.java
+@@ -20,6 +20,7 @@
+ import static com.google.common.collect.testing.Helpers.mapEntry;
+ import static com.google.common.collect.testing.features.CollectionFeature.SUPPORTS_ITERATOR_REMOVE;
+ import static com.google.common.collect.testing.features.CollectionSize.ONE;
++import static com.google.common.collect.testing.features.CollectionSize.SEVERAL;
+ import static com.google.common.collect.testing.features.CollectionSize.ZERO;
+ import static com.google.common.collect.testing.features.MapFeature.ALLOWS_NULL_KEYS;
+ import static com.google.common.collect.testing.features.MapFeature.ALLOWS_NULL_KEY_QUERIES;
+@@ -59,7 +60,7 @@ private enum IncomparableType {
+ 
+   @CollectionSize.Require(ONE)
+   @CollectionFeature.Require(SUPPORTS_ITERATOR_REMOVE)
+-  public void testEntrySetIteratorRemove() {
++  public void testIteratorRemoveOnly() {
+     Set<Entry<K, V>> entrySet = getMap().entrySet();
+     Iterator<Entry<K, V>> entryItr = entrySet.iterator();
+     assertEquals(e0(), entryItr.next());
+@@ -68,6 +69,30 @@ public void testEntrySetIteratorRemove() {
+     assertFalse(entrySet.contains(e0()));
+   }
+ 
++  @CollectionSize.Require(SEVERAL)
++  @CollectionFeature.Require(SUPPORTS_ITERATOR_REMOVE)
++  public void testIteratorRemoveMultiple() {
++    Iterator<Entry<K, V>> entryItr = getMap().entrySet().iterator();
++    while (entryItr.hasNext()) {
++      entryItr.next();
++      entryItr.remove();
++    }
++    assertTrue(getMap().isEmpty());
++  }
++
++  @CollectionSize.Require(absent = ZERO)
++  @CollectionFeature.Require(SUPPORTS_ITERATOR_REMOVE)
++  @MapFeature.Require(SUPPORTS_PUT)
++  public void testIteratorSetValueAndRemove() {
++    Iterator<Entry<K, V>> entryItr = getMap().entrySet().iterator();
++    while (entryItr.hasNext()) {
++      Entry<K, V> entry = entryItr.next();
++      entry.setValue(e3().getValue());
++      entryItr.remove();
++    }
++    assertTrue(getMap().isEmpty());
++  }
++
+   public void testContainsEntryWithIncomparableKey() {
+     try {
+       assertFalse(getMap().entrySet().contains(mapEntry(IncomparableType.INSTANCE, v0())));
+@@ -171,4 +196,10 @@ public static Method getSetValueWithNullValuesPresentMethod() {
+   public static Method getSetValueWithNullValuesAbsentMethod() {
+     return getMethod(MapEntrySetTester.class, "testSetValueWithNullValuesAbsent");
+   }
++
++  @J2ktIncompatible
++  @GwtIncompatible // reflection
++  public static Method getIteratorSetValueAndRemove() {
++    return getMethod(MapEntrySetTester.class, "testIteratorSetValueAndRemove");
++  }
+ }
+diff --git a/guava-testlib/src/com/google/common/collect/testing/TestsForMapsInJavaUtil.java b/guava-testlib/src/com/google/common/collect/testing/TestsForMapsInJavaUtil.java
+index d9d4a29547f4..a05588178368 100644
+--- a/guava-testlib/src/com/google/common/collect/testing/TestsForMapsInJavaUtil.java
++++ b/guava-testlib/src/com/google/common/collect/testing/TestsForMapsInJavaUtil.java
+@@ -161,7 +161,8 @@ protected Collection<Method> suppressForConcurrentSkipListMap() {
+     return asList(
+         MapEntrySetTester.getSetValueMethod(),
+         MapEntrySetTester.getSetValueWithNullValuesAbsentMethod(),
+-        MapEntrySetTester.getSetValueWithNullValuesPresentMethod());
++        MapEntrySetTester.getSetValueWithNullValuesPresentMethod(),
++        MapEntrySetTester.getIteratorSetValueAndRemove());
+   }
+ 
+   public Test testsForCheckedMap() {
+diff --git a/guava-testlib/src/com/google/common/collect/testing/testers/MapEntrySetTester.java b/guava-testlib/src/com/google/common/collect/testing/testers/MapEntrySetTester.java
+index 4c9c8bcd6cd2..dd7e0d9c5d95 100644
+--- a/guava-testlib/src/com/google/common/collect/testing/testers/MapEntrySetTester.java
++++ b/guava-testlib/src/com/google/common/collect/testing/testers/MapEntrySetTester.java
+@@ -20,6 +20,7 @@
+ import static com.google.common.collect.testing.Helpers.mapEntry;
+ import static com.google.common.collect.testing.features.CollectionFeature.SUPPORTS_ITERATOR_REMOVE;
+ import static com.google.common.collect.testing.features.CollectionSize.ONE;
++import static com.google.common.collect.testing.features.CollectionSize.SEVERAL;
+ import static com.google.common.collect.testing.features.CollectionSize.ZERO;
+ import static com.google.common.collect.testing.features.MapFeature.ALLOWS_NULL_KEYS;
+ import static com.google.common.collect.testing.features.MapFeature.ALLOWS_NULL_KEY_QUERIES;
+@@ -59,7 +60,7 @@ private enum IncomparableType {
+ 
+   @CollectionSize.Require(ONE)
+   @CollectionFeature.Require(SUPPORTS_ITERATOR_REMOVE)
+-  public void testEntrySetIteratorRemove() {
++  public void testIteratorRemoveOnly() {
+     Set<Entry<K, V>> entrySet = getMap().entrySet();
+     Iterator<Entry<K, V>> entryItr = entrySet.iterator();
+     assertEquals(e0(), entryItr.next());
+@@ -68,6 +69,30 @@ public void testEntrySetIteratorRemove() {
+     assertFalse(entrySet.contains(e0()));
+   }
+ 
++  @CollectionSize.Require(SEVERAL)
++  @CollectionFeature.Require(SUPPORTS_ITERATOR_REMOVE)
++  public void testIteratorRemoveMultiple() {
++    Iterator<Entry<K, V>> entryItr = getMap().entrySet().iterator();
++    while (entryItr.hasNext()) {
++      entryItr.next();
++      entryItr.remove();
++    }
++    assertTrue(getMap().isEmpty());
++  }
++
++  @CollectionSize.Require(absent = ZERO)
++  @CollectionFeature.Require(SUPPORTS_ITERATOR_REMOVE)
++  @MapFeature.Require(SUPPORTS_PUT)
++  public void testIteratorSetValueAndRemove() {
++    Iterator<Entry<K, V>> entryItr = getMap().entrySet().iterator();
++    while (entryItr.hasNext()) {
++      Entry<K, V> entry = entryItr.next();
++      entry.setValue(e3().getValue());
++      entryItr.remove();
++    }
++    assertTrue(getMap().isEmpty());
++  }
++
+   public void testContainsEntryWithIncomparableKey() {
+     try {
+       assertFalse(getMap().entrySet().contains(mapEntry(IncomparableType.INSTANCE, v0())));
+@@ -171,4 +196,10 @@ public static Method getSetValueWithNullValuesPresentMethod() {
+   public static Method getSetValueWithNullValuesAbsentMethod() {
+     return getMethod(MapEntrySetTester.class, "testSetValueWithNullValuesAbsent");
+   }
++
++  @J2ktIncompatible
++  @GwtIncompatible // reflection
++  public static Method getIteratorSetValueAndRemove() {
++    return getMethod(MapEntrySetTester.class, "testIteratorSetValueAndRemove");
++  }
+ }
+diff --git a/guava/src/com/google/common/collect/HashBiMap.java b/guava/src/com/google/common/collect/HashBiMap.java
+index 6bcd9f367b4b..21b464e30767 100644
+--- a/guava/src/com/google/common/collect/HashBiMap.java
++++ b/guava/src/com/google/common/collect/HashBiMap.java
+@@ -726,6 +726,9 @@ public K setValue(@ParametricNullness K key) {
+             delete(delegate);
+             BiEntry<K, V> newEntry =
+                 new BiEntry<>(key, keyHash, delegate.getValue(), delegate.valueHash);
++            if (toRemove == delegate) {
++              toRemove = newEntry;
++            }
+             delegate = newEntry;
+             insert(newEntry, null);
+             expectedModCount = modCount;

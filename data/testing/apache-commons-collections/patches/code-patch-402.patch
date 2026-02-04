@@ -1,0 +1,1305 @@
+diff --git a/src/main/java/org/apache/commons/collections4/bloomfilter/BloomFilter.java b/src/main/java/org/apache/commons/collections4/bloomfilter/BloomFilter.java
+index 1f3c7ab6f8..eb9b6f3896 100644
+--- a/src/main/java/org/apache/commons/collections4/bloomfilter/BloomFilter.java
++++ b/src/main/java/org/apache/commons/collections4/bloomfilter/BloomFilter.java
+@@ -209,6 +209,21 @@ default boolean isFull() {
+      */
+     int cardinality();
+ 
++    /**
++     * Determines if all the bits are off. This is equivalent to
++     * {@code cardinality() == 0}.
++     *
++     * <p>
++     * <em>Note: This method is optimised for non-sparse filters.</em> Implementers
++     * are encouraged to implement faster checks if possible.
++     * </p>
++     *
++     * @return {@code true} if no bits are enabled, {@code false} otherwise.
++     */
++    default boolean isEmpty() {
++        return forEachBitMap(y -> y == 0);
++    }
++
+     /**
+      * Estimates the number of items in the Bloom filter.
+      *
+diff --git a/src/main/java/org/apache/commons/collections4/bloomfilter/BloomFilterProducer.java b/src/main/java/org/apache/commons/collections4/bloomfilter/BloomFilterProducer.java
+new file mode 100644
+index 0000000000..7008a7e3d8
+--- /dev/null
++++ b/src/main/java/org/apache/commons/collections4/bloomfilter/BloomFilterProducer.java
+@@ -0,0 +1,143 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.commons.collections4.bloomfilter;
++
++import java.util.ArrayList;
++import java.util.List;
++import java.util.Objects;
++import java.util.function.BiPredicate;
++import java.util.function.Predicate;
++
++/**
++ * Produces Bloom filters from a collection (e.g. LayeredBloomFilter).
++ *
++ * @since 4.5
++ */
++public interface BloomFilterProducer {
++
++    /**
++     * Executes a Bloom filter Predicate on each Bloom filter in the collection. The
++     * ordering of the Bloom filters is not specified by this interface.
++     *
++     * @param bloomFilterPredicate the predicate to evaluate each Bloom filter with.
++     * @return {@code false} when the first filter fails the predicate test. Returns
++     *         {@code true} if all filters pass the test.
++     */
++    boolean forEachBloomFilter(Predicate<BloomFilter> bloomFilterPredicate);
++
++    /**
++     * Return an array of the Bloom filters in the collection.
++     * <p><em>Implementations should specify if the array contains deep copies, immutable instances,
++     * or references to the filters in the collection.</em></p>
++     * <p>The default method returns a deep copy of the enclosed filters.</p>
++     *
++     * @return An array of Bloom filters.
++     */
++    default BloomFilter[] asBloomFilterArray() {
++        final List<BloomFilter> filters = new ArrayList<>();
++        forEachBloomFilter(f -> filters.add(f.copy()));
++        return filters.toArray(new BloomFilter[0]);
++    }
++
++    /**
++     * Applies the {@code func} to each Bloom filter pair in order. Will apply all
++     * of the Bloom filters from the other BloomFilterProducer to this producer. If
++     * either {@code this} producer or {@code other} producer has fewer BloomFilters
++     * ths method will provide {@code null} for all excess calls to the {@code func}.
++     *
++     * <p><em>This implementation returns references to the Bloom filter.  Other implementations
++     * should specify if the array contains deep copies, immutable instances,
++     * or references to the filters in the collection.</em></p>
++     *
++     * @param other The other BloomFilterProducer that provides the y values in the
++     *              (x,y) pair.
++     * @param func  The function to apply.
++     * @return {@code true} if the {@code func} returned {@code true} for every pair,
++     *         {@code false} otherwise.
++     */
++    default boolean forEachBloomFilterPair(final BloomFilterProducer other,
++            final BiPredicate<BloomFilter, BloomFilter> func) {
++        final CountingPredicate<BloomFilter> p = new CountingPredicate<>(asBloomFilterArray(), func);
++        return other.forEachBloomFilter(p) && p.forEachRemaining();
++    }
++
++    /**
++     * Create a standard (non-layered) Bloom filter by merging all of the layers. If
++     * the filter is empty this method will return an empty Bloom filter.
++     *
++     * @return the merged bloom filter.
++     */
++    default BloomFilter flatten() {
++        BloomFilter[] bf = {null};
++        forEachBloomFilter( x -> {
++            if (bf[0] == null) {
++                bf[0] = new SimpleBloomFilter( x.getShape());
++            }
++            return bf[0].merge( x );
++        });
++        return bf[0];
++    }
++
++    /**
++     * Creates a BloomFilterProducer from an array of Bloom filters.
++     *
++     * <ul>
++     * <li>The asBloomFilterArray() method returns a copy of the original array
++     * with references to the original filters.</li>
++     * <li>The forEachBloomFilterPair() method uses references to the original filters.</li>
++     * </ul>
++     * <p><em>All modifications to the Bloom filters are reflected in the original filters</em></p>
++     *
++     * @param filters The filters to be returned by the producer.
++     * @return THe BloomFilterProducer containing the filters.
++     */
++    static BloomFilterProducer fromBloomFilterArray(BloomFilter... filters) {
++        Objects.requireNonNull(filters, "filters");
++        return new BloomFilterProducer() {
++            @Override
++            public boolean forEachBloomFilter(final Predicate<BloomFilter> predicate) {
++                for (final BloomFilter filter : filters) {
++                    if (!predicate.test(filter)) {
++                        return false;
++                    }
++                }
++                return true;
++            }
++
++            /**
++             * This implementation returns a copy the original array, the contained Bloom filters
++             * are references to the originals, any modifications to them are reflected in the original
++             * filters.
++             */
++            @Override
++            public BloomFilter[] asBloomFilterArray() {
++                return filters.clone();
++            }
++
++            /**
++             * This implementation uses references to the original filters.  Any modifications to the
++             * filters are reflected in the originals.
++             */
++            @Override
++            public boolean forEachBloomFilterPair(final BloomFilterProducer other,
++                    final BiPredicate<BloomFilter, BloomFilter> func) {
++                final CountingPredicate<BloomFilter> p = new CountingPredicate<>(filters, func);
++                return other.forEachBloomFilter(p) && p.forEachRemaining();
++            }
++        };
++    }
++}
+diff --git a/src/main/java/org/apache/commons/collections4/bloomfilter/CellProducer.java b/src/main/java/org/apache/commons/collections4/bloomfilter/CellProducer.java
+index ecb984e2ce..4207e0a54d 100644
+--- a/src/main/java/org/apache/commons/collections4/bloomfilter/CellProducer.java
++++ b/src/main/java/org/apache/commons/collections4/bloomfilter/CellProducer.java
+@@ -67,6 +67,11 @@ default boolean forEachIndex(final IntPredicate predicate) {
+         return forEachCell((i, v) -> predicate.test(i));
+     }
+ 
++    @Override
++    default IndexProducer uniqueIndices() {
++        return this;
++    }
++
+     /**
+      * Creates a CellProducer from an IndexProducer.
+      *
+diff --git a/src/main/java/org/apache/commons/collections4/bloomfilter/CountingLongPredicate.java b/src/main/java/org/apache/commons/collections4/bloomfilter/CountingLongPredicate.java
+index 1f638d4b11..6d933e1a3a 100644
+--- a/src/main/java/org/apache/commons/collections4/bloomfilter/CountingLongPredicate.java
++++ b/src/main/java/org/apache/commons/collections4/bloomfilter/CountingLongPredicate.java
+@@ -22,7 +22,8 @@
+  * A long predicate that applies the test func to each member of the {@code ary} in sequence for each call to {@code test()}.
+  * if the {@code ary} is exhausted, the subsequent calls to {@code test} are executed with a zero value.
+  * If the calls to {@code test} do not exhaust the {@code ary} the {@code forEachRemaining} method can be called to
+- * execute the @code{text} with a zero value for each remaining {@code idx} value.
++ * execute the @{code test} with a zero value for each remaining {@code idx} value.
++ * @since 4.5
+  */
+ class CountingLongPredicate implements LongPredicate {
+     private int idx;
+diff --git a/src/main/java/org/apache/commons/collections4/bloomfilter/CountingPredicate.java b/src/main/java/org/apache/commons/collections4/bloomfilter/CountingPredicate.java
+new file mode 100644
+index 0000000000..8ee70040ef
+--- /dev/null
++++ b/src/main/java/org/apache/commons/collections4/bloomfilter/CountingPredicate.java
+@@ -0,0 +1,75 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.commons.collections4.bloomfilter;
++
++import java.util.function.BiPredicate;
++import java.util.function.Predicate;
++
++/**
++ * A predicate that applies the test {@code func} to each member of the {@code ary} in
++ * sequence for each call to {@code test()}. if the {@code ary} is exhausted,
++ * the subsequent calls to {@code test} are executed with a {@code null} value.
++ * If the calls to {@code test} do not exhaust the {@code ary} the {@code
++ * forEachRemaining} method can be called to execute the @{code test} with a
++ * {@code null} value for each remaining {@code idx} value.
++ *
++ * @param <T> the type of object being compared.
++ * @since 4.5
++ */
++class CountingPredicate<T> implements Predicate<T> {
++    private int idx;
++    private final T[] ary;
++    private final BiPredicate<T, T> func;
++
++    /**
++     * Constructs an instance that will compare the elements in {@code ary} with the
++     * elements returned by {@code func}. function is called as {@code func.test(
++     * idxValue, otherValue )}. If there are more {@code otherValue} values than
++     * {@code idxValues} then {@code func} is called as {@code func.test(null, otherValue)}.
++     *
++     * @param ary  The array of long values to compare.
++     * @param func The function to apply to the pairs of long values.
++     */
++    CountingPredicate(final T[] ary, final BiPredicate<T, T> func) {
++        this.ary = ary;
++        this.func = func;
++    }
++
++    @Override
++    public boolean test(final T other) {
++        return func.test(idx == ary.length ? null : ary[idx++], other);
++    }
++
++    /**
++     * Call {@code BiPredicate<T, T>} for each remaining unpaired {@code <T>} in the
++     * input array. This method should be invoked after the predicate has been
++     * passed to a {@code Producer.forEach<T>(BiPredicate<T, T>)} to consume any
++     * unpaired {@code <T>}s. The second argument to the BiPredicate will be {@code null}.
++     *
++     * @return true if all calls the predicate were successful
++     */
++    boolean forEachRemaining() {
++        // uses local references for optimization benefit.
++        int i = idx;
++        final T[] a = ary;
++        final int limit = a.length;
++        while (i != limit && func.test(a[i], null)) {
++            i++;
++        }
++        return i == limit;
++    }
++}
+diff --git a/src/main/java/org/apache/commons/collections4/bloomfilter/LayerManager.java b/src/main/java/org/apache/commons/collections4/bloomfilter/LayerManager.java
+new file mode 100644
+index 0000000000..710bfb53a6
+--- /dev/null
++++ b/src/main/java/org/apache/commons/collections4/bloomfilter/LayerManager.java
+@@ -0,0 +1,383 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.commons.collections4.bloomfilter;
++
++import java.util.LinkedList;
++import java.util.NoSuchElementException;
++import java.util.Objects;
++import java.util.function.Consumer;
++import java.util.function.Predicate;
++import java.util.function.Supplier;
++
++/**
++ * Implementation of the methods to manage the layers in a layered Bloom filter.
++ * <p>
++ * The manager comprises a list of Bloom filters that are managed based on
++ * various rules. The last filter in the list is known as the {@code target} and
++ * is the filter into which merges are performed. The Layered manager utilizes
++ * three methods to manage the list.
++ * </p>
++ * <ul>
++ * <li>ExtendCheck - A Predicate that if true causes a new Bloom filter to be
++ * created as the new target.</li>
++ * <li>FilterSupplier - A Supplier that produces empty Bloom filters to be used
++ * as a new target.</li>
++ * <li>Cleanup - A Consumer of a {@code LinkedList} of BloomFilter that removes any
++ * expired or out dated filters from the list.</li>
++ * </ul>
++ * <p>
++ * When extendCheck returns {@code true} the following steps are taken:
++ * </p>
++ * <ol>
++ * <li>{@code Cleanup} is called</li>
++ * <li>{@code FilterSuplier} is executed and the new filter added to the list as
++ * the {@code target} filter.</li>
++ * </ol>
++ *
++ * @since 4.5
++ */
++public class LayerManager implements BloomFilterProducer {
++
++    /**
++     * A collection of common ExtendCheck implementations to test whether to extend
++     * the depth of a LayerManager.
++     */
++    public static final class ExtendCheck {
++        private ExtendCheck() {
++        }
++
++        /**
++         * Advances the target once a merge has been performed.
++         * @return A Predicate suitable for the LayerManager {@code extendCheck} parameter.
++         */
++        public static Predicate<LayerManager> advanceOnPopulated() {
++            return lm -> !lm.filters.peekLast().isEmpty();
++        }
++
++        /**
++         * Does not automatically advance the target. @{code next()} must be called directly to
++         * perform the advance.
++         * @return A Predicate suitable for the LayerManager {@code extendCheck} parameter.
++         */
++        public static Predicate<LayerManager> neverAdvance() {
++            return x -> false;
++        }
++
++        /**
++         * Creates a new target after a specific number of filters have been added to
++         * the current target.
++         *
++         * @param breakAt the number of filters to merge into each filter in the list.
++         * @return A Predicate suitable for the LayerManager {@code extendCheck} parameter.
++         * @throws IllegalArgumentException if {@code breakAt <= 0}
++         */
++        public static Predicate<LayerManager> advanceOnCount(int breakAt) {
++            if (breakAt <= 0) {
++                throw new IllegalArgumentException("'breakAt' must be greater than 0");
++            }
++            return new Predicate<LayerManager>() {
++                int count;
++
++                @Override
++                public boolean test(LayerManager filter) {
++                    return ++count % breakAt == 0;
++                }
++            };
++        }
++
++        /**
++         * Creates a new target after the current target is saturated. Saturation is
++         * defined as the {@code Bloom filter estimated N >= maxN}.
++         *
++         * <p>An example usage is advancing on a calculated saturation by calling:
++         * {@code ExtendCheck.advanceOnSaturation(shape.estimateMaxN()) }</p>
++         *
++         * @param maxN the maximum number of estimated items in the filter.
++         * @return A Predicate suitable for the LayerManager {@code extendCheck} parameter.
++         * @throws IllegalArgumentException if {@code maxN <= 0}
++         */
++        public static Predicate<LayerManager> advanceOnSaturation(double maxN) {
++            if (maxN <= 0) {
++                throw new IllegalArgumentException("'maxN' must be greater than 0");
++            }
++            return manager -> {
++                BloomFilter bf = manager.filters.peekLast();
++                return maxN <= bf.getShape().estimateN(bf.cardinality());
++            };
++        }
++    }
++
++    /**
++     * Static methods to create a Consumer of a LinkedList of BloomFilter perform
++     * tests on whether to reduce the collection of Bloom filters.
++     */
++    public static final class Cleanup {
++        private Cleanup() {
++        }
++
++        /**
++         * A Cleanup that never removes anything.
++         * @return A Consumer suitable for the LayerManager {@code cleanup} parameter.
++         */
++        public static Consumer<LinkedList<BloomFilter>> noCleanup() {
++            return x -> {};
++        }
++
++        /**
++         * Removes the earliest filters in the list when the the number of filters
++         * exceeds maxSize.
++         *
++         * @param maxSize the maximum number of filters for the list. Must be greater
++         *                than 0
++         * @return A Consumer suitable for the LayerManager {@code cleanup} parameter.
++         * @throws IllegalArgumentException if {@code maxSize <= 0}.
++         */
++        public static Consumer<LinkedList<BloomFilter>> onMaxSize(int maxSize) {
++            if (maxSize <= 0) {
++                throw new IllegalArgumentException("'maxSize' must be greater than 0");
++            }
++            return ll -> {
++                while (ll.size() > maxSize) {
++                    ll.removeFirst();
++                }
++            };
++        }
++
++        /**
++         * Removes the last added target if it is empty.  Useful as the first in a chain
++         * of cleanup consumers.  (e.g. {@code Cleanup.removeEmptyTarget.andThen( otherConsumer )})
++         *
++         * @return A Consumer suitable for the LayerManager {@code cleanup} parameter.
++         */
++        public static Consumer<LinkedList<BloomFilter>> removeEmptyTarget() {
++            return x -> {
++                if (x.getLast().cardinality() == 0) {
++                    x.removeLast();
++                }
++            };
++        }
++    }
++
++    private final LinkedList<BloomFilter> filters = new LinkedList<>();
++    private final Consumer<LinkedList<BloomFilter>> filterCleanup;
++    private final Predicate<LayerManager> extendCheck;
++    private final Supplier<BloomFilter> filterSupplier;
++
++    /**
++     * Creates a new Builder with defaults of {@code ExtendCheck.neverAdvance()} and
++     * {@code Cleanup.noCleanup()}.
++     *
++     * @return A builder.
++     * @see ExtendCheck#neverAdvance()
++     * @see Cleanup#noCleanup()
++     */
++    public static Builder builder() {
++        return new Builder();
++    }
++
++    /**
++     * Constructor.
++     *
++     * @param filterSupplier the supplier of new Bloom filters to add the the list
++     *                       when necessary.
++     * @param extendCheck    The predicate that checks if a new filter should be
++     *                       added to the list.
++     * @param filterCleanup  the consumer that removes any old filters from the
++     *                       list.
++     * @param initialize     true if the filter list should be initialized.
++     */
++    private LayerManager(Supplier<BloomFilter> filterSupplier, Predicate<LayerManager> extendCheck,
++            Consumer<LinkedList<BloomFilter>> filterCleanup, boolean initialize) {
++        this.filterSupplier = filterSupplier;
++        this.extendCheck = extendCheck;
++        this.filterCleanup = filterCleanup;
++        if (initialize) {
++            addFilter();
++        }
++    }
++
++    /**
++     * Adds a new Bloom filter to the list.
++     */
++    private void addFilter() {
++        BloomFilter bf = filterSupplier.get();
++        if (bf == null) {
++            throw new NullPointerException("filterSupplier returned null.");
++        }
++        filters.add(bf);
++    }
++
++    /**
++     * Creates a deep copy of this LayerManager.
++     * <p><em>Filters in the copy are deep copies, not references, so changes in the copy
++     * are NOT reflected in the original.</em></p>
++     * <p>The {@code filterSupplier}, {@code extendCheck}, and the {@code filterCleanup} are shared between
++     * the copy and this instance.</p>
++     *
++     * @return a copy of this layer Manager.
++     */
++    public LayerManager copy() {
++        LayerManager newMgr = new LayerManager(filterSupplier, extendCheck, filterCleanup, false);
++        for (BloomFilter bf : filters) {
++            newMgr.filters.add(bf.copy());
++        }
++        return newMgr;
++    }
++
++    /**
++     * Forces an advance to the next depth. This method will clean-up the current
++     * layers and generate a new filter layer. In most cases is it unnecessary to
++     * call this method directly.
++     * <p>
++     * Ths method is used within {@link #getTarget()} when the configured
++     * {@code ExtendCheck} returns {@code true}.
++     * </p>
++     */
++    void next() {
++        this.filterCleanup.accept(filters);
++        addFilter();
++    }
++
++    /**
++     * Returns the number of filters in the LayerManager.  In the default LayerManager implementation
++     * there is alwasy at least one layer.
++     *
++     * @return the current depth.
++     */
++    public final int getDepth() {
++        return filters.size();
++    }
++
++    /**
++     * Gets the Bloom filter at the specified depth. The filter at depth 0 is the
++     * oldest filter.
++     *
++     * @param depth the depth at which the desired filter is to be found.
++     * @return the filter.
++     * @throws NoSuchElementException if depth is not in the range
++     *                                [0,filters.size())
++     */
++    public final BloomFilter get(int depth) {
++        if (depth < 0 || depth >= filters.size()) {
++            throw new NoSuchElementException(String.format("Depth must be in the range [0,%s)", filters.size()));
++        }
++        return filters.get(depth);
++    }
++
++    /**
++     * Returns the current target filter. If a new filter should be created based on
++     * {@code extendCheck} it will be created before this method returns.
++     *
++     * @return the current target filter after any extension.
++     */
++    public final BloomFilter getTarget() {
++        if (extendCheck.test(this)) {
++            next();
++        }
++        return filters.peekLast();
++    }
++
++    /**
++     * Removes all the filters from the layer manager, and sets up a new one as the
++     * target.
++     */
++    public final void clear() {
++        filters.clear();
++        addFilter();
++    }
++
++    /**
++     * Executes a Bloom filter Predicate on each Bloom filter in the manager in
++     * depth order. Oldest filter first.
++     *
++     * @param bloomFilterPredicate the predicate to evaluate each Bloom filter with.
++     * @return {@code false} when the a filter fails the predicate test. Returns
++     *         {@code true} if all filters pass the test.
++     */
++    @Override
++    public boolean forEachBloomFilter(Predicate<BloomFilter> bloomFilterPredicate) {
++        for (BloomFilter bf : filters) {
++            if (!bloomFilterPredicate.test(bf)) {
++                return false;
++            }
++        }
++        return true;
++    }
++
++    /**
++     * Builder to create Layer Manager
++     */
++    public static class Builder {
++        private Predicate<LayerManager> extendCheck;
++        private Supplier<BloomFilter> supplier;
++        private Consumer<LinkedList<BloomFilter>> cleanup;
++
++        private Builder() {
++            extendCheck = ExtendCheck.neverAdvance();
++            cleanup = Cleanup.noCleanup();
++        }
++
++        /**
++         * Builds the layer manager with the specified properties.
++         *
++         * @return a new LayerManager.
++         */
++        public LayerManager build() {
++            Objects.requireNonNull(supplier, "Supplier must not be null");
++            Objects.requireNonNull(extendCheck, "ExtendCheck must not be null");
++            Objects.requireNonNull(cleanup, "Cleanup must not be null");
++            return new LayerManager(supplier, extendCheck, cleanup, true);
++        }
++
++        /**
++         * Sets the extendCheck predicate. When the predicate returns {@code true} a new
++         * target will be created.
++         *
++         * @param extendCheck The predicate to determine if a new target should be
++         *                    created.
++         * @return this for chaining.
++         */
++        public Builder setExtendCheck(Predicate<LayerManager> extendCheck) {
++            this.extendCheck = extendCheck;
++            return this;
++        }
++
++        /**
++         * Sets the supplier of Bloom filters. When extendCheck creates a new target,
++         * the supplier provides the instance of the Bloom filter.
++         *
++         * @param supplier The supplier of new Bloom filter instances.
++         * @return this for chaining.
++         */
++        public Builder setSupplier(Supplier<BloomFilter> supplier) {
++            this.supplier = supplier;
++            return this;
++        }
++
++        /**
++         * Sets the Consumer that cleans the list of Bloom filters.
++         *
++         * @param cleanup the Consumer that will modify the list of filters removing out
++         *                dated or stale filters.
++         * @return this for chaining.
++         */
++        public Builder setCleanup(Consumer<LinkedList<BloomFilter>> cleanup) {
++            this.cleanup = cleanup;
++            return this;
++        }
++    }
++}
+diff --git a/src/main/java/org/apache/commons/collections4/bloomfilter/LayeredBloomFilter.java b/src/main/java/org/apache/commons/collections4/bloomfilter/LayeredBloomFilter.java
+new file mode 100644
+index 0000000000..cff8e87efc
+--- /dev/null
++++ b/src/main/java/org/apache/commons/collections4/bloomfilter/LayeredBloomFilter.java
+@@ -0,0 +1,380 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.commons.collections4.bloomfilter;
++
++import java.util.Arrays;
++import java.util.NoSuchElementException;
++import java.util.Objects;
++import java.util.function.IntPredicate;
++import java.util.function.LongPredicate;
++import java.util.function.Predicate;
++
++/**
++ * Layered Bloom filters are described in Zhiwang, Cen; Jungang, Xu; Jian, Sun
++ * (2010), "A multi-layer Bloom filter for duplicated URL detection", Proc. 3rd
++ * International Conference on Advanced Computer Theory and Engineering (ICACTE
++ * 2010), vol. 1, pp. V1-586-V1-591, doi:10.1109/ICACTE.2010.5578947, ISBN
++ * 978-1-4244-6539-2, S2CID 3108985
++ * <p>
++ * In short, Layered Bloom filter contains several bloom filters arranged in
++ * layers.
++ * </p>
++ * <ul>
++ * <li>When membership in the filter is checked each layer in turn is checked
++ * and if a match is found {@code true} is returned.</li>
++ * <li>When merging each bloom filter is merged into the newest filter in the
++ * list of layers.</li>
++ * <li>When questions of cardinality are asked the cardinality of the union of
++ * the enclosed Bloom filters is used.</li>
++ * </ul>
++ * <p>
++ * The net result is that the layered Bloom filter can be populated with more
++ * items than the Shape would indicate and yet still return a false positive
++ * rate in line with the Shape and not the over population.
++ * </p>
++ * <p>
++ * This implementation uses a LayerManager to handle the manipulation of the
++ * layers.
++ * </p>
++ * <ul>
++ * <li>Level 0 is the oldest layer and the highest level is the newest.</li>
++ * <li>There is always at least one enclosed filter.</li>
++ * <li>The newest filter is the {@code target} into which merges are performed.
++ * <li>Whenever the target is retrieved, or a {@code merge} operation is
++ * performed the code checks if any older layers should be removed, and if so
++ * removes them. It also checks it a new layer should be added, and if so adds
++ * it and sets the {@code target} before the operation.</li>
++ * </ul>
++ * @since 4.5
++ */
++public class LayeredBloomFilter implements BloomFilter, BloomFilterProducer {
++    private final Shape shape;
++    private LayerManager layerManager;
++
++    /**
++     * Creates a fixed size layered bloom filter that adds new filters to the list,
++     * but never merges them. List will never exceed maxDepth. As additional filters
++     * are added earlier filters are removed.
++     *
++     * @param shape    The shape for the enclosed Bloom filters.
++     * @param maxDepth The maximum depth of layers.
++     * @return An empty layered Bloom filter of the specified shape and depth.
++     */
++    public static LayeredBloomFilter fixed(final Shape shape, int maxDepth) {
++        LayerManager manager = LayerManager.builder().setExtendCheck(LayerManager.ExtendCheck.advanceOnPopulated())
++                .setCleanup(LayerManager.Cleanup.onMaxSize(maxDepth)).setSupplier(() -> new SimpleBloomFilter(shape)).build();
++        return new LayeredBloomFilter(shape, manager);
++    }
++
++    /**
++     * Constructor.
++     *
++     * @param shape        the Shape of the enclosed Bloom filters
++     * @param layerManager the LayerManager to manage the layers.
++     */
++    public LayeredBloomFilter(Shape shape, LayerManager layerManager) {
++        this.shape = shape;
++        this.layerManager = layerManager;
++    }
++
++    @Override
++    public LayeredBloomFilter copy() {
++        return new LayeredBloomFilter(shape, layerManager.copy());
++    }
++
++    /**
++     * Gets the depth of the deepest layer. The minimum value returned by this
++     * method is 1.
++     *
++     * @return the depth of the deepest layer.
++     */
++    public final int getDepth() {
++        return layerManager.getDepth();
++    }
++
++    /**
++     * Gets the Bloom filter at the specified depth
++     *
++     * @param depth the depth of the filter to return.
++     * @return the Bloom filter at the specified depth.
++     * @throws NoSuchElementException if depth is not in the range [0,getDepth())
++     */
++    public BloomFilter get(int depth) {
++        return layerManager.get(depth);
++    }
++
++    @Override
++    public int cardinality() {
++        return SetOperations.cardinality(this);
++    }
++
++    @Override
++    public boolean isEmpty() {
++        return forEachBloomFilter(BloomFilter::isEmpty);
++    }
++
++    @Override
++    public final void clear() {
++        layerManager.clear();
++    }
++
++    /**
++     * Processes the Bloom filters in depth order with the most recent filters
++     * first. Each filter is passed to the predicate in turn. The function exits on
++     * the first {@code false} returned by the predicate.
++     *
++     * @param bloomFilterPredicate the predicate to execute.
++     * @return {@code true} if all filters passed the predicate, {@code false}
++     *         otherwise.
++     */
++    @Override
++    public final boolean forEachBloomFilter(Predicate<BloomFilter> bloomFilterPredicate) {
++        return layerManager.forEachBloomFilter(bloomFilterPredicate);
++    }
++
++    /**
++     * Create a standard (non-layered) Bloom filter by merging all of the layers. If
++     * the filter is empty this method will return an empty Bloom filter.
++     *
++     * @return the merged bloom filter.
++     */
++    @Override
++    public BloomFilter flatten() {
++        BloomFilter bf = new SimpleBloomFilter(shape);
++        forEachBloomFilter(bf::merge);
++        return bf;
++    }
++
++    /**
++     * Finds the layers in which the Hasher is found.
++     *
++     * @param hasher the Hasher to search for.
++     * @return an array of layer indices in which the Bloom filter is found.
++     */
++    public int[] find(final Hasher hasher) {
++        SimpleBloomFilter bf = new SimpleBloomFilter(shape);
++        bf.merge(hasher);
++        return find(bf);
++    }
++
++    /**
++     * Finds the layers in which the IndexProducer is found.
++     *
++     * @param indexProducer the Index producer to search for.
++     * @return an array of layer indices in which the Bloom filter is found.
++     */
++    public int[] find(final IndexProducer indexProducer) {
++        SimpleBloomFilter bf = new SimpleBloomFilter(shape);
++        bf.merge(indexProducer);
++        return find(bf);
++    }
++
++    /**
++     * Finds the layers in which the BitMapProducer is found.
++     *
++     * @param bitMapProducer the BitMapProducer to search for.
++     * @return an array of layer indices in which the Bloom filter is found.
++     */
++    public int[] find(final BitMapProducer bitMapProducer) {
++        SimpleBloomFilter bf = new SimpleBloomFilter(shape);
++        bf.merge(bitMapProducer);
++        return find(bf);
++    }
++
++    /**
++     * Finds the layers in which the Bloom filter is found.
++     *
++     * @param bf the Bloom filter to search for.
++     * @return an array of layer indices in which the Bloom filter is found.
++     */
++    public int[] find(BloomFilter bf) {
++        Finder finder = new Finder(bf);
++        forEachBloomFilter(finder);
++        return finder.getResult();
++    }
++
++    /**
++     * Returns {@code true} if this any layer contained by this filter contains the
++     * specified filter.
++     * <p>
++     * If the {@code other} is a BloomFilterProducer each filter within the
++     * {@code other} is checked to see if it exits within this filter.
++     * </p>
++     *
++     * @param other the other Bloom filter
++     * @return {@code true} if this filter contains the other filter.
++     */
++    @Override
++    public boolean contains(final BloomFilter other) {
++        return other instanceof BloomFilterProducer ? contains((BloomFilterProducer) other)
++                : !forEachBloomFilter(x -> !x.contains(other));
++    }
++
++    /**
++     * Returns {@code true} if each filter within the {@code producer} exits within
++     * this filter.
++     *
++     * @param producer the BloomFilterProducer that provides the filters to check
++     *                 for.
++     * @return {@code true} if this filter contains all of the filters contained in
++     *         the {@code producer}.
++     */
++    public boolean contains(final BloomFilterProducer producer) {
++        boolean[] result = { true };
++        // return false when we have found a match to short circuit checks
++        return producer.forEachBloomFilter(x -> {
++            result[0] &= contains(x);
++            return result[0];
++        });
++    }
++
++    /**
++     * Creates a Bloom filter from a Hasher.
++     *
++     * @param hasher the hasher to create the filter from.
++     * @return the BloomFilter.
++     */
++    private BloomFilter createFilter(final Hasher hasher) {
++        SimpleBloomFilter bf = new SimpleBloomFilter(shape);
++        bf.merge(hasher);
++        return bf;
++    }
++
++    /**
++     * Creates a Bloom filter from an IndexProducer.
++     *
++     * @param indexProducer the IndexProducer to create the filter from.
++     * @return the BloomFilter.
++     */
++    private BloomFilter createFilter(final IndexProducer indexProducer) {
++        SimpleBloomFilter bf = new SimpleBloomFilter(shape);
++        bf.merge(indexProducer);
++        return bf;
++    }
++
++    /**
++     * Creates a Bloom filter from a BitMapProducer.
++     *
++     * @param bitMapProducer the BitMapProducer to create the filter from.
++     * @return the BloomFilter.
++     */
++    private BloomFilter createFilter(final BitMapProducer bitMapProducer) {
++        SimpleBloomFilter bf = new SimpleBloomFilter(shape);
++        bf.merge(bitMapProducer);
++        return bf;
++    }
++
++    @Override
++    public int characteristics() {
++        return 0;
++    }
++
++    @Override
++    public final Shape getShape() {
++        return shape;
++    }
++
++    @Override
++    public boolean contains(final Hasher hasher) {
++        return contains(createFilter(hasher));
++    }
++
++    @Override
++    public boolean contains(final BitMapProducer bitMapProducer) {
++        return contains(createFilter(bitMapProducer));
++    }
++
++    @Override
++    public boolean contains(IndexProducer indexProducer) {
++        return contains(createFilter(indexProducer));
++    }
++
++    @Override
++    public boolean merge(BloomFilter bf) {
++        return layerManager.getTarget().merge(bf);
++    }
++
++    @Override
++    public boolean merge(IndexProducer indexProducer) {
++        return layerManager.getTarget().merge(indexProducer);
++    }
++
++    @Override
++    public boolean merge(BitMapProducer bitMapProducer) {
++        return layerManager.getTarget().merge(bitMapProducer);
++    }
++
++    @Override
++    public boolean forEachIndex(IntPredicate predicate) {
++        return forEachBloomFilter(bf -> bf.forEachIndex(predicate));
++    }
++
++    @Override
++    public boolean forEachBitMap(LongPredicate predicate) {
++        return flatten().forEachBitMap(predicate);
++    }
++
++    @Override
++    public int estimateN() {
++        return flatten().estimateN();
++    }
++
++    @Override
++    public int estimateUnion(final BloomFilter other) {
++        Objects.requireNonNull(other, "other");
++        final BloomFilter cpy = this.flatten();
++        cpy.merge(other);
++        return cpy.estimateN();
++    }
++
++    /**
++     * Forces and advance to the next layer. Executes the same logic as when
++     * LayerManager.extendCheck returns {@code true}
++     *
++     * @see LayerManager
++     */
++    public void next() {
++        layerManager.next();
++    }
++
++    /**
++     * A class used to locate matching filters across all the layers.
++     */
++    private class Finder implements Predicate<BloomFilter> {
++        int[] result = new int[layerManager.getDepth()];
++        int bfIdx;
++        int resultIdx;
++        BloomFilter bf;
++
++        Finder(BloomFilter bf) {
++            this.bf = bf;
++        }
++
++        @Override
++        public boolean test(BloomFilter x) {
++            if (x.contains(bf)) {
++                result[resultIdx++] = bfIdx;
++            }
++            bfIdx++;
++            return true;
++        }
++
++        int[] getResult() {
++            return Arrays.copyOf(result, resultIdx);
++        }
++    }
++}
+diff --git a/src/main/java/org/apache/commons/collections4/bloomfilter/Shape.java b/src/main/java/org/apache/commons/collections4/bloomfilter/Shape.java
+index 883208f063..aeb1eb2685 100644
+--- a/src/main/java/org/apache/commons/collections4/bloomfilter/Shape.java
++++ b/src/main/java/org/apache/commons/collections4/bloomfilter/Shape.java
+@@ -227,6 +227,23 @@ public double estimateN(final int cardinality) {
+         return -(m / k) * Math.log1p(-c / m);
+     }
+ 
++    /**
++     * Estimates the maximum number of elements that can be merged into a filter of
++     * this shape before the false positive rate exceeds the desired rate. <p> The
++     * formula for deriving {@code k} when {@code m} and {@code n} are known is:
++     *
++     * <p>{@code k = ln2 * m / n}</p>
++     *
++     * <p>Solving for {@code n} yields:</p>
++     *
++     * <p>{@code n = ln2 * m / k}</p>
++     *
++     * @return An estimate of max N.
++     */
++    public double estimateMaxN() {
++        return numberOfBits * LN_2 / numberOfHashFunctions;
++    }
++
+     /**
+      * Constructs a filter configuration with a desired false-positive probability ({@code p}) and the
+      * specified number of bits ({@code m}) and hash functions ({@code k}).
+diff --git a/src/main/java/org/apache/commons/collections4/bloomfilter/SimpleBloomFilter.java b/src/main/java/org/apache/commons/collections4/bloomfilter/SimpleBloomFilter.java
+index 25114c1136..91d802c32c 100644
+--- a/src/main/java/org/apache/commons/collections4/bloomfilter/SimpleBloomFilter.java
++++ b/src/main/java/org/apache/commons/collections4/bloomfilter/SimpleBloomFilter.java
+@@ -167,6 +167,11 @@ public int cardinality() {
+         return c;
+     }
+ 
++    @Override
++    public boolean isEmpty() {
++        return cardinality == 0 || forEachBitMap(y -> y == 0);
++    }
++
+     @Override
+     public boolean forEachIndex(final IntPredicate consumer) {
+         Objects.requireNonNull(consumer, "consumer");
+diff --git a/src/main/java/org/apache/commons/collections4/bloomfilter/SparseBloomFilter.java b/src/main/java/org/apache/commons/collections4/bloomfilter/SparseBloomFilter.java
+index bd0ba87cc2..980f74f9c2 100644
+--- a/src/main/java/org/apache/commons/collections4/bloomfilter/SparseBloomFilter.java
++++ b/src/main/java/org/apache/commons/collections4/bloomfilter/SparseBloomFilter.java
+@@ -136,6 +136,11 @@ public int cardinality() {
+         return indices.size();
+     }
+ 
++    @Override
++    public boolean isEmpty() {
++        return indices.isEmpty();
++    }
++
+     @Override
+     public boolean forEachIndex(final IntPredicate consumer) {
+         Objects.requireNonNull(consumer, "consumer");
+diff --git a/src/main/java/org/apache/commons/collections4/bloomfilter/WrappedBloomFilter.java b/src/main/java/org/apache/commons/collections4/bloomfilter/WrappedBloomFilter.java
+new file mode 100644
+index 0000000000..cff65d6e34
+--- /dev/null
++++ b/src/main/java/org/apache/commons/collections4/bloomfilter/WrappedBloomFilter.java
+@@ -0,0 +1,148 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.commons.collections4.bloomfilter;
++
++import java.util.function.IntPredicate;
++import java.util.function.LongPredicate;
++
++/**
++ * An abstract class to assist in implementing Bloom filter decorators.
++ *
++ * @since 4.5
++ */
++public abstract class WrappedBloomFilter implements BloomFilter {
++    final BloomFilter wrapped;
++
++    /**
++     * Wraps a Bloom filter.  The wrapped filter is maintained as a reference
++     * not a copy.  Changes in one will be reflected in the other.
++     * @param bf The Bloom filter.
++     */
++    public WrappedBloomFilter(BloomFilter bf) {
++        this.wrapped = bf;
++    }
++
++    @Override
++    public boolean forEachIndex(IntPredicate predicate) {
++        return wrapped.forEachIndex(predicate);
++    }
++
++    @Override
++    public BloomFilter copy() {
++        return wrapped.copy();
++    }
++
++    @Override
++    public boolean forEachBitMap(LongPredicate predicate) {
++        return wrapped.forEachBitMap(predicate);
++    }
++
++    @Override
++    public int characteristics() {
++        return wrapped.characteristics();
++    }
++
++    @Override
++    public Shape getShape() {
++        return wrapped.getShape();
++    }
++
++    @Override
++    public void clear() {
++        wrapped.clear();
++    }
++
++    @Override
++    public boolean contains(BloomFilter other) {
++        return wrapped.contains(other);
++    }
++
++    @Override
++    public boolean forEachBitMapPair(BitMapProducer other, LongBiPredicate func) {
++        return wrapped.forEachBitMapPair(other, func);
++    }
++
++    @Override
++    public boolean contains(Hasher hasher) {
++        return wrapped.contains(hasher);
++    }
++
++    @Override
++    public long[] asBitMapArray() {
++        return wrapped.asBitMapArray();
++    }
++
++    @Override
++    public int[] asIndexArray() {
++        return wrapped.asIndexArray();
++    }
++
++    @Override
++    public boolean contains(IndexProducer indexProducer) {
++        return wrapped.contains(indexProducer);
++    }
++
++    @Override
++    public boolean contains(BitMapProducer bitMapProducer) {
++        return wrapped.contains(bitMapProducer);
++    }
++
++    @Override
++    public boolean merge(BloomFilter other) {
++        return wrapped.merge(other);
++    }
++
++    @Override
++    public boolean merge(Hasher hasher) {
++        return wrapped.merge(hasher);
++    }
++
++    @Override
++    public boolean merge(IndexProducer indexProducer) {
++        return wrapped.merge(indexProducer);
++    }
++
++    @Override
++    public boolean merge(BitMapProducer bitMapProducer) {
++        return wrapped.merge(bitMapProducer);
++    }
++
++    @Override
++    public boolean isFull() {
++        return wrapped.isFull();
++    }
++
++    @Override
++    public int cardinality() {
++        return wrapped.cardinality();
++    }
++
++    @Override
++    public int estimateN() {
++        return wrapped.estimateN();
++    }
++
++    @Override
++    public int estimateUnion(BloomFilter other) {
++        return wrapped.estimateUnion(other);
++    }
++
++    @Override
++    public int estimateIntersection(BloomFilter other) {
++        return wrapped.estimateIntersection(other);
++    }
++}
+diff --git a/src/main/java/org/apache/commons/collections4/bloomfilter/package-info.java b/src/main/java/org/apache/commons/collections4/bloomfilter/package-info.java
+index 7df764182d..7a21f19834 100644
+--- a/src/main/java/org/apache/commons/collections4/bloomfilter/package-info.java
++++ b/src/main/java/org/apache/commons/collections4/bloomfilter/package-info.java
+@@ -46,7 +46,7 @@
+  * representation of the internal structure. Additional methods are available in the {@code BitMap} to assist in
+  * manipulation of the representations.</p>
+  *
+- * <p>The bloom filter code is an interface that requires implementation of 9 methods:</p>
++ * <p>The Bloom filter code is an interface that requires implementation of 9 methods:</p>
+  * <ul>
+  * <li>{@link BloomFilter#cardinality()} returns the number of bits enabled in the Bloom filter.</li>
+  *
+@@ -72,10 +72,15 @@
+  *
+  * <h3>CountingBloomFilter</h3>
+  *
+- * <p>The counting bloom filter extends the Bloom filter by counting the number of times a specific bit has been
++ * <p>The counting Bloom filter extends the Bloom filter by counting the number of times a specific bit has been
+  * enabled or disabled. This allows the removal (opposite of merge) of Bloom filters at the expense of additional
+  * overhead.</p>
+  *
++ * <h3>LayeredBloomFilter</h3>
++ *
++ * <p>The layered Bloom filter extends the Bloom filter by creating layers of Bloom filters that can be queried as a single
++ * Filter or as a set of filters.  This adds the ability to perform windowing on streams of data.</p>
++ *
+  * <h3>Shape</h3>
+  *
+  * <p>The Shape describes the Bloom filter using the number of bits and the number of hash functions</p>

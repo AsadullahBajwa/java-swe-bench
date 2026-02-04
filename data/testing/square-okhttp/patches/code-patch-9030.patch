@@ -1,0 +1,19 @@
+diff --git a/okhttp-logging-interceptor/src/main/kotlin/okhttp3/logging/HttpLoggingInterceptor.kt b/okhttp-logging-interceptor/src/main/kotlin/okhttp3/logging/HttpLoggingInterceptor.kt
+index e290d475e6db..8fdb38a06f74 100644
+--- a/okhttp-logging-interceptor/src/main/kotlin/okhttp3/logging/HttpLoggingInterceptor.kt
++++ b/okhttp-logging-interceptor/src/main/kotlin/okhttp3/logging/HttpLoggingInterceptor.kt
+@@ -247,7 +247,13 @@ class HttpLoggingInterceptor
+       try {
+         response = chain.proceed(request)
+       } catch (e: Exception) {
+-        logger.log("<-- HTTP FAILED: $e")
++        val tookMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNs)
++        logger.log(
++          buildString {
++            append("<-- HTTP FAILED: $e.")
++            append(" ${redactUrl(request.url)} (${tookMs}ms)")
++          },
++        )
+         throw e
+       }
+ 

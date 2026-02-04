@@ -1,0 +1,130 @@
+diff --git a/release-notes/VERSION b/release-notes/VERSION
+index c6911ff797..e4e5c1899a 100644
+--- a/release-notes/VERSION
++++ b/release-notes/VERSION
+@@ -17,7 +17,9 @@ JSON library.
+ 
+ 3.1.0 (not yet released)
+ 
+--
++#1506: Non-blocking parser parses numbers eagerly; does not report error
++  with missing space
++ (fix by @cowtowncoder, w/ Claude code)
+ 
+ 3.0.2 (not yet released)
+ 
+diff --git a/src/main/java/tools/jackson/core/json/async/NonBlockingUtf8JsonParserBase.java b/src/main/java/tools/jackson/core/json/async/NonBlockingUtf8JsonParserBase.java
+index d9e410f80c..bcfc09ade1 100644
+--- a/src/main/java/tools/jackson/core/json/async/NonBlockingUtf8JsonParserBase.java
++++ b/src/main/java/tools/jackson/core/json/async/NonBlockingUtf8JsonParserBase.java
+@@ -1688,6 +1688,7 @@ protected JsonToken _finishNumberLeadingPosNegZeroes(final boolean negative) thr
+ 
+     protected JsonToken _finishNumberIntegralPart(char[] outBuf, int outPtr) throws JacksonException {
+         int negMod = _numberNegative ? -1 : 0;
++        int ch;
+ 
+         while (true) {
+             if (_inputPtr >= _inputEnd) {
+@@ -1695,7 +1696,7 @@ protected JsonToken _finishNumberIntegralPart(char[] outBuf, int outPtr) throws
+                 _textBuffer.setCurrentLength(outPtr);
+                 return _updateTokenToNA();
+             }
+-            int ch = getByteFromBuffer(_inputPtr) & 0xFF;
++            ch = getByteFromBuffer(_inputPtr) & 0xFF;
+             if (ch < INT_0) {
+                 if (ch == INT_PERIOD) {
+                     _intLength = outPtr+negMod;
+@@ -1722,6 +1723,10 @@ protected JsonToken _finishNumberIntegralPart(char[] outBuf, int outPtr) throws
+         }
+         _intLength = outPtr+negMod;
+         _textBuffer.setCurrentLength(outPtr);
++        // As per #105, need separating space between root values; check here
++        if (_streamReadContext.inRoot()) {
++            _verifyRootSpace(ch);
++        }
+         return _valueComplete(JsonToken.VALUE_NUMBER_INT);
+     }
+ 
+@@ -1810,6 +1815,10 @@ protected JsonToken _startFloat(char[] outBuf, int outPtr, int ch) throws Jackso
+         _textBuffer.setCurrentLength(outPtr);
+         // negative, int-length, fract-length already set, so...
+         _expLength = expLen;
++        // As per #105, need separating space between root values; check here
++        if (_streamReadContext.inRoot()) {
++            _verifyRootSpace(ch);
++        }
+         return _valueComplete(JsonToken.VALUE_NUMBER_FLOAT);
+     }
+ 
+@@ -1836,6 +1845,12 @@ protected JsonToken _finishFloatFraction() throws JacksonException
+                 }
+                 ch = getNextSignedByteFromBuffer();
+             } else if ((ch | 0x22) == 'f') { // ~ fFdD
++                // For root level, better to report missing space error
++                if (_streamReadContext.inRoot()) {
++                    ch &= 0xFF;
++                    --_inputPtr; // push back so _verifyRootSpace can handle it
++                    _reportMissingRootWS(ch);
++                }
+                 _reportUnexpectedNumberChar(ch, "JSON does not support parsing numbers that have 'f' or 'd' suffixes");
+             } else if (ch == INT_PERIOD) {
+                 _reportUnexpectedNumberChar(ch, "Cannot parse number with more than one decimal point");
+@@ -1871,6 +1886,10 @@ protected JsonToken _finishFloatFraction() throws JacksonException
+         _textBuffer.setCurrentLength(outPtr);
+         // negative, int-length, fract-length already set, so...
+         _expLength = 0;
++        // As per #105, need separating space between root values; check here
++        if (_streamReadContext.inRoot()) {
++            _verifyRootSpace(ch);
++        }
+         return _valueComplete(JsonToken.VALUE_NUMBER_FLOAT);
+     }
+ 
+@@ -1916,6 +1935,10 @@ protected JsonToken _finishFloatExponent(boolean checkSign, int ch) throws Jacks
+         _textBuffer.setCurrentLength(outPtr);
+         // negative, int-length, fract-length already set, so...
+         _expLength = expLen;
++        // As per #105, need separating space between root values; check here
++        if (_streamReadContext.inRoot()) {
++            _verifyRootSpace(ch);
++        }
+         return _valueComplete(JsonToken.VALUE_NUMBER_FLOAT);
+     }
+ 
+@@ -3004,6 +3027,36 @@ private final int _decodeUTF8_4(int c, int d, int e, int f) throws JacksonExcept
+         return ((c << 6) | (f & 0x3F)) - 0x10000;
+     }
+ 
++    /**
++     * Method called to verify that a root-level value is followed by a space
++     * token (or EOF).
++     *<p>
++     * NOTE: caller MUST ensure there is at least one character available;
++     * and that input pointer is AT given char (not past)
++     *
++     * @param ch Character after number value
++     *
++     * @throws JacksonException for decoding problems (invalid white space)
++     */
++    private final void _verifyRootSpace(int ch) throws JacksonException
++    {
++        // caller had not yet advanced, so advance now
++        ++_inputPtr;
++        switch (ch) {
++        case ' ':
++        case '\t':
++            return;
++        case '\r':
++            --_inputPtr;
++            return;
++        case '\n':
++            ++_currInputRow;
++            _currInputRowStart = _inputPtr;
++            return;
++        }
++        _reportMissingRootWS(ch);
++    }
++
+     /*
+     /**********************************************************************
+     /* Internal methods, other

@@ -1,0 +1,1706 @@
+diff --git a/okhttp-testing-support/src/main/kotlin/okhttp3/RecordingEventListener.kt b/okhttp-testing-support/src/main/kotlin/okhttp3/RecordingEventListener.kt
+index 76e40f4e4b50..08b0a00a9d00 100644
+--- a/okhttp-testing-support/src/main/kotlin/okhttp3/RecordingEventListener.kt
++++ b/okhttp-testing-support/src/main/kotlin/okhttp3/RecordingEventListener.kt
+@@ -138,7 +138,7 @@ open class RecordingEventListener(
+     return result
+   }
+ 
+-  fun recordedEventTypes() = eventSequence.map { it.name }
++  fun recordedEventTypes() = eventSequence.map { it::class }
+ 
+   fun clearAllEvents() {
+     while (eventSequence.isNotEmpty()) {
+diff --git a/okhttp/src/jvmTest/kotlin/okhttp3/CallTest.kt b/okhttp/src/jvmTest/kotlin/okhttp3/CallTest.kt
+index 8927363bf027..00dccd080284 100644
+--- a/okhttp/src/jvmTest/kotlin/okhttp3/CallTest.kt
++++ b/okhttp/src/jvmTest/kotlin/okhttp3/CallTest.kt
+@@ -76,10 +76,26 @@ import mockwebserver3.SocketEffect.ShutdownConnection
+ import mockwebserver3.SocketEffect.Stall
+ import mockwebserver3.junit5.StartStop
+ import okhttp3.CallEvent.CallEnd
++import okhttp3.CallEvent.CallFailed
++import okhttp3.CallEvent.CallStart
++import okhttp3.CallEvent.ConnectEnd
+ import okhttp3.CallEvent.ConnectStart
+ import okhttp3.CallEvent.ConnectionAcquired
+ import okhttp3.CallEvent.ConnectionReleased
++import okhttp3.CallEvent.DnsEnd
++import okhttp3.CallEvent.DnsStart
++import okhttp3.CallEvent.FollowUpDecision
++import okhttp3.CallEvent.ProxySelectEnd
++import okhttp3.CallEvent.ProxySelectStart
++import okhttp3.CallEvent.RequestBodyEnd
++import okhttp3.CallEvent.RequestBodyStart
++import okhttp3.CallEvent.RequestHeadersEnd
++import okhttp3.CallEvent.RequestHeadersStart
++import okhttp3.CallEvent.ResponseBodyEnd
++import okhttp3.CallEvent.ResponseBodyStart
+ import okhttp3.CallEvent.ResponseFailed
++import okhttp3.CallEvent.ResponseHeadersEnd
++import okhttp3.CallEvent.ResponseHeadersStart
+ import okhttp3.CallEvent.RetryDecision
+ import okhttp3.CertificatePinner.Companion.pin
+ import okhttp3.Credentials.basic
+@@ -1716,16 +1732,16 @@ open class CallTest {
+     }
+ 
+     assertThat(listener.recordedEventTypes()).containsExactly(
+-      "CallStart",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "RequestBodyStart",
+-      "RequestBodyEnd",
+-      "ResponseFailed",
+-      "RetryDecision",
+-      "ConnectionReleased",
+-      "CallFailed",
++      CallStart::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      RequestBodyStart::class,
++      RequestBodyEnd::class,
++      ResponseFailed::class,
++      RetryDecision::class,
++      ConnectionReleased::class,
++      CallFailed::class,
+     )
+     assertThat(listener.findEvent<RetryDecision>()).all {
+       prop(RetryDecision::retry).isFalse()
+@@ -1736,23 +1752,23 @@ open class CallTest {
+     assertThat(response3.body.string()).isEqualTo("abc")
+ 
+     assertThat(listener.recordedEventTypes()).containsExactly(
+-      "CallStart",
+-      "ProxySelectStart",
+-      "ProxySelectEnd",
+-      "DnsStart",
+-      "DnsEnd",
+-      "ConnectStart",
+-      "ConnectEnd",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "ResponseHeadersStart",
+-      "ResponseHeadersEnd",
+-      "FollowUpDecision",
+-      "ResponseBodyStart",
+-      "ResponseBodyEnd",
+-      "ConnectionReleased",
+-      "CallEnd",
++      CallStart::class,
++      ProxySelectStart::class,
++      ProxySelectEnd::class,
++      DnsStart::class,
++      DnsEnd::class,
++      ConnectStart::class,
++      ConnectEnd::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      ResponseHeadersStart::class,
++      ResponseHeadersEnd::class,
++      FollowUpDecision::class,
++      ResponseBodyStart::class,
++      ResponseBodyEnd::class,
++      ConnectionReleased::class,
++      CallEnd::class,
+     )
+ 
+     val get = server.takeRequest()
+diff --git a/okhttp/src/jvmTest/kotlin/okhttp3/DispatcherTest.kt b/okhttp/src/jvmTest/kotlin/okhttp3/DispatcherTest.kt
+index d2955bb48b2d..3a74cde50563 100644
+--- a/okhttp/src/jvmTest/kotlin/okhttp3/DispatcherTest.kt
++++ b/okhttp/src/jvmTest/kotlin/okhttp3/DispatcherTest.kt
+@@ -31,6 +31,8 @@ import java.util.concurrent.CountDownLatch
+ import java.util.concurrent.TimeUnit
+ import java.util.concurrent.atomic.AtomicBoolean
+ import kotlin.test.assertFailsWith
++import okhttp3.CallEvent.CallFailed
++import okhttp3.CallEvent.CallStart
+ import okhttp3.CallEvent.DispatcherQueueEnd
+ import okhttp3.CallEvent.DispatcherQueueStart
+ import okhttp3.HttpUrl.Companion.toHttpUrl
+@@ -356,7 +358,7 @@ class DispatcherTest {
+     client.newCall(request).enqueue(callback)
+     callback.await(request.url).assertFailure(InterruptedIOException::class.java)
+     assertThat(listener.recordedEventTypes())
+-      .containsExactly("CallStart", "CallFailed")
++      .containsExactly(CallStart::class, CallFailed::class)
+   }
+ 
+   @Test
+@@ -370,7 +372,7 @@ class DispatcherTest {
+     dispatcher.maxRequests = 2 // Trigger promotion.
+     callback.await(request2.url).assertFailure(InterruptedIOException::class.java)
+     assertThat(listener.recordedEventTypes())
+-      .containsExactly("CallStart", "CallStart", "CallFailed")
++      .containsExactly(CallStart::class, CallStart::class, CallFailed::class)
+   }
+ 
+   @Test
+@@ -384,7 +386,7 @@ class DispatcherTest {
+     dispatcher.maxRequestsPerHost = 2 // Trigger promotion.
+     callback.await(request2.url).assertFailure(InterruptedIOException::class.java)
+     assertThat(listener.recordedEventTypes())
+-      .containsExactly("CallStart", "CallStart", "CallFailed")
++      .containsExactly(CallStart::class, CallStart::class, CallFailed::class)
+   }
+ 
+   @Test
+@@ -398,7 +400,7 @@ class DispatcherTest {
+     executor.finishJob("http://a/1") // Trigger promotion.
+     callback.await(request2.url).assertFailure(InterruptedIOException::class.java)
+     assertThat(listener.recordedEventTypes())
+-      .containsExactly("CallStart", "CallStart", "CallFailed")
++      .containsExactly(CallStart::class, CallStart::class, CallFailed::class)
+   }
+ 
+   private fun makeSynchronousCall(call: Call): Thread {
+diff --git a/okhttp/src/jvmTest/kotlin/okhttp3/DuplexTest.kt b/okhttp/src/jvmTest/kotlin/okhttp3/DuplexTest.kt
+index 2fe2dd7b0cba..b8855a5f9c28 100644
+--- a/okhttp/src/jvmTest/kotlin/okhttp3/DuplexTest.kt
++++ b/okhttp/src/jvmTest/kotlin/okhttp3/DuplexTest.kt
+@@ -36,7 +36,28 @@ import kotlin.test.assertFailsWith
+ import mockwebserver3.MockResponse
+ import mockwebserver3.MockWebServer
+ import mockwebserver3.junit5.StartStop
++import okhttp3.CallEvent.CallEnd
++import okhttp3.CallEvent.CallStart
++import okhttp3.CallEvent.ConnectEnd
++import okhttp3.CallEvent.ConnectStart
++import okhttp3.CallEvent.ConnectionAcquired
++import okhttp3.CallEvent.ConnectionReleased
++import okhttp3.CallEvent.DnsEnd
++import okhttp3.CallEvent.DnsStart
+ import okhttp3.CallEvent.FollowUpDecision
++import okhttp3.CallEvent.ProxySelectEnd
++import okhttp3.CallEvent.ProxySelectStart
++import okhttp3.CallEvent.RequestBodyEnd
++import okhttp3.CallEvent.RequestBodyStart
++import okhttp3.CallEvent.RequestFailed
++import okhttp3.CallEvent.RequestHeadersEnd
++import okhttp3.CallEvent.RequestHeadersStart
++import okhttp3.CallEvent.ResponseBodyEnd
++import okhttp3.CallEvent.ResponseBodyStart
++import okhttp3.CallEvent.ResponseHeadersEnd
++import okhttp3.CallEvent.ResponseHeadersStart
++import okhttp3.CallEvent.SecureConnectEnd
++import okhttp3.CallEvent.SecureConnectStart
+ import okhttp3.Credentials.basic
+ import okhttp3.Headers.Companion.headersOf
+ import okhttp3.RequestBody.Companion.toRequestBody
+@@ -303,27 +324,27 @@ class DuplexTest {
+     }
+     body.awaitSuccess()
+     assertThat(listener.recordedEventTypes()).containsExactly(
+-      "CallStart",
+-      "ProxySelectStart",
+-      "ProxySelectEnd",
+-      "DnsStart",
+-      "DnsEnd",
+-      "ConnectStart",
+-      "SecureConnectStart",
+-      "SecureConnectEnd",
+-      "ConnectEnd",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "RequestBodyStart",
+-      "ResponseHeadersStart",
+-      "ResponseHeadersEnd",
+-      "FollowUpDecision",
+-      "ResponseBodyStart",
+-      "ResponseBodyEnd",
+-      "RequestBodyEnd",
+-      "ConnectionReleased",
+-      "CallEnd",
++      CallStart::class,
++      ProxySelectStart::class,
++      ProxySelectEnd::class,
++      DnsStart::class,
++      DnsEnd::class,
++      ConnectStart::class,
++      SecureConnectStart::class,
++      SecureConnectEnd::class,
++      ConnectEnd::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      RequestBodyStart::class,
++      ResponseHeadersStart::class,
++      ResponseHeadersEnd::class,
++      FollowUpDecision::class,
++      ResponseBodyStart::class,
++      ResponseBodyEnd::class,
++      RequestBodyEnd::class,
++      ConnectionReleased::class,
++      CallEnd::class,
+     )
+   }
+ 
+@@ -438,34 +459,34 @@ class DuplexTest {
+     }
+     body.awaitSuccess()
+     assertThat(listener.recordedEventTypes()).containsExactly(
+-      "CallStart",
+-      "ProxySelectStart",
+-      "ProxySelectEnd",
+-      "DnsStart",
+-      "DnsEnd",
+-      "ConnectStart",
+-      "SecureConnectStart",
+-      "SecureConnectEnd",
+-      "ConnectEnd",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "RequestBodyStart",
+-      "ResponseHeadersStart",
+-      "ResponseHeadersEnd",
+-      "ResponseBodyStart",
+-      "ResponseBodyEnd",
+-      "FollowUpDecision",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "ResponseHeadersStart",
+-      "ResponseHeadersEnd",
+-      "FollowUpDecision",
+-      "ResponseBodyStart",
+-      "ResponseBodyEnd",
+-      "ConnectionReleased",
+-      "CallEnd",
+-      "RequestFailed",
++      CallStart::class,
++      ProxySelectStart::class,
++      ProxySelectEnd::class,
++      DnsStart::class,
++      DnsEnd::class,
++      ConnectStart::class,
++      SecureConnectStart::class,
++      SecureConnectEnd::class,
++      ConnectEnd::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      RequestBodyStart::class,
++      ResponseHeadersStart::class,
++      ResponseHeadersEnd::class,
++      ResponseBodyStart::class,
++      ResponseBodyEnd::class,
++      FollowUpDecision::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      ResponseHeadersStart::class,
++      ResponseHeadersEnd::class,
++      FollowUpDecision::class,
++      ResponseBodyStart::class,
++      ResponseBodyEnd::class,
++      ConnectionReleased::class,
++      CallEnd::class,
++      RequestFailed::class,
+     )
+     assertThat(listener.findEvent<FollowUpDecision>()).all {
+       prop(FollowUpDecision::nextRequest).isNotNull()
+diff --git a/okhttp/src/jvmTest/kotlin/okhttp3/EventListenerTest.kt b/okhttp/src/jvmTest/kotlin/okhttp3/EventListenerTest.kt
+index 5ad9aba784cc..b99c1da798bd 100644
+--- a/okhttp/src/jvmTest/kotlin/okhttp3/EventListenerTest.kt
++++ b/okhttp/src/jvmTest/kotlin/okhttp3/EventListenerTest.kt
+@@ -45,16 +45,25 @@ import mockwebserver3.MockResponse
+ import mockwebserver3.MockWebServer
+ import mockwebserver3.SocketEffect.CloseSocket
+ import mockwebserver3.junit5.StartStop
++import okhttp3.CallEvent.CacheConditionalHit
++import okhttp3.CallEvent.CacheHit
++import okhttp3.CallEvent.CacheMiss
+ import okhttp3.CallEvent.CallEnd
+ import okhttp3.CallEvent.CallFailed
+ import okhttp3.CallEvent.CallStart
++import okhttp3.CallEvent.Canceled
++import okhttp3.CallEvent.ConnectEnd
+ import okhttp3.CallEvent.ConnectStart
+ import okhttp3.CallEvent.ConnectionAcquired
++import okhttp3.CallEvent.ConnectionReleased
+ import okhttp3.CallEvent.DnsEnd
+ import okhttp3.CallEvent.DnsStart
+ import okhttp3.CallEvent.FollowUpDecision
++import okhttp3.CallEvent.ProxySelectEnd
++import okhttp3.CallEvent.ProxySelectStart
+ import okhttp3.CallEvent.RequestBodyEnd
+ import okhttp3.CallEvent.RequestBodyStart
++import okhttp3.CallEvent.RequestFailed
+ import okhttp3.CallEvent.RequestHeadersEnd
+ import okhttp3.CallEvent.RequestHeadersStart
+ import okhttp3.CallEvent.ResponseBodyEnd
+@@ -63,6 +72,7 @@ import okhttp3.CallEvent.ResponseFailed
+ import okhttp3.CallEvent.ResponseHeadersEnd
+ import okhttp3.CallEvent.ResponseHeadersStart
+ import okhttp3.CallEvent.RetryDecision
++import okhttp3.CallEvent.SatisfactionFailure
+ import okhttp3.CallEvent.SecureConnectEnd
+ import okhttp3.CallEvent.SecureConnectStart
+ import okhttp3.MediaType.Companion.toMediaType
+@@ -81,7 +91,7 @@ import org.hamcrest.CoreMatchers
+ import org.hamcrest.Description
+ import org.hamcrest.Matcher
+ import org.hamcrest.MatcherAssert
+-import org.junit.Assume
++import org.junit.Assume.assumeThat
+ import org.junit.jupiter.api.AfterEach
+ import org.junit.jupiter.api.BeforeEach
+ import org.junit.jupiter.api.Tag
+@@ -149,23 +159,23 @@ class EventListenerTest {
+     assertThat(response.body.string()).isEqualTo("abc")
+     response.body.close()
+     assertThat(listener.recordedEventTypes()).containsExactly(
+-      "CallStart",
+-      "ProxySelectStart",
+-      "ProxySelectEnd",
+-      "DnsStart",
+-      "DnsEnd",
+-      "ConnectStart",
+-      "ConnectEnd",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "ResponseHeadersStart",
+-      "ResponseHeadersEnd",
+-      "FollowUpDecision",
+-      "ResponseBodyStart",
+-      "ResponseBodyEnd",
+-      "ConnectionReleased",
+-      "CallEnd",
++      CallStart::class,
++      ProxySelectStart::class,
++      ProxySelectEnd::class,
++      DnsStart::class,
++      DnsEnd::class,
++      ConnectStart::class,
++      ConnectEnd::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      ResponseHeadersStart::class,
++      ResponseHeadersEnd::class,
++      FollowUpDecision::class,
++      ResponseBodyStart::class,
++      ResponseBodyEnd::class,
++      ConnectionReleased::class,
++      CallEnd::class,
+     )
+   }
+ 
+@@ -195,21 +205,21 @@ class EventListenerTest {
+     assertThat(response.body.string()).isEqualTo("abc")
+     response.body.close()
+     assertThat(listener.recordedEventTypes()).containsExactly(
+-      "CallStart",
+-      "ProxySelectStart",
+-      "ProxySelectEnd",
+-      "ConnectStart",
+-      "ConnectEnd",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "ResponseHeadersStart",
+-      "ResponseHeadersEnd",
+-      "FollowUpDecision",
+-      "ResponseBodyStart",
+-      "ResponseBodyEnd",
+-      "ConnectionReleased",
+-      "CallEnd",
++      CallStart::class,
++      ProxySelectStart::class,
++      ProxySelectEnd::class,
++      ConnectStart::class,
++      ConnectEnd::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      ResponseHeadersStart::class,
++      ResponseHeadersEnd::class,
++      FollowUpDecision::class,
++      ResponseBodyStart::class,
++      ResponseBodyEnd::class,
++      ConnectionReleased::class,
++      CallEnd::class,
+     )
+   }
+ 
+@@ -249,23 +259,23 @@ class EventListenerTest {
+     call.enqueue(callback)
+     completionLatch.await()
+     assertThat(listener.recordedEventTypes()).containsExactly(
+-      "CallStart",
+-      "ProxySelectStart",
+-      "ProxySelectEnd",
+-      "DnsStart",
+-      "DnsEnd",
+-      "ConnectStart",
+-      "ConnectEnd",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "ResponseHeadersStart",
+-      "ResponseHeadersEnd",
+-      "FollowUpDecision",
+-      "ResponseBodyStart",
+-      "ResponseBodyEnd",
+-      "ConnectionReleased",
+-      "CallEnd",
++      CallStart::class,
++      ProxySelectStart::class,
++      ProxySelectEnd::class,
++      DnsStart::class,
++      DnsEnd::class,
++      ConnectStart::class,
++      ConnectEnd::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      ResponseHeadersStart::class,
++      ResponseHeadersEnd::class,
++      FollowUpDecision::class,
++      ResponseBodyStart::class,
++      ResponseBodyEnd::class,
++      ConnectionReleased::class,
++      CallEnd::class,
+     )
+   }
+ 
+@@ -295,20 +305,20 @@ class EventListenerTest {
+       assertThat(expected.message).isIn("timeout", "Read timed out")
+     }
+     assertThat(listener.recordedEventTypes()).containsExactly(
+-      "CallStart",
+-      "ProxySelectStart",
+-      "ProxySelectEnd",
+-      "DnsStart",
+-      "DnsEnd",
+-      "ConnectStart",
+-      "ConnectEnd",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "ResponseFailed",
+-      "RetryDecision",
+-      "ConnectionReleased",
+-      "CallFailed",
++      CallStart::class,
++      ProxySelectStart::class,
++      ProxySelectEnd::class,
++      DnsStart::class,
++      DnsEnd::class,
++      ConnectStart::class,
++      ConnectEnd::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      ResponseFailed::class,
++      RetryDecision::class,
++      ConnectionReleased::class,
++      CallFailed::class,
+     )
+     assertThat(listener.findEvent<RetryDecision>()).all {
+       prop(RetryDecision::retry).isFalse()
+@@ -345,23 +355,23 @@ class EventListenerTest {
+       assertThat(expected.message).isEqualTo("unexpected end of stream")
+     }
+     assertThat(listener.recordedEventTypes()).containsExactly(
+-      "CallStart",
+-      "ProxySelectStart",
+-      "ProxySelectEnd",
+-      "DnsStart",
+-      "DnsEnd",
+-      "ConnectStart",
+-      "ConnectEnd",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "ResponseHeadersStart",
+-      "ResponseHeadersEnd",
+-      "FollowUpDecision",
+-      "ResponseBodyStart",
+-      "ResponseFailed",
+-      "ConnectionReleased",
+-      "CallFailed",
++      CallStart::class,
++      ProxySelectStart::class,
++      ProxySelectEnd::class,
++      DnsStart::class,
++      DnsEnd::class,
++      ConnectStart::class,
++      ConnectEnd::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      ResponseHeadersStart::class,
++      ResponseHeadersEnd::class,
++      FollowUpDecision::class,
++      ResponseBodyStart::class,
++      ResponseFailed::class,
++      ConnectionReleased::class,
++      CallFailed::class,
+     )
+     val responseFailed = listener.removeUpToEvent<ResponseFailed>()
+     assertThat(responseFailed.ioe.message).isEqualTo("unexpected end of stream")
+@@ -383,9 +393,9 @@ class EventListenerTest {
+       assertThat(expected.message).isEqualTo("Canceled")
+     }
+     assertThat(listener.recordedEventTypes()).containsExactly(
+-      "Canceled",
+-      "CallStart",
+-      "CallFailed",
++      Canceled::class,
++      CallStart::class,
++      CallFailed::class,
+     )
+   }
+ 
+@@ -421,7 +431,7 @@ class EventListenerTest {
+       },
+     )
+     call.cancel()
+-    assertThat(listener.recordedEventTypes()).contains("Canceled")
++    assertThat(listener.recordedEventTypes()).contains(Canceled::class)
+   }
+ 
+   @Test
+@@ -441,7 +451,7 @@ class EventListenerTest {
+       )
+     call.cancel()
+     call.cancel()
+-    assertThat(listener.recordedEventTypes()).containsExactly("Canceled")
++    assertThat(listener.recordedEventTypes()).containsExactly(Canceled::class)
+   }
+ 
+   private fun assertSuccessfulEventOrder(
+@@ -459,43 +469,43 @@ class EventListenerTest {
+     assertThat(response.code).isEqualTo(200)
+     response.body.string()
+     response.body.close()
+-    Assume.assumeThat(response, responseMatcher)
++    assumeThat(response, responseMatcher)
+     var expectedEventTypes =
+       listOf(
+-        "CallStart",
+-        "ProxySelectStart",
+-        "ProxySelectEnd",
+-        "DnsStart",
+-        "DnsEnd",
+-        "ConnectStart",
+-        "SecureConnectStart",
+-        "SecureConnectEnd",
+-        "ConnectEnd",
+-        "ConnectionAcquired",
+-        "RequestHeadersStart",
+-        "RequestHeadersEnd",
+-        "ResponseHeadersStart",
+-        "ResponseHeadersEnd",
++        CallStart::class,
++        ProxySelectStart::class,
++        ProxySelectEnd::class,
++        DnsStart::class,
++        DnsEnd::class,
++        ConnectStart::class,
++        SecureConnectStart::class,
++        SecureConnectEnd::class,
++        ConnectEnd::class,
++        ConnectionAcquired::class,
++        RequestHeadersStart::class,
++        RequestHeadersEnd::class,
++        ResponseHeadersStart::class,
++        ResponseHeadersEnd::class,
+       )
+     expectedEventTypes +=
+       when {
+         emptyBody ->
+           listOf(
+-            "ResponseBodyStart",
+-            "ResponseBodyEnd",
+-            "FollowUpDecision",
++            ResponseBodyStart::class,
++            ResponseBodyEnd::class,
++            FollowUpDecision::class,
+           )
+         else ->
+           listOf(
+-            "FollowUpDecision",
+-            "ResponseBodyStart",
+-            "ResponseBodyEnd",
++            FollowUpDecision::class,
++            ResponseBodyStart::class,
++            ResponseBodyEnd::class,
+           )
+       }
+     expectedEventTypes +=
+       listOf(
+-        "ConnectionReleased",
+-        "CallEnd",
++        ConnectionReleased::class,
++        CallEnd::class,
+       )
+     assertThat(listener.recordedEventTypes()).isEqualTo(expectedEventTypes)
+   }
+@@ -525,17 +535,17 @@ class EventListenerTest {
+     val response = call.execute()
+     response.close()
+     assertThat(listener.recordedEventTypes()).containsExactly(
+-      "CallStart",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "ResponseHeadersStart",
+-      "ResponseHeadersEnd",
+-      "ResponseBodyStart",
+-      "ResponseBodyEnd",
+-      "FollowUpDecision",
+-      "ConnectionReleased",
+-      "CallEnd",
++      CallStart::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      ResponseHeadersStart::class,
++      ResponseHeadersEnd::class,
++      ResponseBodyStart::class,
++      ResponseBodyEnd::class,
++      FollowUpDecision::class,
++      ConnectionReleased::class,
++      CallEnd::class,
+     )
+   }
+ 
+@@ -555,7 +565,7 @@ class EventListenerTest {
+       )
+     } else {
+       assertThat(listener.recordedEventTypes())
+-        .doesNotContain("RequestHeadersEnd")
++        .doesNotContain(RequestHeadersEnd::class)
+     }
+     if (requestBodyBytes != null) {
+       val responseBodyEnd: RequestBodyEnd = listener.removeUpToEvent<RequestBodyEnd>()
+@@ -565,7 +575,7 @@ class EventListenerTest {
+         requestBodyBytes,
+       )
+     } else {
+-      assertThat(listener.recordedEventTypes()).doesNotContain("RequestBodyEnd")
++      assertThat(listener.recordedEventTypes()).doesNotContain(RequestBodyEnd::class)
+     }
+     if (responseHeaderLength != null) {
+       val responseHeadersEnd: ResponseHeadersEnd =
+@@ -577,7 +587,7 @@ class EventListenerTest {
+       )
+     } else {
+       assertThat(listener.recordedEventTypes())
+-        .doesNotContain("ResponseHeadersEnd")
++        .doesNotContain(ResponseHeadersEnd::class)
+     }
+     if (responseBodyBytes != null) {
+       val responseBodyEnd: ResponseBodyEnd = listener.removeUpToEvent<ResponseBodyEnd>()
+@@ -587,7 +597,7 @@ class EventListenerTest {
+         responseBodyBytes,
+       )
+     } else {
+-      assertThat(listener.recordedEventTypes()).doesNotContain("ResponseBodyEnd")
++      assertThat(listener.recordedEventTypes()).doesNotContain(ResponseBodyEnd::class)
+     }
+   }
+ 
+@@ -735,9 +745,9 @@ class EventListenerTest {
+     val response2 = call2.execute()
+     assertThat(response2.code).isEqualTo(200)
+     response2.body.close()
+-    val recordedEvents: List<String> = listener.recordedEventTypes()
+-    assertThat(recordedEvents).doesNotContain("DnsStart")
+-    assertThat(recordedEvents).doesNotContain("DnsEnd")
++    val recordedEvents = listener.recordedEventTypes()
++    assertThat(recordedEvents).doesNotContain(DnsStart::class)
++    assertThat(recordedEvents).doesNotContain(DnsEnd::class)
+   }
+ 
+   @Test
+@@ -1165,9 +1175,9 @@ class EventListenerTest {
+     val response2 = call2.execute()
+     assertThat(response2.code).isEqualTo(200)
+     response2.body.close()
+-    val recordedEvents: List<String> = listener.recordedEventTypes()
+-    assertThat(recordedEvents).doesNotContain("SecureConnectStart")
+-    assertThat(recordedEvents).doesNotContain("SecureConnectEnd")
++    val recordedEvents = listener.recordedEventTypes()
++    assertThat(recordedEvents).doesNotContain(SecureConnectStart::class)
++    assertThat(recordedEvents).doesNotContain(SecureConnectEnd::class)
+   }
+ 
+   @Test
+@@ -1214,7 +1224,7 @@ class EventListenerTest {
+     assertThat(response.body.string()).isEqualTo("ABC")
+     listener.removeUpToEvent<ConnectionAcquired>()
+     val remainingEvents = listener.recordedEventTypes()
+-    assertThat(remainingEvents).doesNotContain("ConnectionAcquired")
++    assertThat(remainingEvents).doesNotContain(ConnectionAcquired::class)
+   }
+ 
+   @Test
+@@ -1320,7 +1330,7 @@ class EventListenerTest {
+     val response = call.execute()
+     if (expectedProtocol == Protocol.HTTP_2) {
+       // soft failure since client may not support depending on Platform
+-      Assume.assumeThat(response, matchesProtocol(Protocol.HTTP_2))
++      assumeThat(response, matchesProtocol(Protocol.HTTP_2))
+     }
+     assertThat(response.protocol).isEqualTo(expectedProtocol)
+     assertFailsWith<IOException> {
+@@ -1350,23 +1360,23 @@ class EventListenerTest {
+     val response = call.execute()
+     response.body.close()
+     assertThat(listener.recordedEventTypes()).containsExactly(
+-      "CallStart",
+-      "ProxySelectStart",
+-      "ProxySelectEnd",
+-      "DnsStart",
+-      "DnsEnd",
+-      "ConnectStart",
+-      "ConnectEnd",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "ResponseHeadersStart",
+-      "ResponseHeadersEnd",
+-      "ResponseBodyStart",
+-      "ResponseBodyEnd",
+-      "FollowUpDecision",
+-      "ConnectionReleased",
+-      "CallEnd",
++      CallStart::class,
++      ProxySelectStart::class,
++      ProxySelectEnd::class,
++      DnsStart::class,
++      DnsEnd::class,
++      ConnectStart::class,
++      ConnectEnd::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      ResponseHeadersStart::class,
++      ResponseHeadersEnd::class,
++      ResponseBodyStart::class,
++      ResponseBodyEnd::class,
++      FollowUpDecision::class,
++      ConnectionReleased::class,
++      CallEnd::class,
+     )
+   }
+ 
+@@ -1389,23 +1399,23 @@ class EventListenerTest {
+     val response = call.execute()
+     response.body.close()
+     assertThat(listener.recordedEventTypes()).containsExactly(
+-      "CallStart",
+-      "ProxySelectStart",
+-      "ProxySelectEnd",
+-      "DnsStart",
+-      "DnsEnd",
+-      "ConnectStart",
+-      "ConnectEnd",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "ResponseHeadersStart",
+-      "ResponseHeadersEnd",
+-      "ResponseBodyStart",
+-      "ResponseBodyEnd",
+-      "FollowUpDecision",
+-      "ConnectionReleased",
+-      "CallEnd",
++      CallStart::class,
++      ProxySelectStart::class,
++      ProxySelectEnd::class,
++      DnsStart::class,
++      DnsEnd::class,
++      ConnectStart::class,
++      ConnectEnd::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      ResponseHeadersStart::class,
++      ResponseHeadersEnd::class,
++      ResponseBodyStart::class,
++      ResponseBodyEnd::class,
++      FollowUpDecision::class,
++      ConnectionReleased::class,
++      CallEnd::class,
+     )
+   }
+ 
+@@ -1429,23 +1439,23 @@ class EventListenerTest {
+     val response = call.execute()
+     response.body.close()
+     assertThat(listener.recordedEventTypes()).containsExactly(
+-      "CallStart",
+-      "ProxySelectStart",
+-      "ProxySelectEnd",
+-      "DnsStart",
+-      "DnsEnd",
+-      "ConnectStart",
+-      "ConnectEnd",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "ResponseHeadersStart",
+-      "ResponseHeadersEnd",
+-      "FollowUpDecision",
+-      "ResponseBodyStart",
+-      "ResponseBodyEnd",
+-      "ConnectionReleased",
+-      "CallEnd",
++      CallStart::class,
++      ProxySelectStart::class,
++      ProxySelectEnd::class,
++      DnsStart::class,
++      DnsEnd::class,
++      ConnectStart::class,
++      ConnectEnd::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      ResponseHeadersStart::class,
++      ResponseHeadersEnd::class,
++      FollowUpDecision::class,
++      ResponseBodyStart::class,
++      ResponseBodyEnd::class,
++      ConnectionReleased::class,
++      CallEnd::class,
+     )
+   }
+ 
+@@ -1562,22 +1572,22 @@ class EventListenerTest {
+       call.execute()
+     }
+     assertThat(listener.recordedEventTypes()).containsExactly(
+-      "CallStart",
+-      "ProxySelectStart",
+-      "ProxySelectEnd",
+-      "DnsStart",
+-      "DnsEnd",
+-      "ConnectStart",
+-      "ConnectEnd",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "RequestBodyStart",
+-      "RequestFailed",
+-      "ResponseFailed",
+-      "RetryDecision",
+-      "ConnectionReleased",
+-      "CallFailed",
++      CallStart::class,
++      ProxySelectStart::class,
++      ProxySelectEnd::class,
++      DnsStart::class,
++      DnsEnd::class,
++      ConnectStart::class,
++      ConnectEnd::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      RequestBodyStart::class,
++      RequestFailed::class,
++      ResponseFailed::class,
++      RetryDecision::class,
++      ConnectionReleased::class,
++      CallFailed::class,
+     )
+   }
+ 
+@@ -1663,23 +1673,23 @@ class EventListenerTest {
+     assertThat(response.body.string()).isEqualTo("abc")
+     response.body.close()
+     assertThat(listener.recordedEventTypes()).containsExactly(
+-      "CallStart",
+-      "ProxySelectStart",
+-      "ProxySelectEnd",
+-      "DnsStart",
+-      "DnsEnd",
+-      "ConnectStart",
+-      "ConnectEnd",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "ResponseHeadersStart",
+-      "ResponseHeadersEnd",
+-      "ResponseBodyStart",
+-      "ResponseBodyEnd",
+-      "FollowUpDecision",
+-      "ConnectionReleased",
+-      "CallEnd",
++      CallStart::class,
++      ProxySelectStart::class,
++      ProxySelectEnd::class,
++      DnsStart::class,
++      DnsEnd::class,
++      ConnectStart::class,
++      ConnectEnd::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      ResponseHeadersStart::class,
++      ResponseHeadersEnd::class,
++      ResponseBodyStart::class,
++      ResponseBodyEnd::class,
++      FollowUpDecision::class,
++      ConnectionReleased::class,
++      CallEnd::class,
+     )
+   }
+ 
+@@ -1858,30 +1868,30 @@ class EventListenerTest {
+     val call = client.newCall(Request.Builder().url(server.url("/")).build())
+     call.execute()
+     assertThat(listener.recordedEventTypes()).containsExactly(
+-      "CallStart",
+-      "ProxySelectStart",
+-      "ProxySelectEnd",
+-      "DnsStart",
+-      "DnsEnd",
+-      "ConnectStart",
+-      "ConnectEnd",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "ResponseHeadersStart",
+-      "ResponseHeadersEnd",
+-      "ResponseBodyStart",
+-      "ResponseBodyEnd",
+-      "FollowUpDecision",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "ResponseHeadersStart",
+-      "ResponseHeadersEnd",
+-      "ResponseBodyStart",
+-      "ResponseBodyEnd",
+-      "FollowUpDecision",
+-      "ConnectionReleased",
+-      "CallEnd",
++      CallStart::class,
++      ProxySelectStart::class,
++      ProxySelectEnd::class,
++      DnsStart::class,
++      DnsEnd::class,
++      ConnectStart::class,
++      ConnectEnd::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      ResponseHeadersStart::class,
++      ResponseHeadersEnd::class,
++      ResponseBodyStart::class,
++      ResponseBodyEnd::class,
++      FollowUpDecision::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      ResponseHeadersStart::class,
++      ResponseHeadersEnd::class,
++      ResponseBodyStart::class,
++      ResponseBodyEnd::class,
++      FollowUpDecision::class,
++      ConnectionReleased::class,
++      CallEnd::class,
+     )
+     assertThat(listener.findEvent<FollowUpDecision>()).all {
+       prop(FollowUpDecision::nextRequest).isNotNull()
+@@ -1903,38 +1913,38 @@ class EventListenerTest {
+     val call = client.newCall(Request.Builder().url(server.url("/")).build())
+     call.execute()
+     assertThat(listener.recordedEventTypes()).containsExactly(
+-      "CallStart",
+-      "ProxySelectStart",
+-      "ProxySelectEnd",
+-      "DnsStart",
+-      "DnsEnd",
+-      "ConnectStart",
+-      "ConnectEnd",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "ResponseHeadersStart",
+-      "ResponseHeadersEnd",
+-      "ResponseBodyStart",
+-      "ResponseBodyEnd",
+-      "FollowUpDecision",
+-      "ConnectionReleased",
+-      "ProxySelectStart",
+-      "ProxySelectEnd",
+-      "DnsStart",
+-      "DnsEnd",
+-      "ConnectStart",
+-      "ConnectEnd",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "ResponseHeadersStart",
+-      "ResponseHeadersEnd",
+-      "ResponseBodyStart",
+-      "ResponseBodyEnd",
+-      "FollowUpDecision",
+-      "ConnectionReleased",
+-      "CallEnd",
++      CallStart::class,
++      ProxySelectStart::class,
++      ProxySelectEnd::class,
++      DnsStart::class,
++      DnsEnd::class,
++      ConnectStart::class,
++      ConnectEnd::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      ResponseHeadersStart::class,
++      ResponseHeadersEnd::class,
++      ResponseBodyStart::class,
++      ResponseBodyEnd::class,
++      FollowUpDecision::class,
++      ConnectionReleased::class,
++      ProxySelectStart::class,
++      ProxySelectEnd::class,
++      DnsStart::class,
++      DnsEnd::class,
++      ConnectStart::class,
++      ConnectEnd::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      ResponseHeadersStart::class,
++      ResponseHeadersEnd::class,
++      ResponseBodyStart::class,
++      ResponseBodyEnd::class,
++      FollowUpDecision::class,
++      ConnectionReleased::class,
++      CallEnd::class,
+     )
+     assertThat(listener.findEvent<FollowUpDecision>()).all {
+       prop(FollowUpDecision::nextRequest).isNotNull()
+@@ -1961,30 +1971,30 @@ class EventListenerTest {
+     val response = call.execute()
+     assertThat(response.body.string()).isEqualTo("b")
+     assertThat(listener.recordedEventTypes()).containsExactly(
+-      "CallStart",
+-      "ProxySelectStart",
+-      "ProxySelectEnd",
+-      "DnsStart",
+-      "DnsEnd",
+-      "ConnectStart",
+-      "ConnectEnd",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "ResponseHeadersStart",
+-      "ResponseHeadersEnd",
+-      "FollowUpDecision",
+-      "ResponseBodyStart",
+-      "ResponseBodyEnd",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "ResponseHeadersStart",
+-      "ResponseHeadersEnd",
+-      "FollowUpDecision",
+-      "ResponseBodyStart",
+-      "ResponseBodyEnd",
+-      "ConnectionReleased",
+-      "CallEnd",
++      CallStart::class,
++      ProxySelectStart::class,
++      ProxySelectEnd::class,
++      DnsStart::class,
++      DnsEnd::class,
++      ConnectStart::class,
++      ConnectEnd::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      ResponseHeadersStart::class,
++      ResponseHeadersEnd::class,
++      FollowUpDecision::class,
++      ResponseBodyStart::class,
++      ResponseBodyEnd::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      ResponseHeadersStart::class,
++      ResponseHeadersEnd::class,
++      FollowUpDecision::class,
++      ResponseBodyStart::class,
++      ResponseBodyEnd::class,
++      ConnectionReleased::class,
++      CallEnd::class,
+     )
+     assertThat(server.takeRequest().exchangeIndex).isEqualTo(0)
+     assertThat(server.takeRequest().exchangeIndex).isEqualTo(1)
+@@ -2011,7 +2021,7 @@ class EventListenerTest {
+     val response = call.execute()
+     assertThat(response.body.string()).isEqualTo("a")
+     assertThat(listener.recordedEventTypes())
+-      .containsExactly("CallStart", "CallEnd")
++      .containsExactly(CallStart::class, CallEnd::class)
+   }
+ 
+   /** Response headers start, then the entire request body, then response headers end.  */
+@@ -2033,25 +2043,25 @@ class EventListenerTest {
+     val call = client.newCall(request)
+     call.execute()
+     assertThat(listener.recordedEventTypes()).containsExactly(
+-      "CallStart",
+-      "ProxySelectStart",
+-      "ProxySelectEnd",
+-      "DnsStart",
+-      "DnsEnd",
+-      "ConnectStart",
+-      "ConnectEnd",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "ResponseHeadersStart",
+-      "RequestBodyStart",
+-      "RequestBodyEnd",
+-      "ResponseHeadersEnd",
+-      "ResponseBodyStart",
+-      "ResponseBodyEnd",
+-      "FollowUpDecision",
+-      "ConnectionReleased",
+-      "CallEnd",
++      CallStart::class,
++      ProxySelectStart::class,
++      ProxySelectEnd::class,
++      DnsStart::class,
++      DnsEnd::class,
++      ConnectStart::class,
++      ConnectEnd::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      ResponseHeadersStart::class,
++      RequestBodyStart::class,
++      RequestBodyEnd::class,
++      ResponseHeadersEnd::class,
++      ResponseBodyStart::class,
++      ResponseBodyEnd::class,
++      FollowUpDecision::class,
++      ConnectionReleased::class,
++      CallEnd::class,
+     )
+   }
+ 
+@@ -2103,24 +2113,24 @@ class EventListenerTest {
+     assertThat(response.body.string()).isEqualTo("abc")
+     response.close()
+     assertThat(listener.recordedEventTypes()).containsExactly(
+-      "CallStart",
+-      "CacheMiss",
+-      "ProxySelectStart",
+-      "ProxySelectEnd",
+-      "DnsStart",
+-      "DnsEnd",
+-      "ConnectStart",
+-      "ConnectEnd",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "ResponseHeadersStart",
+-      "ResponseHeadersEnd",
+-      "FollowUpDecision",
+-      "ResponseBodyStart",
+-      "ResponseBodyEnd",
+-      "ConnectionReleased",
+-      "CallEnd",
++      CallStart::class,
++      CacheMiss::class,
++      ProxySelectStart::class,
++      ProxySelectEnd::class,
++      DnsStart::class,
++      DnsEnd::class,
++      ConnectStart::class,
++      ConnectEnd::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      ResponseHeadersStart::class,
++      ResponseHeadersEnd::class,
++      FollowUpDecision::class,
++      ResponseBodyStart::class,
++      ResponseBodyEnd::class,
++      ConnectionReleased::class,
++      CallEnd::class,
+     )
+   }
+ 
+@@ -2157,19 +2167,19 @@ class EventListenerTest {
+     assertThat(response.body.string()).isEqualTo("abc")
+     response.close()
+     assertThat(listener.recordedEventTypes()).containsExactly(
+-      "CallStart",
+-      "CacheConditionalHit",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "ResponseHeadersStart",
+-      "ResponseHeadersEnd",
+-      "ResponseBodyStart",
+-      "ResponseBodyEnd",
+-      "CacheHit",
+-      "FollowUpDecision",
+-      "ConnectionReleased",
+-      "CallEnd",
++      CallStart::class,
++      CacheConditionalHit::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      ResponseHeadersStart::class,
++      ResponseHeadersEnd::class,
++      ResponseBodyStart::class,
++      ResponseBodyEnd::class,
++      CacheHit::class,
++      FollowUpDecision::class,
++      ConnectionReleased::class,
++      CallEnd::class,
+     )
+   }
+ 
+@@ -2208,19 +2218,19 @@ class EventListenerTest {
+     assertThat(response.body.string()).isEqualTo("abd")
+     response.close()
+     assertThat(listener.recordedEventTypes()).containsExactly(
+-      "CallStart",
+-      "CacheConditionalHit",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "ResponseHeadersStart",
+-      "ResponseHeadersEnd",
+-      "CacheMiss",
+-      "FollowUpDecision",
+-      "ResponseBodyStart",
+-      "ResponseBodyEnd",
+-      "ConnectionReleased",
+-      "CallEnd",
++      CallStart::class,
++      CacheConditionalHit::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      ResponseHeadersStart::class,
++      ResponseHeadersEnd::class,
++      CacheMiss::class,
++      FollowUpDecision::class,
++      ResponseBodyStart::class,
++      ResponseBodyEnd::class,
++      ConnectionReleased::class,
++      CallEnd::class,
+     )
+   }
+ 
+@@ -2239,7 +2249,12 @@ class EventListenerTest {
+     assertThat(response.code).isEqualTo(504)
+     response.close()
+     assertThat(listener.recordedEventTypes())
+-      .containsExactly("CallStart", "SatisfactionFailure", "FollowUpDecision", "CallEnd")
++      .containsExactly(
++        CallStart::class,
++        SatisfactionFailure::class,
++        FollowUpDecision::class,
++        CallEnd::class,
++      )
+     assertThat(listener.findEvent<FollowUpDecision>()).all {
+       prop(FollowUpDecision::nextRequest).isNull()
+     }
+@@ -2273,7 +2288,12 @@ class EventListenerTest {
+     assertThat(response.body.string()).isEqualTo("abc")
+     response.close()
+     assertThat(listener.recordedEventTypes())
+-      .containsExactly("CallStart", "CacheHit", "FollowUpDecision", "CallEnd")
++      .containsExactly(
++        CallStart::class,
++        CacheHit::class,
++        FollowUpDecision::class,
++        CallEnd::class,
++      )
+   }
+ 
+   private fun enableCache(): Cache? {
+diff --git a/okhttp/src/jvmTest/kotlin/okhttp3/FastFallbackTest.kt b/okhttp/src/jvmTest/kotlin/okhttp3/FastFallbackTest.kt
+index 92e6171c2ef1..e50aa9820a21 100644
+--- a/okhttp/src/jvmTest/kotlin/okhttp3/FastFallbackTest.kt
++++ b/okhttp/src/jvmTest/kotlin/okhttp3/FastFallbackTest.kt
+@@ -31,6 +31,9 @@ import kotlin.test.assertFailsWith
+ import mockwebserver3.MockResponse
+ import mockwebserver3.MockWebServer
+ import mockwebserver3.SocketEffect.CloseStream
++import okhttp3.CallEvent.ConnectEnd
++import okhttp3.CallEvent.ConnectFailed
++import okhttp3.CallEvent.ConnectStart
+ import okhttp3.internal.http2.ErrorCode
+ import okhttp3.testing.Flaky
+ import org.junit.jupiter.api.AfterEach
+@@ -133,8 +136,8 @@ class FastFallbackTest {
+     assertThat(response.body.string()).isEqualTo("hello from IPv6")
+ 
+     // In the process we made one successful connection attempt.
+-    assertThat(listener.recordedEventTypes().filter { it == "ConnectStart" }).hasSize(1)
+-    assertThat(listener.recordedEventTypes().filter { it == "ConnectFailed" }).hasSize(0)
++    assertThat(listener.recordedEventTypes().filter { it == ConnectStart::class }).hasSize(1)
++    assertThat(listener.recordedEventTypes().filter { it == ConnectFailed::class }).hasSize(0)
+   }
+ 
+   @Test
+@@ -157,8 +160,8 @@ class FastFallbackTest {
+     assertThat(response.body.string()).isEqualTo("hello from IPv6")
+ 
+     // In the process we made one successful connection attempt.
+-    assertThat(listener.recordedEventTypes().filter { it == "ConnectStart" }).hasSize(1)
+-    assertThat(listener.recordedEventTypes().filter { it == "ConnectFailed" }).hasSize(0)
++    assertThat(listener.recordedEventTypes().filter { it == ConnectStart::class }).hasSize(1)
++    assertThat(listener.recordedEventTypes().filter { it == ConnectFailed::class }).hasSize(0)
+   }
+ 
+   @Test
+@@ -173,9 +176,9 @@ class FastFallbackTest {
+     assertThat(response.body.string()).isEqualTo("hello from IPv4")
+ 
+     // In the process we made one successful connection attempt.
+-    assertThat(listener.recordedEventTypes().filter { it == "ConnectStart" }).hasSize(2)
+-    assertThat(listener.recordedEventTypes().filter { it == "ConnectFailed" }).hasSize(1)
+-    assertThat(listener.recordedEventTypes().filter { it == "ConnectEnd" }).hasSize(1)
++    assertThat(listener.recordedEventTypes().filter { it == ConnectStart::class }).hasSize(2)
++    assertThat(listener.recordedEventTypes().filter { it == ConnectFailed::class }).hasSize(1)
++    assertThat(listener.recordedEventTypes().filter { it == ConnectEnd::class }).hasSize(1)
+   }
+ 
+   @Test
+@@ -190,9 +193,9 @@ class FastFallbackTest {
+     assertThat(response.body.string()).isEqualTo("hello from IPv6")
+ 
+     // In the process we made two connection attempts including one failure.
+-    assertThat(listener.recordedEventTypes().filter { it == "ConnectStart" }).hasSize(1)
+-    assertThat(listener.recordedEventTypes().filter { it == "ConnectEnd" }).hasSize(1)
+-    assertThat(listener.recordedEventTypes().filter { it == "ConnectFailed" }).hasSize(0)
++    assertThat(listener.recordedEventTypes().filter { it == ConnectStart::class }).hasSize(1)
++    assertThat(listener.recordedEventTypes().filter { it == ConnectEnd::class }).hasSize(1)
++    assertThat(listener.recordedEventTypes().filter { it == ConnectFailed::class }).hasSize(0)
+   }
+ 
+   @Test
+@@ -206,8 +209,8 @@ class FastFallbackTest {
+     }
+ 
+     // In the process we made two unsuccessful connection attempts.
+-    assertThat(listener.recordedEventTypes().filter { it == "ConnectStart" }).hasSize(2)
+-    assertThat(listener.recordedEventTypes().filter { it == "ConnectFailed" }).hasSize(2)
++    assertThat(listener.recordedEventTypes().filter { it == ConnectStart::class }).hasSize(2)
++    assertThat(listener.recordedEventTypes().filter { it == ConnectFailed::class }).hasSize(2)
+   }
+ 
+   @RetryingTest(5)
+@@ -228,8 +231,8 @@ class FastFallbackTest {
+     assertThat(response.body.string()).isEqualTo("hello from IPv4")
+ 
+     // In the process we made two connection attempts including one failure.
+-    assertThat(listener.recordedEventTypes().filter { it == "ConnectStart" }).hasSize(2)
+-    assertThat(listener.recordedEventTypes().filter { it == "ConnectFailed" }).hasSize(1)
++    assertThat(listener.recordedEventTypes().filter { it == ConnectStart::class }).hasSize(2)
++    assertThat(listener.recordedEventTypes().filter { it == ConnectFailed::class }).hasSize(1)
+   }
+ 
+   @Test
+diff --git a/okhttp/src/jvmTest/kotlin/okhttp3/ServerTruncatesRequestTest.kt b/okhttp/src/jvmTest/kotlin/okhttp3/ServerTruncatesRequestTest.kt
+index 723a30293707..88973010314c 100644
+--- a/okhttp/src/jvmTest/kotlin/okhttp3/ServerTruncatesRequestTest.kt
++++ b/okhttp/src/jvmTest/kotlin/okhttp3/ServerTruncatesRequestTest.kt
+@@ -21,10 +21,32 @@ import assertk.assertions.isEqualTo
+ import assertk.assertions.isNotNull
+ import assertk.fail
+ import javax.net.ssl.SSLSocket
++import kotlin.reflect.KClass
+ import kotlin.test.assertFailsWith
+ import mockwebserver3.MockResponse
+ import mockwebserver3.MockWebServer
+ import mockwebserver3.junit5.StartStop
++import okhttp3.CallEvent.CallEnd
++import okhttp3.CallEvent.CallStart
++import okhttp3.CallEvent.ConnectEnd
++import okhttp3.CallEvent.ConnectStart
++import okhttp3.CallEvent.ConnectionAcquired
++import okhttp3.CallEvent.ConnectionReleased
++import okhttp3.CallEvent.DnsEnd
++import okhttp3.CallEvent.DnsStart
++import okhttp3.CallEvent.FollowUpDecision
++import okhttp3.CallEvent.ProxySelectEnd
++import okhttp3.CallEvent.ProxySelectStart
++import okhttp3.CallEvent.RequestBodyStart
++import okhttp3.CallEvent.RequestFailed
++import okhttp3.CallEvent.RequestHeadersEnd
++import okhttp3.CallEvent.RequestHeadersStart
++import okhttp3.CallEvent.ResponseBodyEnd
++import okhttp3.CallEvent.ResponseBodyStart
++import okhttp3.CallEvent.ResponseHeadersEnd
++import okhttp3.CallEvent.ResponseHeadersStart
++import okhttp3.CallEvent.SecureConnectEnd
++import okhttp3.CallEvent.SecureConnectStart
+ import okhttp3.Headers.Companion.headersOf
+ import okhttp3.internal.duplex.AsyncRequestBody
+ import okhttp3.testing.PlatformRule
+@@ -99,32 +121,32 @@ class ServerTruncatesRequestTest {
+       assertThat(response.body.string()).isEqualTo("abc")
+     }
+ 
+-    val expectedEvents = mutableListOf<String>()
++    val expectedEvents = mutableListOf<KClass<out CallEvent>>()
+     // Start out with standard events...
+-    expectedEvents += "CallStart"
+-    expectedEvents += "ProxySelectStart"
+-    expectedEvents += "ProxySelectEnd"
+-    expectedEvents += "DnsStart"
+-    expectedEvents += "DnsEnd"
+-    expectedEvents += "ConnectStart"
++    expectedEvents += CallStart::class
++    expectedEvents += ProxySelectStart::class
++    expectedEvents += ProxySelectEnd::class
++    expectedEvents += DnsStart::class
++    expectedEvents += DnsEnd::class
++    expectedEvents += ConnectStart::class
+     if (https) {
+-      expectedEvents += "SecureConnectStart"
+-      expectedEvents += "SecureConnectEnd"
++      expectedEvents += SecureConnectStart::class
++      expectedEvents += SecureConnectEnd::class
+     }
+-    expectedEvents += "ConnectEnd"
+-    expectedEvents += "ConnectionAcquired"
+-    expectedEvents += "RequestHeadersStart"
+-    expectedEvents += "RequestHeadersEnd"
+-    expectedEvents += "RequestBodyStart"
++    expectedEvents += ConnectEnd::class
++    expectedEvents += ConnectionAcquired::class
++    expectedEvents += RequestHeadersStart::class
++    expectedEvents += RequestHeadersEnd::class
++    expectedEvents += RequestBodyStart::class
+     // ... but we can read the response even after writing the request fails.
+-    expectedEvents += "RequestFailed"
+-    expectedEvents += "ResponseHeadersStart"
+-    expectedEvents += "ResponseHeadersEnd"
+-    expectedEvents += "FollowUpDecision"
+-    expectedEvents += "ResponseBodyStart"
+-    expectedEvents += "ResponseBodyEnd"
+-    expectedEvents += "ConnectionReleased"
+-    expectedEvents += "CallEnd"
++    expectedEvents += RequestFailed::class
++    expectedEvents += ResponseHeadersStart::class
++    expectedEvents += ResponseHeadersEnd::class
++    expectedEvents += FollowUpDecision::class
++    expectedEvents += ResponseBodyStart::class
++    expectedEvents += ResponseBodyEnd::class
++    expectedEvents += ConnectionReleased::class
++    expectedEvents += CallEnd::class
+     assertThat(listener.recordedEventTypes()).isEqualTo(expectedEvents)
+ 
+     // Confirm that the connection pool was not corrupted by making another call.
+diff --git a/okhttp/src/jvmTest/kotlin/okhttp3/internal/http/HttpUpgradesTest.kt b/okhttp/src/jvmTest/kotlin/okhttp3/internal/http/HttpUpgradesTest.kt
+index 9fc7b69fe9b4..57af599eca79 100644
+--- a/okhttp/src/jvmTest/kotlin/okhttp3/internal/http/HttpUpgradesTest.kt
++++ b/okhttp/src/jvmTest/kotlin/okhttp3/internal/http/HttpUpgradesTest.kt
+@@ -25,6 +25,25 @@ import kotlin.test.assertFailsWith
+ import mockwebserver3.MockResponse
+ import mockwebserver3.MockWebServer
+ import mockwebserver3.junit5.StartStop
++import okhttp3.CallEvent.CallEnd
++import okhttp3.CallEvent.CallStart
++import okhttp3.CallEvent.ConnectEnd
++import okhttp3.CallEvent.ConnectStart
++import okhttp3.CallEvent.ConnectionAcquired
++import okhttp3.CallEvent.ConnectionReleased
++import okhttp3.CallEvent.DnsEnd
++import okhttp3.CallEvent.DnsStart
++import okhttp3.CallEvent.FollowUpDecision
++import okhttp3.CallEvent.ProxySelectEnd
++import okhttp3.CallEvent.ProxySelectStart
++import okhttp3.CallEvent.RequestBodyEnd
++import okhttp3.CallEvent.RequestBodyStart
++import okhttp3.CallEvent.RequestHeadersEnd
++import okhttp3.CallEvent.RequestHeadersStart
++import okhttp3.CallEvent.ResponseBodyEnd
++import okhttp3.CallEvent.ResponseBodyStart
++import okhttp3.CallEvent.ResponseHeadersEnd
++import okhttp3.CallEvent.ResponseHeadersStart
+ import okhttp3.Headers.Companion.headersOf
+ import okhttp3.OkHttpClientTestRule
+ import okhttp3.Protocol
+@@ -129,23 +148,23 @@ class HttpUpgradesTest {
+     }
+     // Confirm there's no RequestBodyStart/RequestBodyEnd on failed upgrades.
+     assertThat(listener.recordedEventTypes()).containsExactly(
+-      "CallStart",
+-      "ProxySelectStart",
+-      "ProxySelectEnd",
+-      "DnsStart",
+-      "DnsEnd",
+-      "ConnectStart",
+-      "ConnectEnd",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "ResponseHeadersStart",
+-      "ResponseHeadersEnd",
+-      "FollowUpDecision",
+-      "ResponseBodyStart",
+-      "ResponseBodyEnd",
+-      "ConnectionReleased",
+-      "CallEnd",
++      CallStart::class,
++      ProxySelectStart::class,
++      ProxySelectEnd::class,
++      DnsStart::class,
++      DnsEnd::class,
++      ConnectStart::class,
++      ConnectEnd::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      ResponseHeadersStart::class,
++      ResponseHeadersEnd::class,
++      FollowUpDecision::class,
++      ResponseBodyStart::class,
++      ResponseBodyEnd::class,
++      ConnectionReleased::class,
++      CallEnd::class,
+     )
+   }
+ 
+@@ -196,25 +215,25 @@ class HttpUpgradesTest {
+     upgrade()
+ 
+     assertThat(listener.recordedEventTypes()).containsExactly(
+-      "CallStart",
+-      "ProxySelectStart",
+-      "ProxySelectEnd",
+-      "DnsStart",
+-      "DnsEnd",
+-      "ConnectStart",
+-      "ConnectEnd",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "ResponseHeadersStart",
+-      "ResponseHeadersEnd",
+-      "FollowUpDecision",
+-      "RequestBodyStart",
+-      "ResponseBodyStart",
+-      "ResponseBodyEnd",
+-      "RequestBodyEnd",
+-      "ConnectionReleased",
+-      "CallEnd",
++      CallStart::class,
++      ProxySelectStart::class,
++      ProxySelectEnd::class,
++      DnsStart::class,
++      DnsEnd::class,
++      ConnectStart::class,
++      ConnectEnd::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      ResponseHeadersStart::class,
++      ResponseHeadersEnd::class,
++      FollowUpDecision::class,
++      RequestBodyStart::class,
++      ResponseBodyStart::class,
++      ResponseBodyEnd::class,
++      RequestBodyEnd::class,
++      ConnectionReleased::class,
++      CallEnd::class,
+     )
+   }
+ 
+@@ -223,25 +242,25 @@ class HttpUpgradesTest {
+     upgradeWithRequestBody()
+ 
+     assertThat(listener.recordedEventTypes()).containsExactly(
+-      "CallStart",
+-      "ProxySelectStart",
+-      "ProxySelectEnd",
+-      "DnsStart",
+-      "DnsEnd",
+-      "ConnectStart",
+-      "ConnectEnd",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "ResponseHeadersStart",
+-      "ResponseHeadersEnd",
+-      "FollowUpDecision",
+-      "RequestBodyStart",
+-      "ResponseBodyStart",
+-      "ResponseBodyEnd",
+-      "RequestBodyEnd",
+-      "ConnectionReleased",
+-      "CallEnd",
++      CallStart::class,
++      ProxySelectStart::class,
++      ProxySelectEnd::class,
++      DnsStart::class,
++      DnsEnd::class,
++      ConnectStart::class,
++      ConnectEnd::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      ResponseHeadersStart::class,
++      ResponseHeadersEnd::class,
++      FollowUpDecision::class,
++      RequestBodyStart::class,
++      ResponseBodyStart::class,
++      ResponseBodyEnd::class,
++      RequestBodyEnd::class,
++      ConnectionReleased::class,
++      CallEnd::class,
+     )
+   }
+ 
+diff --git a/okhttp/src/jvmTest/kotlin/okhttp3/internal/tls/ClientAuthTest.kt b/okhttp/src/jvmTest/kotlin/okhttp3/internal/tls/ClientAuthTest.kt
+index aecf7606bf3b..d78fd43e1e77 100644
+--- a/okhttp/src/jvmTest/kotlin/okhttp3/internal/tls/ClientAuthTest.kt
++++ b/okhttp/src/jvmTest/kotlin/okhttp3/internal/tls/ClientAuthTest.kt
+@@ -38,6 +38,13 @@ import kotlin.test.assertFailsWith
+ import mockwebserver3.MockResponse
+ import mockwebserver3.MockWebServer
+ import mockwebserver3.junit5.StartStop
++import okhttp3.CallEvent.CallStart
++import okhttp3.CallEvent.ConnectStart
++import okhttp3.CallEvent.DnsEnd
++import okhttp3.CallEvent.DnsStart
++import okhttp3.CallEvent.ProxySelectEnd
++import okhttp3.CallEvent.ProxySelectStart
++import okhttp3.CallEvent.SecureConnectStart
+ import okhttp3.OkHttpClient
+ import okhttp3.OkHttpClientTestRule
+ import okhttp3.RecordingEventListener
+@@ -348,13 +355,13 @@ class ClientAuthTest {
+     // SecureConnectEnd, ConnectFailed, CallFailed
+     val recordedEventTypes = listener.recordedEventTypes()
+     assertThat(recordedEventTypes).startsWith(
+-      "CallStart",
+-      "ProxySelectStart",
+-      "ProxySelectEnd",
+-      "DnsStart",
+-      "DnsEnd",
+-      "ConnectStart",
+-      "SecureConnectStart",
++      CallStart::class,
++      ProxySelectStart::class,
++      ProxySelectEnd::class,
++      DnsStart::class,
++      DnsEnd::class,
++      ConnectStart::class,
++      SecureConnectStart::class,
+     )
+     assertThat(recordedEventTypes).endsWith("CallFailed")
+   }

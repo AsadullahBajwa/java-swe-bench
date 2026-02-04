@@ -1,0 +1,158 @@
+diff --git a/src/main/java/org/apache/commons/collections4/MultiMapUtils.java b/src/main/java/org/apache/commons/collections4/MultiMapUtils.java
+index ef7fc8c96c..c698a38e50 100644
+--- a/src/main/java/org/apache/commons/collections4/MultiMapUtils.java
++++ b/src/main/java/org/apache/commons/collections4/MultiMapUtils.java
+@@ -20,6 +20,7 @@
+ import java.util.Collection;
+ import java.util.HashSet;
+ import java.util.List;
++import java.util.Map;
+ import java.util.Set;
+ 
+ import org.apache.commons.collections4.bag.HashBag;
+@@ -170,6 +171,27 @@ public static boolean isEmpty(final MultiValuedMap<?, ?> map) {
+         return map == null || map.isEmpty();
+     }
+ 
++    /**
++     * A utility method to invert the mappings from an input MultiValuedMap
++     * and add them to an output MultiValuedMap. Use this method to have complete
++     * control of the output MultiValuedMap or when merging several inverse mappings.
++     * In simple cases, consider just using the {@link MultiValuedMap#inverted()} method.
++     *
++     * @param input take key-to-value mappings from here
++     * @param output add value-to-key mappings here
++     * @param <K> the output MultiValuedMap key type
++     * @param <V> the output MultiValuedMap value type
++     * @param <M> the output MultiValuedMap with key and value types reversed compared with input
++     * @return the updated output MultiValuedMap
++     */
++    public static <K, V, M extends MultiValuedMap<K, V>>
++    M invert(MultiValuedMap<? extends V, ? extends K> input, M output) {
++        for (Map.Entry<? extends V, ? extends K> e : input.entries()) {
++            output.put(e.getValue(), e.getKey());
++        }
++        return output;
++    }
++
+     /**
+      * Creates a {@link ListValuedMap} with an {@link java.util.ArrayList ArrayList} as
+      * collection class to store the values mapped to a key.
+diff --git a/src/main/java/org/apache/commons/collections4/MultiValuedMap.java b/src/main/java/org/apache/commons/collections4/MultiValuedMap.java
+index 96d2f6b086..350e74e7e1 100644
+--- a/src/main/java/org/apache/commons/collections4/MultiValuedMap.java
++++ b/src/main/java/org/apache/commons/collections4/MultiValuedMap.java
+@@ -140,6 +140,17 @@ public interface MultiValuedMap<K, V> {
+      */
+     Collection<V> get(K key);
+ 
++    /**
++     * Returns a new MultiValuedMap with inverted mappings.
++     * The new multimap will have a value-to-key mapping
++     * for each key-to-value mapping in the original.
++     *
++     * @return a new MultiValuedMap with inverted mappings
++     */
++    default MultiValuedMap<V, K> inverted() {
++        throw new UnsupportedOperationException();
++    }
++
+     /**
+      * Returns {@code true} if this map contains no key-value mappings.
+      *
+diff --git a/src/main/java/org/apache/commons/collections4/multimap/ArrayListValuedHashMap.java b/src/main/java/org/apache/commons/collections4/multimap/ArrayListValuedHashMap.java
+index a9d2a11537..47586dc631 100644
+--- a/src/main/java/org/apache/commons/collections4/multimap/ArrayListValuedHashMap.java
++++ b/src/main/java/org/apache/commons/collections4/multimap/ArrayListValuedHashMap.java
+@@ -25,6 +25,7 @@
+ import java.util.HashMap;
+ import java.util.Map;
+ 
++import org.apache.commons.collections4.MultiMapUtils;
+ import org.apache.commons.collections4.MultiValuedMap;
+ 
+ /**
+@@ -118,6 +119,11 @@ protected ArrayList<V> createCollection() {
+         return new ArrayList<>(initialListCapacity);
+     }
+ 
++    @Override
++    public ArrayListValuedHashMap<V, K> inverted() {
++        return MultiMapUtils.invert(this, new ArrayListValuedHashMap<V, K>());
++    }
++
+     /**
+      * Deserializes an instance from an ObjectInputStream.
+      *
+diff --git a/src/main/java/org/apache/commons/collections4/multimap/ArrayListValuedLinkedHashMap.java b/src/main/java/org/apache/commons/collections4/multimap/ArrayListValuedLinkedHashMap.java
+index f1b797b532..2556ab3f74 100644
+--- a/src/main/java/org/apache/commons/collections4/multimap/ArrayListValuedLinkedHashMap.java
++++ b/src/main/java/org/apache/commons/collections4/multimap/ArrayListValuedLinkedHashMap.java
+@@ -25,6 +25,7 @@
+ import java.util.LinkedHashMap;
+ import java.util.Map;
+ 
++import org.apache.commons.collections4.MultiMapUtils;
+ import org.apache.commons.collections4.MultiValuedMap;
+ 
+ /**
+@@ -118,6 +119,11 @@ protected ArrayList<V> createCollection() {
+         return new ArrayList<>(initialListCapacity);
+     }
+ 
++    @Override
++    public ArrayListValuedLinkedHashMap<V, K> inverted() {
++        return MultiMapUtils.invert(this, new ArrayListValuedLinkedHashMap<>());
++    }
++
+     /**
+      * Deserializes an instance from an ObjectInputStream.
+      *
+diff --git a/src/main/java/org/apache/commons/collections4/multimap/HashSetValuedHashMap.java b/src/main/java/org/apache/commons/collections4/multimap/HashSetValuedHashMap.java
+index b122e2c410..184730cbfb 100644
+--- a/src/main/java/org/apache/commons/collections4/multimap/HashSetValuedHashMap.java
++++ b/src/main/java/org/apache/commons/collections4/multimap/HashSetValuedHashMap.java
+@@ -24,6 +24,7 @@
+ import java.util.HashSet;
+ import java.util.Map;
+ 
++import org.apache.commons.collections4.MultiMapUtils;
+ import org.apache.commons.collections4.MultiValuedMap;
+ 
+ /**
+@@ -117,6 +118,11 @@ protected HashSet<V> createCollection() {
+         return new HashSet<>(initialSetCapacity);
+     }
+ 
++    @Override
++    public HashSetValuedHashMap<V, K> inverted() {
++        return MultiMapUtils.invert(this, new HashSetValuedHashMap<V, K>());
++    }
++
+     /**
+      * Deserializes an instance from an ObjectInputStream.
+      *
+diff --git a/src/main/java/org/apache/commons/collections4/multimap/LinkedHashSetValuedLinkedHashMap.java b/src/main/java/org/apache/commons/collections4/multimap/LinkedHashSetValuedLinkedHashMap.java
+index c8be8751dc..c381893b6a 100644
+--- a/src/main/java/org/apache/commons/collections4/multimap/LinkedHashSetValuedLinkedHashMap.java
++++ b/src/main/java/org/apache/commons/collections4/multimap/LinkedHashSetValuedLinkedHashMap.java
+@@ -24,6 +24,7 @@
+ import java.util.LinkedHashSet;
+ import java.util.Map;
+ 
++import org.apache.commons.collections4.MultiMapUtils;
+ import org.apache.commons.collections4.MultiValuedMap;
+ 
+ /**
+@@ -117,6 +118,11 @@ protected LinkedHashSet<V> createCollection() {
+         return new LinkedHashSet<>(initialSetCapacity);
+     }
+ 
++    @Override
++    public LinkedHashSetValuedLinkedHashMap<V, K> inverted() {
++        return MultiMapUtils.invert(this, new LinkedHashSetValuedLinkedHashMap<V, K>());
++    }
++
+     /**
+      * Deserializes an instance from an ObjectInputStream.
+      *

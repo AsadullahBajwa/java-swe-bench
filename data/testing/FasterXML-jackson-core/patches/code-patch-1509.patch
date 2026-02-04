@@ -1,0 +1,319 @@
+diff --git a/release-notes/VERSION-2.x b/release-notes/VERSION-2.x
+index 950b7b209d..152b6c3a7c 100644
+--- a/release-notes/VERSION-2.x
++++ b/release-notes/VERSION-2.x
+@@ -23,6 +23,9 @@ a pure JSON library.
+  (fix by @cowtowncoder, w/ Claude code)
+ #1180: `JsonLocation` off for unrecognized tokens
+ (fix by @cowtowncoder, w/ Claude code)
++#1418: `TokenFilter#includeEmptyArray()` causes an error in some cases where an object element is filtered
++ (reported by @21Joakim)
++ (fix by @cowtowncoder, w/ Claude code)
+ #1470: Add method `copyCurrentStructureExact()` to `JsonGenerator`
+  (contributed by Lars H)
+ #1477: Add `JsonGenerator.has(StreamWriteCapability)` convenience method
+diff --git a/src/main/java/com/fasterxml/jackson/core/filter/FilteringParserDelegate.java b/src/main/java/com/fasterxml/jackson/core/filter/FilteringParserDelegate.java
+index 1d81b8cfef..b54dc7f42b 100644
+--- a/src/main/java/com/fasterxml/jackson/core/filter/FilteringParserDelegate.java
++++ b/src/main/java/com/fasterxml/jackson/core/filter/FilteringParserDelegate.java
+@@ -653,10 +653,13 @@ protected final JsonToken _nextToken2() throws IOException
+                     boolean returnEnd = _headContext.isStartHandled();
+                     f = _headContext.getFilter();
+                     if ((f != null) && (f != TokenFilter.INCLUDE_ALL)) {
+-                        boolean includeEmpty = f.includeEmptyArray(_headContext.hasCurrentIndex());
+                         f.filterFinishArray();
+-                        if (includeEmpty) {
+-                            return _nextBuffered(_headContext);
++                        if (!returnEnd) {
++                            boolean includeEmpty = f.includeEmptyArray(_headContext.hasCurrentIndex());
++                            if (includeEmpty) {
++                                _headContext._needToHandleName = false;
++                                return _nextBuffered(_headContext);
++                            }
+                         }
+                     }
+                     _headContext = _headContext.getParent();
+@@ -671,11 +674,15 @@ protected final JsonToken _nextToken2() throws IOException
+                     boolean returnEnd = _headContext.isStartHandled();
+                     f = _headContext.getFilter();
+                     if ((f != null) && (f != TokenFilter.INCLUDE_ALL)) {
+-                        boolean includeEmpty = f.includeEmptyObject(_headContext.hasCurrentName());
+                         f.filterFinishObject();
+-                        if (includeEmpty) {
+-                            return _nextBuffered(_headContext);
+-                        }                    }
++                        if (!returnEnd) {
++                            boolean includeEmpty = f.includeEmptyObject(_headContext.hasCurrentName());
++                            if (includeEmpty) {
++                                _headContext._needToHandleName = false;
++                                return _nextBuffered(_headContext);
++                            }
++                        }
++                    }
+                     _headContext = _headContext.getParent();
+                     _itemFilter = _headContext.getFilter();
+                     if (returnEnd) {
+@@ -819,15 +826,19 @@ protected final JsonToken _nextTokenWithBuffering(final TokenFilterContext buffR
+                     // Unlike with other loops, here we know that content was NOT
+                     // included (won't get this far otherwise)
+                     f = _headContext.getFilter();
++                    boolean gotEnd = (_headContext == buffRoot);
++                    boolean returnEnd = gotEnd && _headContext.isStartHandled();
++
+                     if ((f != null) && (f != TokenFilter.INCLUDE_ALL)) {
+-                        boolean includeEmpty = f.includeEmptyArray(_headContext.hasCurrentIndex());
+                         f.filterFinishArray();
+-                        if (includeEmpty) {
+-                            return _nextBuffered(buffRoot);
++                        if (!returnEnd) {
++                            boolean includeEmpty = f.includeEmptyArray(_headContext.hasCurrentIndex());
++                            if (includeEmpty) {
++                                _headContext._needToHandleName = false;
++                                return _nextBuffered(buffRoot);
++                            }
+                         }
+                     }
+-                    boolean gotEnd = (_headContext == buffRoot);
+-                    boolean returnEnd = gotEnd && _headContext.isStartHandled();
+ 
+                     _headContext = _headContext.getParent();
+                     _itemFilter = _headContext.getFilter();
+@@ -845,19 +856,19 @@ protected final JsonToken _nextTokenWithBuffering(final TokenFilterContext buffR
+                 // Unlike with other loops, here we know that content was NOT
+                 // included (won't get this far otherwise)
+                 f = _headContext.getFilter();
++                boolean gotEnd = (_headContext == buffRoot);
++                boolean returnEnd = gotEnd && _headContext.isStartHandled();
++
+                 if ((f != null) && (f != TokenFilter.INCLUDE_ALL)) {
+-                    boolean includeEmpty = f.includeEmptyObject(_headContext.hasCurrentName());
+                     f.filterFinishObject();
+-                    if (includeEmpty) {
+-                        _headContext._currentName = _headContext._parent == null
+-                                ? null
+-                                : _headContext._parent._currentName;
+-                        _headContext._needToHandleName = false;
+-                        return _nextBuffered(buffRoot);
++                    if (!returnEnd) {
++                        boolean includeEmpty = f.includeEmptyObject(_headContext.hasCurrentName());
++                        if (includeEmpty) {
++                            _headContext._needToHandleName = false;
++                            return _nextBuffered(buffRoot);
++                        }
+                     }
+                 }
+-                boolean gotEnd = (_headContext == buffRoot);
+-                boolean returnEnd = gotEnd && _headContext.isStartHandled();
+ 
+                 _headContext = _headContext.getParent();
+                 _itemFilter = _headContext.getFilter();
+diff --git a/src/main/java/com/fasterxml/jackson/core/filter/TokenFilter.java b/src/main/java/com/fasterxml/jackson/core/filter/TokenFilter.java
+index e48339ebfb..8335561ae5 100644
+--- a/src/main/java/com/fasterxml/jackson/core/filter/TokenFilter.java
++++ b/src/main/java/com/fasterxml/jackson/core/filter/TokenFilter.java
+@@ -58,7 +58,7 @@ protected TokenFilter() { }
+ 
+     /*
+     /**********************************************************************
+-    /* API, structured values
++    /* API, structured values: parser and generator
+     /**********************************************************************
+      */
+ 
+@@ -222,6 +222,42 @@ public TokenFilter includeRootValue(int index) {
+         return this;
+     }
+ 
++    /**
++     * Call made to verify whether leaf-level empty Array value
++     * should be included in filtered input or output or not.
++     *<p>
++     * The default implementation returns {@code false} to exclude
++     * empty Arrays from input/output.
++     *
++     * @param contentsFiltered True if Array had contents but they were
++     *   filtered out (NOT included); false if we had actual empty Array.
++     *
++     * @return True if value is to be included; false if not
++     *
++     * @since 2.14
++     */
++    public boolean includeEmptyArray(boolean contentsFiltered) {
++        return false;
++    }
++
++    /**
++     * Call made to verify whether leaf-level empty Object value
++     * should be included in filtered input or output or not.
++     *<p>
++     * The default implementation returns {@code false} to exclude
++     * empty Arrays from input/output.
++     *
++     * @param contentsFiltered True if Object had contents but they were
++     *   filtered out (NOT included); false if we had actual empty Object.
++     *
++     * @return True if value is to be included; false if not
++     *
++     * @since 2.14
++     */
++    public boolean includeEmptyObject(boolean contentsFiltered) {
++        return false;
++    }
++
+     /*
+     /**********************************************************************
+     /* API, scalar values (being read)
+@@ -256,7 +292,7 @@ public boolean includeValue(JsonParser p) throws IOException {
+     /**
+      * Call made to verify whether leaf-level
+      * boolean value
+-     * should be included in output or not.
++     * should be included in output (written) or not.
+      *
+      * @param value Value to check
+      *
+@@ -269,7 +305,7 @@ public boolean includeBoolean(boolean value) {
+     /**
+      * Call made to verify whether leaf-level
+      * null value
+-     * should be included in output or not.
++     * should be included in output (written) or not.
+      *
+      * @return True if ({@code null}) value is to be included; false if not
+      */
+@@ -280,7 +316,7 @@ public boolean includeNull() {
+     /**
+      * Call made to verify whether leaf-level
+      * String value
+-     * should be included in output or not.
++     * should be included in output (written) or not.
+      *
+      * @param value Value to check
+      *
+@@ -293,7 +329,7 @@ public boolean includeString(String value) {
+     /**
+      * Call made to verify whether leaf-level
+      * "streaming" String value
+-     * should be included in output or not.
++     * should be included in output (written) or not.
+      *<p>
+      * NOTE: note that any reads from passed in {@code Reader} may lead
+      * to actual loss of content to write; typically method should NOT
+@@ -313,7 +349,7 @@ public boolean includeString(java.io.Reader r, int maxLen) {
+     /**
+      * Call made to verify whether leaf-level
+      * <code>int</code> value
+-     * should be included in output or not.
++     * should be included in output (written) or not.
+      *
+      * NOTE: also called for `short`, `byte`
+      *
+@@ -328,7 +364,7 @@ public boolean includeNumber(int value) {
+     /**
+      * Call made to verify whether leaf-level
+      * <code>long</code> value
+-     * should be included in output or not.
++     * should be included in output (written) or not.
+      *
+      * @param value Value to check
+      *
+@@ -341,7 +377,7 @@ public boolean includeNumber(long value) {
+     /**
+      * Call made to verify whether leaf-level
+      * <code>float</code> value
+-     * should be included in output or not.
++     * should be included in output (written) or not.
+      *
+      * @param value Value to check
+      *
+@@ -354,7 +390,7 @@ public boolean includeNumber(float value) {
+     /**
+      * Call made to verify whether leaf-level
+      * <code>double</code> value
+-     * should be included in output or not.
++     * should be included in output (written) or not.
+      *
+      * @param value Value to check
+      *
+@@ -367,7 +403,7 @@ public boolean includeNumber(double value) {
+     /**
+      * Call made to verify whether leaf-level
+      * {@link BigDecimal} value
+-     * should be included in output or not.
++     * should be included in output (written) or not.
+      *
+      * @param value Value to check
+      *
+@@ -380,7 +416,7 @@ public boolean includeNumber(BigDecimal value) {
+     /**
+      * Call made to verify whether leaf-level
+      * {@link BigInteger} value
+-     * should be included in output or not.
++     * should be included in output (written) or not.
+      *
+      * @param value Value to check
+      *
+@@ -393,7 +429,7 @@ public boolean includeNumber(BigInteger value) {
+     /**
+      * Call made to verify whether leaf-level
+      * Binary value
+-     * should be included in output or not.
++     * should be included in output (written) or not.
+      *<p>
+      * NOTE: no binary payload passed; assumption is this won't be of much use.
+      *
+@@ -406,7 +442,7 @@ public boolean includeBinary() {
+     /**
+      * Call made to verify whether leaf-level
+      * raw (pre-encoded, not quoted by generator) value
+-     * should be included in output or not.
++     * should be included in output (written) or not.
+      *<p>
+      * NOTE: value itself not passed since it may come on multiple forms
+      * and is unlikely to be of much use in determining inclusion
+@@ -421,7 +457,7 @@ public boolean includeRawValue() {
+     /**
+      * Call made to verify whether leaf-level
+      * embedded (Opaque) value
+-     * should be included in output or not.
++     * should be included in output (written) or not.
+      *
+      * @param value Value to check
+      *
+@@ -431,36 +467,6 @@ public boolean includeEmbeddedValue(Object value) {
+         return _includeScalar();
+     }
+ 
+-    /**
+-     * Call made to verify whether leaf-level empty Array value
+-     * should be included in output or not.
+-     *
+-     * @param contentsFiltered True if Array had contents but they were
+-     *   filtered out (NOT included); false if we had actual empty Array.
+-     *
+-     * @return True if value is to be included; false if not
+-     *
+-     * @since 2.14
+-     */
+-    public boolean includeEmptyArray(boolean contentsFiltered) {
+-        return false;
+-    }
+-
+-    /**
+-     * Call made to verify whether leaf-level empty Object value
+-     * should be included in output or not.
+-     *
+-     * @param contentsFiltered True if Object had contents but they were
+-     *   filtered out (NOT included); false if we had actual empty Object.
+-     *
+-     * @return True if value is to be included; false if not
+-     *
+-     * @since 2.14
+-     */
+-    public boolean includeEmptyObject(boolean contentsFiltered) {
+-        return false;
+-    }
+-
+     /*
+     /**********************************************************************
+     /* Overrides

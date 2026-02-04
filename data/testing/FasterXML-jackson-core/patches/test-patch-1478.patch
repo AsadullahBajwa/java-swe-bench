@@ -1,0 +1,23 @@
+diff --git a/src/test/java/com/fasterxml/jackson/core/write/GeneratorMiscTest.java b/src/test/java/com/fasterxml/jackson/core/write/GeneratorMiscTest.java
+index 5e723d01fb..3fc54521e8 100644
+--- a/src/test/java/com/fasterxml/jackson/core/write/GeneratorMiscTest.java
++++ b/src/test/java/com/fasterxml/jackson/core/write/GeneratorMiscTest.java
+@@ -268,4 +268,18 @@ void asEmbedded() throws Exception
+             verifyException(e, "No native support for");
+         }
+     }
++
++    @Test
++    void capabilitiesAccess() throws Exception {
++        try (JsonGenerator g = JSON_F.createGenerator(new StringWriter())) {
++            assertFalse(g.getWriteCapabilities().isEnabled(StreamWriteCapability.CAN_WRITE_BINARY_NATIVELY));
++            assertFalse(g.has(StreamWriteCapability.CAN_WRITE_BINARY_NATIVELY));
++            assertTrue(g.has(StreamWriteCapability.CAN_WRITE_FORMATTED_NUMBERS));
++        }
++        try (JsonGenerator g = JSON_F.createGenerator(new ByteArrayOutputStream())) {
++            assertFalse(g.getWriteCapabilities().isEnabled(StreamWriteCapability.CAN_WRITE_BINARY_NATIVELY));
++            assertFalse(g.has(StreamWriteCapability.CAN_WRITE_BINARY_NATIVELY));
++            assertFalse(g.has(StreamWriteCapability.CAN_WRITE_BINARY_NATIVELY));
++        }
++    }
+ }

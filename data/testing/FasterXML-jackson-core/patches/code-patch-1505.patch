@@ -1,0 +1,38 @@
+diff --git a/pom.xml b/pom.xml
+index 5f952ce69b..21c73a2e1f 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -138,7 +138,6 @@ tools.jackson.core.*;version=${project.version}
+       <plugin>
+         <groupId>org.apache.maven.plugins</groupId>
+         <artifactId>maven-failsafe-plugin</artifactId>
+-        <version>${version.plugin.surefire}</version>
+         <configuration>
+           <includes>
+             <include>**/*IT.java</include>
+diff --git a/src/main/java/module-info.java b/src/main/java/module-info.java
+index 4480ec5aaf..db110119fc 100644
+--- a/src/main/java/module-info.java
++++ b/src/main/java/module-info.java
+@@ -18,19 +18,8 @@
+     exports tools.jackson.core.util;
+ 
+     // But opens only for unit test suite; as well as some extra exports
+-    opens tools.jackson.core to tools.jackson.core.testutil;
+-    opens tools.jackson.core.async to tools.jackson.core.testutil;
+-    opens tools.jackson.core.base to tools.jackson.core.testutil;
+-    opens tools.jackson.core.exc to tools.jackson.core.testutil;
+-    opens tools.jackson.core.filter to tools.jackson.core.testutil;
+-    opens tools.jackson.core.io to tools.jackson.core.testutil;
+-    exports tools.jackson.core.io.schubfach to tools.jackson.core.testutil;
+-    opens tools.jackson.core.json to tools.jackson.core.testutil;
+-    opens tools.jackson.core.json.async to tools.jackson.core.testutil;
+-    opens tools.jackson.core.sym to tools.jackson.core.testutil;
+-    opens tools.jackson.core.tree to tools.jackson.core.testutil;
+-    opens tools.jackson.core.type to tools.jackson.core.testutil;
+-    opens tools.jackson.core.util to tools.jackson.core.testutil;
++    exports tools.jackson.core.io.schubfach to tools.jackson.core.unittest;
++    opens tools.jackson.core.json to tools.jackson.core.unittest;
+ 
+     provides tools.jackson.core.TokenStreamFactory with
+         tools.jackson.core.json.JsonFactory;

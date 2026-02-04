@@ -1,0 +1,69 @@
+diff --git a/transport-classes-epoll/src/main/java/io/netty/channel/epoll/EpollDatagramChannel.java b/transport-classes-epoll/src/main/java/io/netty/channel/epoll/EpollDatagramChannel.java
+index d77d2704d8c..1ef46b73ab8 100644
+--- a/transport-classes-epoll/src/main/java/io/netty/channel/epoll/EpollDatagramChannel.java
++++ b/transport-classes-epoll/src/main/java/io/netty/channel/epoll/EpollDatagramChannel.java
+@@ -412,7 +412,14 @@ private boolean doWriteMessage(Object msg) throws Exception {
+             return true;
+         }
+ 
+-        return doWriteOrSendBytes(data, remoteAddress, false) > 0;
++        try {
++            return doWriteOrSendBytes(data, remoteAddress, false) > 0;
++        } catch (NativeIoException e) {
++            if (remoteAddress == null) {
++                throw translateForConnected(e);
++            }
++            throw e;
++        }
+     }
+ 
+     private static void checkUnresolved(SocketAddress address) {
+diff --git a/transport-classes-io_uring/src/main/java/io/netty/channel/uring/IoUringDatagramChannel.java b/transport-classes-io_uring/src/main/java/io/netty/channel/uring/IoUringDatagramChannel.java
+index 2609294d331..0e780fe08ce 100644
+--- a/transport-classes-io_uring/src/main/java/io/netty/channel/uring/IoUringDatagramChannel.java
++++ b/transport-classes-io_uring/src/main/java/io/netty/channel/uring/IoUringDatagramChannel.java
+@@ -498,7 +498,9 @@ private boolean removeFromOutboundBuffer(ChannelOutboundBuffer outboundBuffer, i
+         try {
+             return ioResult(errormsg, res) != 0;
+         } catch (Throwable cause) {
+-            return outboundBuffer.remove(cause);
++            Throwable e = (connected && cause instanceof NativeIoException) ?
++                    translateForConnected((NativeIoException) cause) : cause;
++            return outboundBuffer.remove(e);
+         }
+     }
+ 
+diff --git a/transport-classes-kqueue/src/main/java/io/netty/channel/kqueue/KQueueDatagramChannel.java b/transport-classes-kqueue/src/main/java/io/netty/channel/kqueue/KQueueDatagramChannel.java
+index 7b928a5f4a9..0e9f34a8119 100644
+--- a/transport-classes-kqueue/src/main/java/io/netty/channel/kqueue/KQueueDatagramChannel.java
++++ b/transport-classes-kqueue/src/main/java/io/netty/channel/kqueue/KQueueDatagramChannel.java
+@@ -296,7 +296,11 @@ private boolean doWriteMessage(Object msg) throws Exception {
+         if (data.hasMemoryAddress()) {
+             long memoryAddress = data.memoryAddress();
+             if (remoteAddress == null) {
+-                writtenBytes = socket.writeAddress(memoryAddress, data.readerIndex(), data.writerIndex());
++                try {
++                    writtenBytes = socket.writeAddress(memoryAddress, data.readerIndex(), data.writerIndex());
++                } catch (Errors.NativeIoException e) {
++                    throw translateForConnected(e);
++                }
+             } else {
+                 if (socket.protocolFamily() == SocketProtocolFamily.UNIX) {
+                     DomainSocketAddress address = (DomainSocketAddress) remoteAddress;
+@@ -347,6 +351,16 @@ private boolean doWriteMessage(Object msg) throws Exception {
+         return writtenBytes > 0;
+     }
+ 
++    private static IOException translateForConnected(Errors.NativeIoException e) {
++        // We need to correctly translate connect errors to match NIO behaviour.
++        if (e.expectedErr() == Errors.ERROR_ECONNREFUSED_NEGATIVE) {
++            PortUnreachableException error = new PortUnreachableException(e.getMessage());
++            error.initCause(e);
++            return error;
++        }
++        return e;
++    }
++
+     private static void checkUnresolved(SocketAddress address) {
+         if (address instanceof InetSocketAddress
+                 && (((InetSocketAddress) address).isUnresolved())) {

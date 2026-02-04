@@ -1,0 +1,1536 @@
+diff --git a/android/guava-testlib/src/com/google/common/collect/testing/Platform.java b/android/guava-testlib/src/com/google/common/collect/testing/Platform.java
+index cfc7ac3b284e..a57207b4f049 100644
+--- a/android/guava-testlib/src/com/google/common/collect/testing/Platform.java
++++ b/android/guava-testlib/src/com/google/common/collect/testing/Platform.java
+@@ -17,6 +17,7 @@
+ package com.google.common.collect.testing;
+ 
+ import com.google.common.annotations.GwtCompatible;
++import com.google.errorprone.annotations.FormatMethod;
+ import java.util.Locale;
+ 
+ /**
+@@ -37,6 +38,7 @@ static void checkCast(Class<?> clazz, Object obj) {
+     Object unused = clazz.cast(obj);
+   }
+ 
++  @FormatMethod
+   static String format(String template, Object... args) {
+     return String.format(Locale.ROOT, template, args);
+   }
+diff --git a/android/guava-testlib/src/com/google/common/collect/testing/testers/Platform.java b/android/guava-testlib/src/com/google/common/collect/testing/testers/Platform.java
+index aed6e76e920a..7a27c69c7556 100644
+--- a/android/guava-testlib/src/com/google/common/collect/testing/testers/Platform.java
++++ b/android/guava-testlib/src/com/google/common/collect/testing/testers/Platform.java
+@@ -17,6 +17,7 @@
+ package com.google.common.collect.testing.testers;
+ 
+ import com.google.common.annotations.GwtCompatible;
++import com.google.errorprone.annotations.FormatMethod;
+ import java.util.Locale;
+ 
+ /**
+@@ -28,6 +29,7 @@
+ final class Platform {
+ 
+   /** Format the template with args, only supports the placeholder {@code %s}. */
++  @FormatMethod
+   static String format(String template, Object... args) {
+     return String.format(Locale.ROOT, template, args);
+   }
+diff --git a/android/guava-testlib/src/com/google/common/testing/GcFinalization.java b/android/guava-testlib/src/com/google/common/testing/GcFinalization.java
+index 201e69d94cbe..61d7e05eb792 100644
+--- a/android/guava-testlib/src/com/google/common/testing/GcFinalization.java
++++ b/android/guava-testlib/src/com/google/common/testing/GcFinalization.java
+@@ -22,6 +22,7 @@
+ import com.google.common.annotations.GwtIncompatible;
+ import com.google.common.annotations.J2ktIncompatible;
+ import com.google.errorprone.annotations.DoNotMock;
++import com.google.errorprone.annotations.FormatMethod;
+ import com.google.j2objc.annotations.J2ObjCIncompatible;
+ import java.lang.ref.WeakReference;
+ import java.util.Locale;
+@@ -316,6 +317,7 @@ protected void finalize() {
+     System.runFinalization();
+   }
+ 
++  @FormatMethod
+   private static RuntimeException formatRuntimeException(String format, Object... args) {
+     return new RuntimeException(String.format(Locale.ROOT, format, args));
+   }
+diff --git a/android/guava/src/com/google/common/base/Platform.java b/android/guava/src/com/google/common/base/Platform.java
+index 1dd43f68459a..d4674d2ffcfd 100644
+--- a/android/guava/src/com/google/common/base/Platform.java
++++ b/android/guava/src/com/google/common/base/Platform.java
+@@ -78,7 +78,8 @@ static String nullToEmpty(@Nullable String string) {
+     return stringIsNullOrEmpty(string) ? null : string;
+   }
+ 
+-  static String lenientFormat(@Nullable String template, @Nullable Object @Nullable ... args) {
++  static String lenientFormat(
++      @Nullable String template, @Nullable Object @Nullable ... args) {
+     return Strings.lenientFormat(template, args);
+   }
+ 
+diff --git a/android/guava/src/com/google/common/base/Preconditions.java b/android/guava/src/com/google/common/base/Preconditions.java
+index 62192fb18d3d..00c7caeacbfa 100644
+--- a/android/guava/src/com/google/common/base/Preconditions.java
++++ b/android/guava/src/com/google/common/base/Preconditions.java
+@@ -172,7 +172,8 @@ public static void checkArgument(
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkArgument(boolean expression, String errorMessageTemplate, char p1) {
++  public static void checkArgument(
++      boolean expression, String errorMessageTemplate, char p1) {
+     if (!expression) {
+       throw new IllegalArgumentException(lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -185,7 +186,8 @@ public static void checkArgument(boolean expression, String errorMessageTemplate
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkArgument(boolean expression, String errorMessageTemplate, int p1) {
++  public static void checkArgument(
++      boolean expression, String errorMessageTemplate, int p1) {
+     if (!expression) {
+       throw new IllegalArgumentException(lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -198,7 +200,8 @@ public static void checkArgument(boolean expression, String errorMessageTemplate
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkArgument(boolean expression, String errorMessageTemplate, long p1) {
++  public static void checkArgument(
++      boolean expression, String errorMessageTemplate, long p1) {
+     if (!expression) {
+       throw new IllegalArgumentException(lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -268,7 +271,10 @@ public static void checkArgument(
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   public static void checkArgument(
+-      boolean expression, String errorMessageTemplate, char p1, @Nullable Object p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      char p1,
++      @Nullable Object p2) {
+     if (!expression) {
+       throw new IllegalArgumentException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -324,7 +330,10 @@ public static void checkArgument(
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   public static void checkArgument(
+-      boolean expression, String errorMessageTemplate, int p1, @Nullable Object p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      int p1,
++      @Nullable Object p2) {
+     if (!expression) {
+       throw new IllegalArgumentException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -380,7 +389,10 @@ public static void checkArgument(
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   public static void checkArgument(
+-      boolean expression, String errorMessageTemplate, long p1, @Nullable Object p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      long p1,
++      @Nullable Object p2) {
+     if (!expression) {
+       throw new IllegalArgumentException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -394,7 +406,10 @@ public static void checkArgument(
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   public static void checkArgument(
+-      boolean expression, String errorMessageTemplate, @Nullable Object p1, char p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      char p2) {
+     if (!expression) {
+       throw new IllegalArgumentException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -408,7 +423,10 @@ public static void checkArgument(
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   public static void checkArgument(
+-      boolean expression, String errorMessageTemplate, @Nullable Object p1, int p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      int p2) {
+     if (!expression) {
+       throw new IllegalArgumentException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -422,7 +440,10 @@ public static void checkArgument(
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   public static void checkArgument(
+-      boolean expression, String errorMessageTemplate, @Nullable Object p1, long p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      long p2) {
+     if (!expression) {
+       throw new IllegalArgumentException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -555,7 +576,8 @@ public static void checkState(
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkState(boolean expression, String errorMessageTemplate, char p1) {
++  public static void checkState(
++      boolean expression, String errorMessageTemplate, char p1) {
+     if (!expression) {
+       throw new IllegalStateException(lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -569,7 +591,8 @@ public static void checkState(boolean expression, String errorMessageTemplate, c
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkState(boolean expression, String errorMessageTemplate, int p1) {
++  public static void checkState(
++      boolean expression, String errorMessageTemplate, int p1) {
+     if (!expression) {
+       throw new IllegalStateException(lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -583,7 +606,8 @@ public static void checkState(boolean expression, String errorMessageTemplate, i
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkState(boolean expression, String errorMessageTemplate, long p1) {
++  public static void checkState(
++      boolean expression, String errorMessageTemplate, long p1) {
+     if (!expression) {
+       throw new IllegalStateException(lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -612,7 +636,8 @@ public static void checkState(
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkState(boolean expression, String errorMessageTemplate, char p1, char p2) {
++  public static void checkState(
++      boolean expression, String errorMessageTemplate, char p1, char p2) {
+     if (!expression) {
+       throw new IllegalStateException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -626,7 +651,8 @@ public static void checkState(boolean expression, String errorMessageTemplate, c
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkState(boolean expression, String errorMessageTemplate, char p1, int p2) {
++  public static void checkState(
++      boolean expression, String errorMessageTemplate, char p1, int p2) {
+     if (!expression) {
+       throw new IllegalStateException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -640,7 +666,8 @@ public static void checkState(boolean expression, String errorMessageTemplate, c
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkState(boolean expression, String errorMessageTemplate, char p1, long p2) {
++  public static void checkState(
++      boolean expression, String errorMessageTemplate, char p1, long p2) {
+     if (!expression) {
+       throw new IllegalStateException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -655,7 +682,10 @@ public static void checkState(boolean expression, String errorMessageTemplate, c
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   public static void checkState(
+-      boolean expression, String errorMessageTemplate, char p1, @Nullable Object p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      char p1,
++      @Nullable Object p2) {
+     if (!expression) {
+       throw new IllegalStateException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -669,7 +699,8 @@ public static void checkState(
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkState(boolean expression, String errorMessageTemplate, int p1, char p2) {
++  public static void checkState(
++      boolean expression, String errorMessageTemplate, int p1, char p2) {
+     if (!expression) {
+       throw new IllegalStateException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -683,7 +714,8 @@ public static void checkState(boolean expression, String errorMessageTemplate, i
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkState(boolean expression, String errorMessageTemplate, int p1, int p2) {
++  public static void checkState(
++      boolean expression, String errorMessageTemplate, int p1, int p2) {
+     if (!expression) {
+       throw new IllegalStateException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -697,7 +729,8 @@ public static void checkState(boolean expression, String errorMessageTemplate, i
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkState(boolean expression, String errorMessageTemplate, int p1, long p2) {
++  public static void checkState(
++      boolean expression, String errorMessageTemplate, int p1, long p2) {
+     if (!expression) {
+       throw new IllegalStateException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -712,7 +745,10 @@ public static void checkState(boolean expression, String errorMessageTemplate, i
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   public static void checkState(
+-      boolean expression, String errorMessageTemplate, int p1, @Nullable Object p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      int p1,
++      @Nullable Object p2) {
+     if (!expression) {
+       throw new IllegalStateException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -726,7 +762,8 @@ public static void checkState(
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkState(boolean expression, String errorMessageTemplate, long p1, char p2) {
++  public static void checkState(
++      boolean expression, String errorMessageTemplate, long p1, char p2) {
+     if (!expression) {
+       throw new IllegalStateException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -740,7 +777,8 @@ public static void checkState(boolean expression, String errorMessageTemplate, l
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkState(boolean expression, String errorMessageTemplate, long p1, int p2) {
++  public static void checkState(
++      boolean expression, String errorMessageTemplate, long p1, int p2) {
+     if (!expression) {
+       throw new IllegalStateException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -754,7 +792,8 @@ public static void checkState(boolean expression, String errorMessageTemplate, l
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkState(boolean expression, String errorMessageTemplate, long p1, long p2) {
++  public static void checkState(
++      boolean expression, String errorMessageTemplate, long p1, long p2) {
+     if (!expression) {
+       throw new IllegalStateException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -769,7 +808,10 @@ public static void checkState(boolean expression, String errorMessageTemplate, l
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   public static void checkState(
+-      boolean expression, String errorMessageTemplate, long p1, @Nullable Object p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      long p1,
++      @Nullable Object p2) {
+     if (!expression) {
+       throw new IllegalStateException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -784,7 +826,10 @@ public static void checkState(
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   public static void checkState(
+-      boolean expression, String errorMessageTemplate, @Nullable Object p1, char p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      char p2) {
+     if (!expression) {
+       throw new IllegalStateException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -799,7 +844,10 @@ public static void checkState(
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   public static void checkState(
+-      boolean expression, String errorMessageTemplate, @Nullable Object p1, int p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      int p2) {
+     if (!expression) {
+       throw new IllegalStateException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -814,7 +862,10 @@ public static void checkState(
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   public static void checkState(
+-      boolean expression, String errorMessageTemplate, @Nullable Object p1, long p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      long p2) {
+     if (!expression) {
+       throw new IllegalStateException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -829,7 +880,10 @@ public static void checkState(
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   public static void checkState(
+-      boolean expression, String errorMessageTemplate, @Nullable Object p1, @Nullable Object p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      @Nullable Object p2) {
+     if (!expression) {
+       throw new IllegalStateException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -957,7 +1011,8 @@ public static <T> T checkNotNull(
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   @CanIgnoreReturnValue
+-  public static <T> T checkNotNull(@Nullable T reference, String errorMessageTemplate, char p1) {
++  public static <T> T checkNotNull(
++      @Nullable T reference, String errorMessageTemplate, char p1) {
+     if (reference == null) {
+       throw new NullPointerException(lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -972,7 +1027,8 @@ public static <T> T checkNotNull(@Nullable T reference, String errorMessageTempl
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   @CanIgnoreReturnValue
+-  public static <T> T checkNotNull(@Nullable T reference, String errorMessageTemplate, int p1) {
++  public static <T> T checkNotNull(
++      @Nullable T reference, String errorMessageTemplate, int p1) {
+     if (reference == null) {
+       throw new NullPointerException(lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -987,7 +1043,8 @@ public static <T> T checkNotNull(@Nullable T reference, String errorMessageTempl
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   @CanIgnoreReturnValue
+-  public static <T> T checkNotNull(@Nullable T reference, String errorMessageTemplate, long p1) {
++  public static <T> T checkNotNull(
++      @Nullable T reference, String errorMessageTemplate, long p1) {
+     if (reference == null) {
+       throw new NullPointerException(lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -1003,7 +1060,9 @@ public static <T> T checkNotNull(@Nullable T reference, String errorMessageTempl
+    */
+   @CanIgnoreReturnValue
+   public static <T> T checkNotNull(
+-      @Nullable T reference, String errorMessageTemplate, @Nullable Object p1) {
++      @Nullable T reference,
++      String errorMessageTemplate,
++      @Nullable Object p1) {
+     if (reference == null) {
+       throw new NullPointerException(Platform.lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -1067,7 +1126,10 @@ public static <T> T checkNotNull(
+    */
+   @CanIgnoreReturnValue
+   public static <T> T checkNotNull(
+-      @Nullable T reference, String errorMessageTemplate, char p1, @Nullable Object p2) {
++      @Nullable T reference,
++      String errorMessageTemplate,
++      char p1,
++      @Nullable Object p2) {
+     if (reference == null) {
+       throw new NullPointerException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -1131,7 +1193,10 @@ public static <T> T checkNotNull(
+    */
+   @CanIgnoreReturnValue
+   public static <T> T checkNotNull(
+-      @Nullable T reference, String errorMessageTemplate, int p1, @Nullable Object p2) {
++      @Nullable T reference,
++      String errorMessageTemplate,
++      int p1,
++      @Nullable Object p2) {
+     if (reference == null) {
+       throw new NullPointerException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -1195,7 +1260,10 @@ public static <T> T checkNotNull(
+    */
+   @CanIgnoreReturnValue
+   public static <T> T checkNotNull(
+-      @Nullable T reference, String errorMessageTemplate, long p1, @Nullable Object p2) {
++      @Nullable T reference,
++      String errorMessageTemplate,
++      long p1,
++      @Nullable Object p2) {
+     if (reference == null) {
+       throw new NullPointerException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -1211,7 +1279,10 @@ public static <T> T checkNotNull(
+    */
+   @CanIgnoreReturnValue
+   public static <T> T checkNotNull(
+-      @Nullable T reference, String errorMessageTemplate, @Nullable Object p1, char p2) {
++      @Nullable T reference,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      char p2) {
+     if (reference == null) {
+       throw new NullPointerException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -1227,7 +1298,10 @@ public static <T> T checkNotNull(
+    */
+   @CanIgnoreReturnValue
+   public static <T> T checkNotNull(
+-      @Nullable T reference, String errorMessageTemplate, @Nullable Object p1, int p2) {
++      @Nullable T reference,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      int p2) {
+     if (reference == null) {
+       throw new NullPointerException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -1243,7 +1317,10 @@ public static <T> T checkNotNull(
+    */
+   @CanIgnoreReturnValue
+   public static <T> T checkNotNull(
+-      @Nullable T reference, String errorMessageTemplate, @Nullable Object p1, long p2) {
++      @Nullable T reference,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      long p2) {
+     if (reference == null) {
+       throw new NullPointerException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+diff --git a/android/guava/src/com/google/common/base/Verify.java b/android/guava/src/com/google/common/base/Verify.java
+index 663814e664c7..8befd715f2d5 100644
+--- a/android/guava/src/com/google/common/base/Verify.java
++++ b/android/guava/src/com/google/common/base/Verify.java
+@@ -133,7 +133,8 @@ public static void verify(
+    *
+    * @since 23.1 (varargs overload since 17.0)
+    */
+-  public static void verify(boolean expression, String errorMessageTemplate, char p1) {
++  public static void verify(
++      boolean expression, String errorMessageTemplate, char p1) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -147,7 +148,8 @@ public static void verify(boolean expression, String errorMessageTemplate, char
+    *
+    * @since 23.1 (varargs overload since 17.0)
+    */
+-  public static void verify(boolean expression, String errorMessageTemplate, int p1) {
++  public static void verify(
++      boolean expression, String errorMessageTemplate, int p1) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -161,7 +163,8 @@ public static void verify(boolean expression, String errorMessageTemplate, int p
+    *
+    * @since 23.1 (varargs overload since 17.0)
+    */
+-  public static void verify(boolean expression, String errorMessageTemplate, long p1) {
++  public static void verify(
++      boolean expression, String errorMessageTemplate, long p1) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -175,7 +178,8 @@ public static void verify(boolean expression, String errorMessageTemplate, long
+    *
+    * @since 23.1 (varargs overload since 17.0)
+    */
+-  public static void verify(boolean expression, String errorMessageTemplate, @Nullable Object p1) {
++  public static void verify(
++      boolean expression, String errorMessageTemplate, @Nullable Object p1) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -189,7 +193,8 @@ public static void verify(boolean expression, String errorMessageTemplate, @Null
+    *
+    * @since 23.1 (varargs overload since 17.0)
+    */
+-  public static void verify(boolean expression, String errorMessageTemplate, char p1, char p2) {
++  public static void verify(
++      boolean expression, String errorMessageTemplate, char p1, char p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -203,7 +208,8 @@ public static void verify(boolean expression, String errorMessageTemplate, char
+    *
+    * @since 23.1 (varargs overload since 17.0)
+    */
+-  public static void verify(boolean expression, String errorMessageTemplate, int p1, char p2) {
++  public static void verify(
++      boolean expression, String errorMessageTemplate, int p1, char p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -217,7 +223,8 @@ public static void verify(boolean expression, String errorMessageTemplate, int p
+    *
+    * @since 23.1 (varargs overload since 17.0)
+    */
+-  public static void verify(boolean expression, String errorMessageTemplate, long p1, char p2) {
++  public static void verify(
++      boolean expression, String errorMessageTemplate, long p1, char p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -232,7 +239,10 @@ public static void verify(boolean expression, String errorMessageTemplate, long
+    * @since 23.1 (varargs overload since 17.0)
+    */
+   public static void verify(
+-      boolean expression, String errorMessageTemplate, @Nullable Object p1, char p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      char p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -246,7 +256,8 @@ public static void verify(
+    *
+    * @since 23.1 (varargs overload since 17.0)
+    */
+-  public static void verify(boolean expression, String errorMessageTemplate, char p1, int p2) {
++  public static void verify(
++      boolean expression, String errorMessageTemplate, char p1, int p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -260,7 +271,8 @@ public static void verify(boolean expression, String errorMessageTemplate, char
+    *
+    * @since 23.1 (varargs overload since 17.0)
+    */
+-  public static void verify(boolean expression, String errorMessageTemplate, int p1, int p2) {
++  public static void verify(
++      boolean expression, String errorMessageTemplate, int p1, int p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -274,7 +286,8 @@ public static void verify(boolean expression, String errorMessageTemplate, int p
+    *
+    * @since 23.1 (varargs overload since 17.0)
+    */
+-  public static void verify(boolean expression, String errorMessageTemplate, long p1, int p2) {
++  public static void verify(
++      boolean expression, String errorMessageTemplate, long p1, int p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -289,7 +302,10 @@ public static void verify(boolean expression, String errorMessageTemplate, long
+    * @since 23.1 (varargs overload since 17.0)
+    */
+   public static void verify(
+-      boolean expression, String errorMessageTemplate, @Nullable Object p1, int p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      int p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -303,7 +319,8 @@ public static void verify(
+    *
+    * @since 23.1 (varargs overload since 17.0)
+    */
+-  public static void verify(boolean expression, String errorMessageTemplate, char p1, long p2) {
++  public static void verify(
++      boolean expression, String errorMessageTemplate, char p1, long p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -317,7 +334,8 @@ public static void verify(boolean expression, String errorMessageTemplate, char
+    *
+    * @since 23.1 (varargs overload since 17.0)
+    */
+-  public static void verify(boolean expression, String errorMessageTemplate, int p1, long p2) {
++  public static void verify(
++      boolean expression, String errorMessageTemplate, int p1, long p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -331,7 +349,8 @@ public static void verify(boolean expression, String errorMessageTemplate, int p
+    *
+    * @since 23.1 (varargs overload since 17.0)
+    */
+-  public static void verify(boolean expression, String errorMessageTemplate, long p1, long p2) {
++  public static void verify(
++      boolean expression, String errorMessageTemplate, long p1, long p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -346,7 +365,10 @@ public static void verify(boolean expression, String errorMessageTemplate, long
+    * @since 23.1 (varargs overload since 17.0)
+    */
+   public static void verify(
+-      boolean expression, String errorMessageTemplate, @Nullable Object p1, long p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      long p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -361,7 +383,10 @@ public static void verify(
+    * @since 23.1 (varargs overload since 17.0)
+    */
+   public static void verify(
+-      boolean expression, String errorMessageTemplate, char p1, @Nullable Object p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      char p1,
++      @Nullable Object p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -376,7 +401,10 @@ public static void verify(
+    * @since 23.1 (varargs overload since 17.0)
+    */
+   public static void verify(
+-      boolean expression, String errorMessageTemplate, int p1, @Nullable Object p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      int p1,
++      @Nullable Object p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -391,7 +419,10 @@ public static void verify(
+    * @since 23.1 (varargs overload since 17.0)
+    */
+   public static void verify(
+-      boolean expression, String errorMessageTemplate, long p1, @Nullable Object p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      long p1,
++      @Nullable Object p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -406,7 +437,10 @@ public static void verify(
+    * @since 23.1 (varargs overload since 17.0)
+    */
+   public static void verify(
+-      boolean expression, String errorMessageTemplate, @Nullable Object p1, @Nullable Object p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      @Nullable Object p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+diff --git a/android/guava/src/com/google/common/cache/CacheBuilderSpec.java b/android/guava/src/com/google/common/cache/CacheBuilderSpec.java
+index afcb23e36381..0026cc955af4 100644
+--- a/android/guava/src/com/google/common/cache/CacheBuilderSpec.java
++++ b/android/guava/src/com/google/common/cache/CacheBuilderSpec.java
+@@ -28,6 +28,7 @@
+ import com.google.common.cache.LocalCache.Strength;
+ import com.google.common.collect.ImmutableList;
+ import com.google.common.collect.ImmutableMap;
++import com.google.errorprone.annotations.FormatMethod;
+ import java.util.List;
+ import java.util.Locale;
+ import java.util.Objects;
+@@ -486,6 +487,7 @@ protected void parseDuration(CacheBuilderSpec spec, long duration, TimeUnit unit
+     }
+   }
+ 
++  @FormatMethod
+   private static String format(String format, Object... args) {
+     return String.format(Locale.ROOT, format, args);
+   }
+diff --git a/android/guava/src/com/google/common/net/InetAddresses.java b/android/guava/src/com/google/common/net/InetAddresses.java
+index c8cdda10c435..8e07d73dff52 100644
+--- a/android/guava/src/com/google/common/net/InetAddresses.java
++++ b/android/guava/src/com/google/common/net/InetAddresses.java
+@@ -27,6 +27,7 @@
+ import com.google.common.io.ByteStreams;
+ import com.google.common.primitives.Ints;
+ import com.google.errorprone.annotations.CanIgnoreReturnValue;
++import com.google.errorprone.annotations.FormatMethod;
+ import java.math.BigInteger;
+ import java.net.Inet4Address;
+ import java.net.Inet6Address;
+@@ -1231,6 +1232,7 @@ public static boolean isMaximum(InetAddress address) {
+     return true;
+   }
+ 
++  @FormatMethod
+   private static IllegalArgumentException formatIllegalArgumentException(
+       String format, Object... args) {
+     return new IllegalArgumentException(String.format(Locale.ROOT, format, args));
+diff --git a/android/guava/src/com/google/common/util/concurrent/ThreadFactoryBuilder.java b/android/guava/src/com/google/common/util/concurrent/ThreadFactoryBuilder.java
+index c204313083b4..8a36420da2b9 100644
+--- a/android/guava/src/com/google/common/util/concurrent/ThreadFactoryBuilder.java
++++ b/android/guava/src/com/google/common/util/concurrent/ThreadFactoryBuilder.java
+@@ -217,6 +217,8 @@ public Thread newThread(Runnable runnable) {
+     };
+   }
+ 
++  // weird case in which users pass the format string but not the associated arguments
++  @SuppressWarnings("AnnotateFormatMethod")
+   private static String format(String format, Object... args) {
+     return String.format(Locale.ROOT, format, args);
+   }
+diff --git a/guava-testlib/src/com/google/common/collect/testing/Platform.java b/guava-testlib/src/com/google/common/collect/testing/Platform.java
+index cfc7ac3b284e..a57207b4f049 100644
+--- a/guava-testlib/src/com/google/common/collect/testing/Platform.java
++++ b/guava-testlib/src/com/google/common/collect/testing/Platform.java
+@@ -17,6 +17,7 @@
+ package com.google.common.collect.testing;
+ 
+ import com.google.common.annotations.GwtCompatible;
++import com.google.errorprone.annotations.FormatMethod;
+ import java.util.Locale;
+ 
+ /**
+@@ -37,6 +38,7 @@ static void checkCast(Class<?> clazz, Object obj) {
+     Object unused = clazz.cast(obj);
+   }
+ 
++  @FormatMethod
+   static String format(String template, Object... args) {
+     return String.format(Locale.ROOT, template, args);
+   }
+diff --git a/guava-testlib/src/com/google/common/collect/testing/testers/Platform.java b/guava-testlib/src/com/google/common/collect/testing/testers/Platform.java
+index aed6e76e920a..7a27c69c7556 100644
+--- a/guava-testlib/src/com/google/common/collect/testing/testers/Platform.java
++++ b/guava-testlib/src/com/google/common/collect/testing/testers/Platform.java
+@@ -17,6 +17,7 @@
+ package com.google.common.collect.testing.testers;
+ 
+ import com.google.common.annotations.GwtCompatible;
++import com.google.errorprone.annotations.FormatMethod;
+ import java.util.Locale;
+ 
+ /**
+@@ -28,6 +29,7 @@
+ final class Platform {
+ 
+   /** Format the template with args, only supports the placeholder {@code %s}. */
++  @FormatMethod
+   static String format(String template, Object... args) {
+     return String.format(Locale.ROOT, template, args);
+   }
+diff --git a/guava-testlib/src/com/google/common/testing/GcFinalization.java b/guava-testlib/src/com/google/common/testing/GcFinalization.java
+index 201e69d94cbe..61d7e05eb792 100644
+--- a/guava-testlib/src/com/google/common/testing/GcFinalization.java
++++ b/guava-testlib/src/com/google/common/testing/GcFinalization.java
+@@ -22,6 +22,7 @@
+ import com.google.common.annotations.GwtIncompatible;
+ import com.google.common.annotations.J2ktIncompatible;
+ import com.google.errorprone.annotations.DoNotMock;
++import com.google.errorprone.annotations.FormatMethod;
+ import com.google.j2objc.annotations.J2ObjCIncompatible;
+ import java.lang.ref.WeakReference;
+ import java.util.Locale;
+@@ -316,6 +317,7 @@ protected void finalize() {
+     System.runFinalization();
+   }
+ 
++  @FormatMethod
+   private static RuntimeException formatRuntimeException(String format, Object... args) {
+     return new RuntimeException(String.format(Locale.ROOT, format, args));
+   }
+diff --git a/guava/src/com/google/common/base/Platform.java b/guava/src/com/google/common/base/Platform.java
+index 6b1728db23c5..aee2cdcb06aa 100644
+--- a/guava/src/com/google/common/base/Platform.java
++++ b/guava/src/com/google/common/base/Platform.java
+@@ -79,7 +79,8 @@ static String nullToEmpty(@Nullable String string) {
+     return stringIsNullOrEmpty(string) ? null : string;
+   }
+ 
+-  static String lenientFormat(@Nullable String template, @Nullable Object @Nullable ... args) {
++  static String lenientFormat(
++      @Nullable String template, @Nullable Object @Nullable ... args) {
+     return Strings.lenientFormat(template, args);
+   }
+ 
+diff --git a/guava/src/com/google/common/base/Preconditions.java b/guava/src/com/google/common/base/Preconditions.java
+index 62192fb18d3d..00c7caeacbfa 100644
+--- a/guava/src/com/google/common/base/Preconditions.java
++++ b/guava/src/com/google/common/base/Preconditions.java
+@@ -172,7 +172,8 @@ public static void checkArgument(
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkArgument(boolean expression, String errorMessageTemplate, char p1) {
++  public static void checkArgument(
++      boolean expression, String errorMessageTemplate, char p1) {
+     if (!expression) {
+       throw new IllegalArgumentException(lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -185,7 +186,8 @@ public static void checkArgument(boolean expression, String errorMessageTemplate
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkArgument(boolean expression, String errorMessageTemplate, int p1) {
++  public static void checkArgument(
++      boolean expression, String errorMessageTemplate, int p1) {
+     if (!expression) {
+       throw new IllegalArgumentException(lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -198,7 +200,8 @@ public static void checkArgument(boolean expression, String errorMessageTemplate
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkArgument(boolean expression, String errorMessageTemplate, long p1) {
++  public static void checkArgument(
++      boolean expression, String errorMessageTemplate, long p1) {
+     if (!expression) {
+       throw new IllegalArgumentException(lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -268,7 +271,10 @@ public static void checkArgument(
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   public static void checkArgument(
+-      boolean expression, String errorMessageTemplate, char p1, @Nullable Object p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      char p1,
++      @Nullable Object p2) {
+     if (!expression) {
+       throw new IllegalArgumentException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -324,7 +330,10 @@ public static void checkArgument(
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   public static void checkArgument(
+-      boolean expression, String errorMessageTemplate, int p1, @Nullable Object p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      int p1,
++      @Nullable Object p2) {
+     if (!expression) {
+       throw new IllegalArgumentException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -380,7 +389,10 @@ public static void checkArgument(
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   public static void checkArgument(
+-      boolean expression, String errorMessageTemplate, long p1, @Nullable Object p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      long p1,
++      @Nullable Object p2) {
+     if (!expression) {
+       throw new IllegalArgumentException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -394,7 +406,10 @@ public static void checkArgument(
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   public static void checkArgument(
+-      boolean expression, String errorMessageTemplate, @Nullable Object p1, char p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      char p2) {
+     if (!expression) {
+       throw new IllegalArgumentException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -408,7 +423,10 @@ public static void checkArgument(
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   public static void checkArgument(
+-      boolean expression, String errorMessageTemplate, @Nullable Object p1, int p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      int p2) {
+     if (!expression) {
+       throw new IllegalArgumentException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -422,7 +440,10 @@ public static void checkArgument(
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   public static void checkArgument(
+-      boolean expression, String errorMessageTemplate, @Nullable Object p1, long p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      long p2) {
+     if (!expression) {
+       throw new IllegalArgumentException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -555,7 +576,8 @@ public static void checkState(
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkState(boolean expression, String errorMessageTemplate, char p1) {
++  public static void checkState(
++      boolean expression, String errorMessageTemplate, char p1) {
+     if (!expression) {
+       throw new IllegalStateException(lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -569,7 +591,8 @@ public static void checkState(boolean expression, String errorMessageTemplate, c
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkState(boolean expression, String errorMessageTemplate, int p1) {
++  public static void checkState(
++      boolean expression, String errorMessageTemplate, int p1) {
+     if (!expression) {
+       throw new IllegalStateException(lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -583,7 +606,8 @@ public static void checkState(boolean expression, String errorMessageTemplate, i
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkState(boolean expression, String errorMessageTemplate, long p1) {
++  public static void checkState(
++      boolean expression, String errorMessageTemplate, long p1) {
+     if (!expression) {
+       throw new IllegalStateException(lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -612,7 +636,8 @@ public static void checkState(
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkState(boolean expression, String errorMessageTemplate, char p1, char p2) {
++  public static void checkState(
++      boolean expression, String errorMessageTemplate, char p1, char p2) {
+     if (!expression) {
+       throw new IllegalStateException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -626,7 +651,8 @@ public static void checkState(boolean expression, String errorMessageTemplate, c
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkState(boolean expression, String errorMessageTemplate, char p1, int p2) {
++  public static void checkState(
++      boolean expression, String errorMessageTemplate, char p1, int p2) {
+     if (!expression) {
+       throw new IllegalStateException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -640,7 +666,8 @@ public static void checkState(boolean expression, String errorMessageTemplate, c
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkState(boolean expression, String errorMessageTemplate, char p1, long p2) {
++  public static void checkState(
++      boolean expression, String errorMessageTemplate, char p1, long p2) {
+     if (!expression) {
+       throw new IllegalStateException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -655,7 +682,10 @@ public static void checkState(boolean expression, String errorMessageTemplate, c
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   public static void checkState(
+-      boolean expression, String errorMessageTemplate, char p1, @Nullable Object p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      char p1,
++      @Nullable Object p2) {
+     if (!expression) {
+       throw new IllegalStateException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -669,7 +699,8 @@ public static void checkState(
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkState(boolean expression, String errorMessageTemplate, int p1, char p2) {
++  public static void checkState(
++      boolean expression, String errorMessageTemplate, int p1, char p2) {
+     if (!expression) {
+       throw new IllegalStateException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -683,7 +714,8 @@ public static void checkState(boolean expression, String errorMessageTemplate, i
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkState(boolean expression, String errorMessageTemplate, int p1, int p2) {
++  public static void checkState(
++      boolean expression, String errorMessageTemplate, int p1, int p2) {
+     if (!expression) {
+       throw new IllegalStateException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -697,7 +729,8 @@ public static void checkState(boolean expression, String errorMessageTemplate, i
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkState(boolean expression, String errorMessageTemplate, int p1, long p2) {
++  public static void checkState(
++      boolean expression, String errorMessageTemplate, int p1, long p2) {
+     if (!expression) {
+       throw new IllegalStateException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -712,7 +745,10 @@ public static void checkState(boolean expression, String errorMessageTemplate, i
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   public static void checkState(
+-      boolean expression, String errorMessageTemplate, int p1, @Nullable Object p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      int p1,
++      @Nullable Object p2) {
+     if (!expression) {
+       throw new IllegalStateException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -726,7 +762,8 @@ public static void checkState(
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkState(boolean expression, String errorMessageTemplate, long p1, char p2) {
++  public static void checkState(
++      boolean expression, String errorMessageTemplate, long p1, char p2) {
+     if (!expression) {
+       throw new IllegalStateException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -740,7 +777,8 @@ public static void checkState(boolean expression, String errorMessageTemplate, l
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkState(boolean expression, String errorMessageTemplate, long p1, int p2) {
++  public static void checkState(
++      boolean expression, String errorMessageTemplate, long p1, int p2) {
+     if (!expression) {
+       throw new IllegalStateException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -754,7 +792,8 @@ public static void checkState(boolean expression, String errorMessageTemplate, l
+    *
+    * @since 20.0 (varargs overload since 2.0)
+    */
+-  public static void checkState(boolean expression, String errorMessageTemplate, long p1, long p2) {
++  public static void checkState(
++      boolean expression, String errorMessageTemplate, long p1, long p2) {
+     if (!expression) {
+       throw new IllegalStateException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -769,7 +808,10 @@ public static void checkState(boolean expression, String errorMessageTemplate, l
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   public static void checkState(
+-      boolean expression, String errorMessageTemplate, long p1, @Nullable Object p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      long p1,
++      @Nullable Object p2) {
+     if (!expression) {
+       throw new IllegalStateException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -784,7 +826,10 @@ public static void checkState(
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   public static void checkState(
+-      boolean expression, String errorMessageTemplate, @Nullable Object p1, char p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      char p2) {
+     if (!expression) {
+       throw new IllegalStateException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -799,7 +844,10 @@ public static void checkState(
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   public static void checkState(
+-      boolean expression, String errorMessageTemplate, @Nullable Object p1, int p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      int p2) {
+     if (!expression) {
+       throw new IllegalStateException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -814,7 +862,10 @@ public static void checkState(
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   public static void checkState(
+-      boolean expression, String errorMessageTemplate, @Nullable Object p1, long p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      long p2) {
+     if (!expression) {
+       throw new IllegalStateException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -829,7 +880,10 @@ public static void checkState(
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   public static void checkState(
+-      boolean expression, String errorMessageTemplate, @Nullable Object p1, @Nullable Object p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      @Nullable Object p2) {
+     if (!expression) {
+       throw new IllegalStateException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -957,7 +1011,8 @@ public static <T> T checkNotNull(
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   @CanIgnoreReturnValue
+-  public static <T> T checkNotNull(@Nullable T reference, String errorMessageTemplate, char p1) {
++  public static <T> T checkNotNull(
++      @Nullable T reference, String errorMessageTemplate, char p1) {
+     if (reference == null) {
+       throw new NullPointerException(lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -972,7 +1027,8 @@ public static <T> T checkNotNull(@Nullable T reference, String errorMessageTempl
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   @CanIgnoreReturnValue
+-  public static <T> T checkNotNull(@Nullable T reference, String errorMessageTemplate, int p1) {
++  public static <T> T checkNotNull(
++      @Nullable T reference, String errorMessageTemplate, int p1) {
+     if (reference == null) {
+       throw new NullPointerException(lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -987,7 +1043,8 @@ public static <T> T checkNotNull(@Nullable T reference, String errorMessageTempl
+    * @since 20.0 (varargs overload since 2.0)
+    */
+   @CanIgnoreReturnValue
+-  public static <T> T checkNotNull(@Nullable T reference, String errorMessageTemplate, long p1) {
++  public static <T> T checkNotNull(
++      @Nullable T reference, String errorMessageTemplate, long p1) {
+     if (reference == null) {
+       throw new NullPointerException(lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -1003,7 +1060,9 @@ public static <T> T checkNotNull(@Nullable T reference, String errorMessageTempl
+    */
+   @CanIgnoreReturnValue
+   public static <T> T checkNotNull(
+-      @Nullable T reference, String errorMessageTemplate, @Nullable Object p1) {
++      @Nullable T reference,
++      String errorMessageTemplate,
++      @Nullable Object p1) {
+     if (reference == null) {
+       throw new NullPointerException(Platform.lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -1067,7 +1126,10 @@ public static <T> T checkNotNull(
+    */
+   @CanIgnoreReturnValue
+   public static <T> T checkNotNull(
+-      @Nullable T reference, String errorMessageTemplate, char p1, @Nullable Object p2) {
++      @Nullable T reference,
++      String errorMessageTemplate,
++      char p1,
++      @Nullable Object p2) {
+     if (reference == null) {
+       throw new NullPointerException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -1131,7 +1193,10 @@ public static <T> T checkNotNull(
+    */
+   @CanIgnoreReturnValue
+   public static <T> T checkNotNull(
+-      @Nullable T reference, String errorMessageTemplate, int p1, @Nullable Object p2) {
++      @Nullable T reference,
++      String errorMessageTemplate,
++      int p1,
++      @Nullable Object p2) {
+     if (reference == null) {
+       throw new NullPointerException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -1195,7 +1260,10 @@ public static <T> T checkNotNull(
+    */
+   @CanIgnoreReturnValue
+   public static <T> T checkNotNull(
+-      @Nullable T reference, String errorMessageTemplate, long p1, @Nullable Object p2) {
++      @Nullable T reference,
++      String errorMessageTemplate,
++      long p1,
++      @Nullable Object p2) {
+     if (reference == null) {
+       throw new NullPointerException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -1211,7 +1279,10 @@ public static <T> T checkNotNull(
+    */
+   @CanIgnoreReturnValue
+   public static <T> T checkNotNull(
+-      @Nullable T reference, String errorMessageTemplate, @Nullable Object p1, char p2) {
++      @Nullable T reference,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      char p2) {
+     if (reference == null) {
+       throw new NullPointerException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -1227,7 +1298,10 @@ public static <T> T checkNotNull(
+    */
+   @CanIgnoreReturnValue
+   public static <T> T checkNotNull(
+-      @Nullable T reference, String errorMessageTemplate, @Nullable Object p1, int p2) {
++      @Nullable T reference,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      int p2) {
+     if (reference == null) {
+       throw new NullPointerException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -1243,7 +1317,10 @@ public static <T> T checkNotNull(
+    */
+   @CanIgnoreReturnValue
+   public static <T> T checkNotNull(
+-      @Nullable T reference, String errorMessageTemplate, @Nullable Object p1, long p2) {
++      @Nullable T reference,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      long p2) {
+     if (reference == null) {
+       throw new NullPointerException(Platform.lenientFormat(errorMessageTemplate, p1, p2));
+     }
+diff --git a/guava/src/com/google/common/base/Verify.java b/guava/src/com/google/common/base/Verify.java
+index 663814e664c7..8befd715f2d5 100644
+--- a/guava/src/com/google/common/base/Verify.java
++++ b/guava/src/com/google/common/base/Verify.java
+@@ -133,7 +133,8 @@ public static void verify(
+    *
+    * @since 23.1 (varargs overload since 17.0)
+    */
+-  public static void verify(boolean expression, String errorMessageTemplate, char p1) {
++  public static void verify(
++      boolean expression, String errorMessageTemplate, char p1) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -147,7 +148,8 @@ public static void verify(boolean expression, String errorMessageTemplate, char
+    *
+    * @since 23.1 (varargs overload since 17.0)
+    */
+-  public static void verify(boolean expression, String errorMessageTemplate, int p1) {
++  public static void verify(
++      boolean expression, String errorMessageTemplate, int p1) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -161,7 +163,8 @@ public static void verify(boolean expression, String errorMessageTemplate, int p
+    *
+    * @since 23.1 (varargs overload since 17.0)
+    */
+-  public static void verify(boolean expression, String errorMessageTemplate, long p1) {
++  public static void verify(
++      boolean expression, String errorMessageTemplate, long p1) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -175,7 +178,8 @@ public static void verify(boolean expression, String errorMessageTemplate, long
+    *
+    * @since 23.1 (varargs overload since 17.0)
+    */
+-  public static void verify(boolean expression, String errorMessageTemplate, @Nullable Object p1) {
++  public static void verify(
++      boolean expression, String errorMessageTemplate, @Nullable Object p1) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1));
+     }
+@@ -189,7 +193,8 @@ public static void verify(boolean expression, String errorMessageTemplate, @Null
+    *
+    * @since 23.1 (varargs overload since 17.0)
+    */
+-  public static void verify(boolean expression, String errorMessageTemplate, char p1, char p2) {
++  public static void verify(
++      boolean expression, String errorMessageTemplate, char p1, char p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -203,7 +208,8 @@ public static void verify(boolean expression, String errorMessageTemplate, char
+    *
+    * @since 23.1 (varargs overload since 17.0)
+    */
+-  public static void verify(boolean expression, String errorMessageTemplate, int p1, char p2) {
++  public static void verify(
++      boolean expression, String errorMessageTemplate, int p1, char p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -217,7 +223,8 @@ public static void verify(boolean expression, String errorMessageTemplate, int p
+    *
+    * @since 23.1 (varargs overload since 17.0)
+    */
+-  public static void verify(boolean expression, String errorMessageTemplate, long p1, char p2) {
++  public static void verify(
++      boolean expression, String errorMessageTemplate, long p1, char p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -232,7 +239,10 @@ public static void verify(boolean expression, String errorMessageTemplate, long
+    * @since 23.1 (varargs overload since 17.0)
+    */
+   public static void verify(
+-      boolean expression, String errorMessageTemplate, @Nullable Object p1, char p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      char p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -246,7 +256,8 @@ public static void verify(
+    *
+    * @since 23.1 (varargs overload since 17.0)
+    */
+-  public static void verify(boolean expression, String errorMessageTemplate, char p1, int p2) {
++  public static void verify(
++      boolean expression, String errorMessageTemplate, char p1, int p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -260,7 +271,8 @@ public static void verify(boolean expression, String errorMessageTemplate, char
+    *
+    * @since 23.1 (varargs overload since 17.0)
+    */
+-  public static void verify(boolean expression, String errorMessageTemplate, int p1, int p2) {
++  public static void verify(
++      boolean expression, String errorMessageTemplate, int p1, int p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -274,7 +286,8 @@ public static void verify(boolean expression, String errorMessageTemplate, int p
+    *
+    * @since 23.1 (varargs overload since 17.0)
+    */
+-  public static void verify(boolean expression, String errorMessageTemplate, long p1, int p2) {
++  public static void verify(
++      boolean expression, String errorMessageTemplate, long p1, int p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -289,7 +302,10 @@ public static void verify(boolean expression, String errorMessageTemplate, long
+    * @since 23.1 (varargs overload since 17.0)
+    */
+   public static void verify(
+-      boolean expression, String errorMessageTemplate, @Nullable Object p1, int p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      int p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -303,7 +319,8 @@ public static void verify(
+    *
+    * @since 23.1 (varargs overload since 17.0)
+    */
+-  public static void verify(boolean expression, String errorMessageTemplate, char p1, long p2) {
++  public static void verify(
++      boolean expression, String errorMessageTemplate, char p1, long p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -317,7 +334,8 @@ public static void verify(boolean expression, String errorMessageTemplate, char
+    *
+    * @since 23.1 (varargs overload since 17.0)
+    */
+-  public static void verify(boolean expression, String errorMessageTemplate, int p1, long p2) {
++  public static void verify(
++      boolean expression, String errorMessageTemplate, int p1, long p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -331,7 +349,8 @@ public static void verify(boolean expression, String errorMessageTemplate, int p
+    *
+    * @since 23.1 (varargs overload since 17.0)
+    */
+-  public static void verify(boolean expression, String errorMessageTemplate, long p1, long p2) {
++  public static void verify(
++      boolean expression, String errorMessageTemplate, long p1, long p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -346,7 +365,10 @@ public static void verify(boolean expression, String errorMessageTemplate, long
+    * @since 23.1 (varargs overload since 17.0)
+    */
+   public static void verify(
+-      boolean expression, String errorMessageTemplate, @Nullable Object p1, long p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      long p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -361,7 +383,10 @@ public static void verify(
+    * @since 23.1 (varargs overload since 17.0)
+    */
+   public static void verify(
+-      boolean expression, String errorMessageTemplate, char p1, @Nullable Object p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      char p1,
++      @Nullable Object p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -376,7 +401,10 @@ public static void verify(
+    * @since 23.1 (varargs overload since 17.0)
+    */
+   public static void verify(
+-      boolean expression, String errorMessageTemplate, int p1, @Nullable Object p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      int p1,
++      @Nullable Object p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -391,7 +419,10 @@ public static void verify(
+    * @since 23.1 (varargs overload since 17.0)
+    */
+   public static void verify(
+-      boolean expression, String errorMessageTemplate, long p1, @Nullable Object p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      long p1,
++      @Nullable Object p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+@@ -406,7 +437,10 @@ public static void verify(
+    * @since 23.1 (varargs overload since 17.0)
+    */
+   public static void verify(
+-      boolean expression, String errorMessageTemplate, @Nullable Object p1, @Nullable Object p2) {
++      boolean expression,
++      String errorMessageTemplate,
++      @Nullable Object p1,
++      @Nullable Object p2) {
+     if (!expression) {
+       throw new VerifyException(lenientFormat(errorMessageTemplate, p1, p2));
+     }
+diff --git a/guava/src/com/google/common/cache/CacheBuilderSpec.java b/guava/src/com/google/common/cache/CacheBuilderSpec.java
+index afcb23e36381..0026cc955af4 100644
+--- a/guava/src/com/google/common/cache/CacheBuilderSpec.java
++++ b/guava/src/com/google/common/cache/CacheBuilderSpec.java
+@@ -28,6 +28,7 @@
+ import com.google.common.cache.LocalCache.Strength;
+ import com.google.common.collect.ImmutableList;
+ import com.google.common.collect.ImmutableMap;
++import com.google.errorprone.annotations.FormatMethod;
+ import java.util.List;
+ import java.util.Locale;
+ import java.util.Objects;
+@@ -486,6 +487,7 @@ protected void parseDuration(CacheBuilderSpec spec, long duration, TimeUnit unit
+     }
+   }
+ 
++  @FormatMethod
+   private static String format(String format, Object... args) {
+     return String.format(Locale.ROOT, format, args);
+   }
+diff --git a/guava/src/com/google/common/net/InetAddresses.java b/guava/src/com/google/common/net/InetAddresses.java
+index c8cdda10c435..8e07d73dff52 100644
+--- a/guava/src/com/google/common/net/InetAddresses.java
++++ b/guava/src/com/google/common/net/InetAddresses.java
+@@ -27,6 +27,7 @@
+ import com.google.common.io.ByteStreams;
+ import com.google.common.primitives.Ints;
+ import com.google.errorprone.annotations.CanIgnoreReturnValue;
++import com.google.errorprone.annotations.FormatMethod;
+ import java.math.BigInteger;
+ import java.net.Inet4Address;
+ import java.net.Inet6Address;
+@@ -1231,6 +1232,7 @@ public static boolean isMaximum(InetAddress address) {
+     return true;
+   }
+ 
++  @FormatMethod
+   private static IllegalArgumentException formatIllegalArgumentException(
+       String format, Object... args) {
+     return new IllegalArgumentException(String.format(Locale.ROOT, format, args));
+diff --git a/guava/src/com/google/common/util/concurrent/ThreadFactoryBuilder.java b/guava/src/com/google/common/util/concurrent/ThreadFactoryBuilder.java
+index c204313083b4..8a36420da2b9 100644
+--- a/guava/src/com/google/common/util/concurrent/ThreadFactoryBuilder.java
++++ b/guava/src/com/google/common/util/concurrent/ThreadFactoryBuilder.java
+@@ -217,6 +217,8 @@ public Thread newThread(Runnable runnable) {
+     };
+   }
+ 
++  // weird case in which users pass the format string but not the associated arguments
++  @SuppressWarnings("AnnotateFormatMethod")
+   private static String format(String format, Object... args) {
+     return String.format(Locale.ROOT, format, args);
+   }

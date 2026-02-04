@@ -1,0 +1,75 @@
+diff --git a/mockito-core/src/test/java/org/mockito/internal/creation/bytebuddy/InlineDelegateByteBuddyMockMakerTest.java b/mockito-core/src/test/java/org/mockito/internal/creation/bytebuddy/InlineDelegateByteBuddyMockMakerTest.java
+index 36bf920552..19fc9ce581 100644
+--- a/mockito-core/src/test/java/org/mockito/internal/creation/bytebuddy/InlineDelegateByteBuddyMockMakerTest.java
++++ b/mockito-core/src/test/java/org/mockito/internal/creation/bytebuddy/InlineDelegateByteBuddyMockMakerTest.java
+@@ -528,13 +528,20 @@ protected static <T> MockCreationSettings<T> settingsFor(
+     }
+ 
+     @Test
+-    public void testMockDispatcherIsRelocated() throws Exception {
++    public void testMockDispatcherIsRelocated() {
+         assertThat(
+                         InlineByteBuddyMockMaker.class
+                                 .getClassLoader()
+                                 .getResource(
+-                                        "org/mockito/internal/creation/bytebuddy/inject/MockMethodDispatcher.raw"))
++                                        "org/mockito/internal/creation/bytebuddy/inject-MockMethodDispatcher.raw"))
+                 .isNotNull();
++
++        assertThat(
++                        InlineByteBuddyMockMaker.class
++                                .getClassLoader()
++                                .getResource(
++                                        "org/mockito/internal/creation/bytebuddy/inject/MockMethodDispatcher.class"))
++                .isNull();
+     }
+ 
+     private static final class FinalClass {
+diff --git a/mockito-integration-tests/module-named-tests/src/test/java/module-info.java b/mockito-integration-tests/module-named-tests/src/test/java/module-info.java
+new file mode 100644
+index 0000000000..5f74e6c85a
+--- /dev/null
++++ b/mockito-integration-tests/module-named-tests/src/test/java/module-info.java
+@@ -0,0 +1,8 @@
++module org.mockito.test {
++    requires junit;
++    requires org.mockito;
++    requires org.assertj.core;
++
++    exports org.mockito.modulenamedtest to
++            junit;
++}
+diff --git a/mockito-integration-tests/module-named-tests/src/test/java/org/mockito/modulenamedtest/ModuleUseTest.java b/mockito-integration-tests/module-named-tests/src/test/java/org/mockito/modulenamedtest/ModuleUseTest.java
+new file mode 100644
+index 0000000000..aa668bebda
+--- /dev/null
++++ b/mockito-integration-tests/module-named-tests/src/test/java/org/mockito/modulenamedtest/ModuleUseTest.java
+@@ -0,0 +1,28 @@
++/*
++ * Copyright (c) 2025 Mockito contributors
++ * This program is made available under the terms of the MIT License.
++ */
++package org.mockito.modulenamedtest;
++
++import static org.assertj.core.api.Assertions.assertThat;
++import static org.mockito.Mockito.mock;
++import static org.mockito.Mockito.when;
++
++import org.junit.Test;
++
++public class ModuleUseTest {
++
++    @Test
++    public void can_mock_with_named_module() {
++        Foo foo = mock(Foo.class);
++        when(foo.value()).thenReturn("foo");
++        assertThat(foo.value()).isEqualTo("foo");
++    }
++
++    public static class Foo {
++
++        public String value() {
++            return null;
++        }
++    }
++}

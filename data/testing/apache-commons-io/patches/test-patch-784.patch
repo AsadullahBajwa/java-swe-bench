@@ -1,0 +1,1037 @@
+diff --git a/src/test/java/org/apache/commons/io/build/AbstractOriginTest.java b/src/test/java/org/apache/commons/io/build/AbstractOriginTest.java
+index e55da41d39f..4f7d0e97f8b 100644
+--- a/src/test/java/org/apache/commons/io/build/AbstractOriginTest.java
++++ b/src/test/java/org/apache/commons/io/build/AbstractOriginTest.java
+@@ -23,6 +23,7 @@
+ import static org.junit.jupiter.api.Assertions.assertNotNull;
+ import static org.junit.jupiter.api.Assertions.assertTrue;
+ 
++import java.io.Closeable;
+ import java.io.File;
+ import java.io.IOException;
+ import java.io.InputStream;
+@@ -30,18 +31,25 @@
+ import java.io.RandomAccessFile;
+ import java.io.Reader;
+ import java.io.Writer;
++import java.nio.ByteBuffer;
++import java.nio.channels.ReadableByteChannel;
++import java.nio.channels.SeekableByteChannel;
++import java.nio.channels.WritableByteChannel;
+ import java.nio.charset.Charset;
++import java.nio.charset.StandardCharsets;
+ import java.nio.file.Files;
+ import java.nio.file.OpenOption;
+ import java.nio.file.Path;
+-import java.nio.file.Paths;
+ import java.nio.file.StandardOpenOption;
+ import java.util.Objects;
+ 
+ import org.apache.commons.io.FileUtils;
++import org.apache.commons.io.IOUtils;
+ import org.apache.commons.io.build.AbstractOrigin.RandomAccessFileOrigin;
++import org.junit.jupiter.api.AfterEach;
+ import org.junit.jupiter.api.BeforeEach;
+ import org.junit.jupiter.api.Test;
++import org.junit.jupiter.api.io.TempDir;
+ import org.junit.jupiter.params.ParameterizedTest;
+ import org.junit.jupiter.params.provider.EnumSource;
+ 
+@@ -55,18 +63,34 @@ public abstract class AbstractOriginTest<T, B extends AbstractOrigin<T, B>> {
+ 
+     protected static final String FILE_RES_RO = "/org/apache/commons/io/test-file-20byteslength.bin";
+     protected static final String FILE_NAME_RO = "src/test/resources" + FILE_RES_RO;
+-    protected static final String FILE_NAME_RW = "target/" + AbstractOriginTest.class.getSimpleName() + ".txt";
++    protected static final String FILE_NAME_RW = AbstractOriginTest.class.getSimpleName() + ".txt";
+     private static final int RO_LENGTH = 20;
+ 
+     protected AbstractOrigin<T, B> originRo;
+     protected AbstractOrigin<T, B> originRw;
+ 
++    @TempDir
++    protected Path tempPath;
++
+     @BeforeEach
+-    public void beforeEach() throws IOException {
++    void beforeEach() throws IOException {
+         setOriginRo(newOriginRo());
++        resetOriginRw();
+         setOriginRw(newOriginRw());
+     }
+ 
++    @AfterEach
++    void cleanup() {
++        final T originRo = getOriginRo().get();
++        if (originRo instanceof Closeable) {
++            IOUtils.closeQuietly((Closeable) originRo);
++        }
++        final T originRw = getOriginRw().get();
++        if (originRw instanceof Closeable) {
++            IOUtils.closeQuietly((Closeable) originRw);
++        }
++    }
++
+     protected AbstractOrigin<T, B> getOriginRo() {
+         return Objects.requireNonNull(originRo, "originRo");
+     }
+@@ -92,9 +116,21 @@ protected void setOriginRw(final AbstractOrigin<T, B> origin) {
+         this.originRw = origin;
+     }
+ 
++    protected void resetOriginRw() throws IOException {
++        // No-op
++    }
++
++    byte[] getFixtureByteArray() throws IOException {
++        return IOUtils.resourceToByteArray(FILE_RES_RO);
++    }
++
++    String getFixtureString() throws IOException {
++        return IOUtils.resourceToString(FILE_RES_RO, StandardCharsets.UTF_8);
++    }
++
+     @Test
+     void testGetByteArray() throws IOException {
+-        assertArrayEquals(Files.readAllBytes(Paths.get(FILE_NAME_RO)), getOriginRo().getByteArray());
++        assertArrayEquals(getFixtureByteArray(), getOriginRo().getByteArray());
+     }
+ 
+     @Test
+@@ -114,7 +150,9 @@ void testGetByteArrayAt_1_1() throws IOException {
+ 
+     @Test
+     void testGetCharSequence() throws IOException {
+-        assertNotNull(getOriginRo().getCharSequence(Charset.defaultCharset()));
++        final CharSequence charSequence = getOriginRo().getCharSequence(StandardCharsets.UTF_8);
++        assertNotNull(charSequence);
++        assertEquals(getFixtureString(), charSequence.toString());
+     }
+ 
+     @Test
+@@ -135,6 +173,7 @@ private void testGetFile(final File file, final long expectedLen) throws IOExcep
+     void testGetInputStream() throws IOException {
+         try (InputStream inputStream = getOriginRo().getInputStream()) {
+             assertNotNull(inputStream);
++            assertArrayEquals(getFixtureByteArray(), IOUtils.toByteArray(inputStream));
+         }
+     }
+ 
+@@ -224,9 +263,15 @@ void testGetReader() throws IOException {
+         try (Reader reader = getOriginRo().getReader(Charset.defaultCharset())) {
+             assertNotNull(reader);
+         }
++        setOriginRo(newOriginRo());
+         try (Reader reader = getOriginRo().getReader(null)) {
+             assertNotNull(reader);
+         }
++        setOriginRo(newOriginRo());
++        try (Reader reader = getOriginRo().getReader(StandardCharsets.UTF_8)) {
++            assertNotNull(reader);
++            assertEquals(getFixtureString(), IOUtils.toString(reader));
++        }
+     }
+ 
+     @Test
+@@ -240,8 +285,96 @@ void testGetWriter() throws IOException {
+         }
+     }
+ 
++    @Test
++    void testGetReadableByteChannel() throws IOException {
++        try (ReadableByteChannel channel =
++                getOriginRo().getChannel(ReadableByteChannel.class, StandardOpenOption.READ)) {
++            final SeekableByteChannel seekable =
++                    channel instanceof SeekableByteChannel ? (SeekableByteChannel) channel : null;
++            assertNotNull(channel);
++            assertTrue(channel.isOpen());
++            if (seekable != null) {
++                assertEquals(0, seekable.position());
++                assertEquals(RO_LENGTH, seekable.size());
++            }
++            checkRead(channel);
++            if (seekable != null) {
++                assertEquals(RO_LENGTH, seekable.position());
++            }
++        }
++    }
++
++    private void checkRead(ReadableByteChannel channel) throws IOException {
++        final ByteBuffer buffer = ByteBuffer.allocate(RO_LENGTH);
++        int read = channel.read(buffer);
++        assertEquals(RO_LENGTH, read);
++        assertArrayEquals(getFixtureByteArray(), buffer.array());
++        // Channel is at EOF
++        buffer.clear();
++        read = channel.read(buffer);
++        assertEquals(-1, read);
++    }
++
++    @Test
++    void testGetWritableByteChannel() throws IOException {
++        final boolean supportsRead;
++        try (WritableByteChannel channel =
++                getOriginRw().getChannel(WritableByteChannel.class, StandardOpenOption.WRITE)) {
++            supportsRead = channel instanceof ReadableByteChannel;
++            final SeekableByteChannel seekable =
++                    channel instanceof SeekableByteChannel ? (SeekableByteChannel) channel : null;
++            assertNotNull(channel);
++            assertTrue(channel.isOpen());
++            if (seekable != null) {
++                assertEquals(0, seekable.position());
++                assertEquals(0, seekable.size());
++            }
++            checkWrite(channel);
++            if (seekable != null) {
++                assertEquals(RO_LENGTH, seekable.position());
++                assertEquals(RO_LENGTH, seekable.size());
++            }
++        }
++        if (supportsRead) {
++            setOriginRw(newOriginRw());
++            try (ReadableByteChannel channel =
++                    getOriginRw().getChannel(ReadableByteChannel.class, StandardOpenOption.READ)) {
++                assertNotNull(channel);
++                assertTrue(channel.isOpen());
++                checkRead(channel);
++            }
++        }
++        setOriginRw(newOriginRw());
++        try (WritableByteChannel channel =
++                getOriginRw().getChannel(WritableByteChannel.class, StandardOpenOption.WRITE)) {
++            final SeekableByteChannel seekable =
++                    channel instanceof SeekableByteChannel ? (SeekableByteChannel) channel : null;
++            assertNotNull(channel);
++            assertTrue(channel.isOpen());
++            if (seekable != null) {
++                seekable.position(RO_LENGTH);
++                assertEquals(RO_LENGTH, seekable.position());
++                assertEquals(RO_LENGTH, seekable.size());
++                // Truncate
++                final int newSize = RO_LENGTH / 2;
++                seekable.truncate(newSize);
++                assertEquals(newSize, seekable.position());
++                assertEquals(newSize, seekable.size());
++                // Rewind
++                seekable.position(0);
++                assertEquals(0, seekable.position());
++            }
++        }
++    }
++
++    private void checkWrite(WritableByteChannel channel) throws IOException {
++        final ByteBuffer buffer = ByteBuffer.wrap(getFixtureByteArray());
++        final int written = channel.write(buffer);
++        assertEquals(RO_LENGTH, written);
++    }
++
+     @Test
+     void testSize() throws IOException {
+-        assertEquals(Files.size(Paths.get(FILE_NAME_RO)), getOriginRo().getByteArray().length);
++        assertEquals(RO_LENGTH, getOriginRo().getByteArray().length);
+     }
+ }
+diff --git a/src/test/java/org/apache/commons/io/build/AbstractRandomAccessFileOriginTest.java b/src/test/java/org/apache/commons/io/build/AbstractRandomAccessFileOriginTest.java
+index 369ce295ddc..28644f3c877 100644
+--- a/src/test/java/org/apache/commons/io/build/AbstractRandomAccessFileOriginTest.java
++++ b/src/test/java/org/apache/commons/io/build/AbstractRandomAccessFileOriginTest.java
+@@ -17,12 +17,17 @@
+ 
+ package org.apache.commons.io.build;
+ 
++import java.io.IOException;
+ import java.io.RandomAccessFile;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.nio.file.StandardOpenOption;
+ 
+ import org.apache.commons.io.IORandomAccessFile;
+ import org.apache.commons.io.build.AbstractOrigin.AbstractRandomAccessFileOrigin;
+ import org.apache.commons.io.build.AbstractOrigin.IORandomAccessFileOrigin;
+ import org.apache.commons.io.build.AbstractOrigin.RandomAccessFileOrigin;
++import org.apache.commons.lang3.ArrayUtils;
+ 
+ /**
+  * Tests {@link RandomAccessFileOrigin} and {@link IORandomAccessFileOrigin}.
+@@ -35,4 +40,10 @@
+ public abstract class AbstractRandomAccessFileOriginTest<T extends RandomAccessFile, B extends AbstractRandomAccessFileOrigin<T, B>>
+         extends AbstractOriginTest<T, B> {
+ 
++    @Override
++    protected void resetOriginRw() throws IOException {
++        // Reset the file
++        final Path rwPath = tempPath.resolve(FILE_NAME_RW);
++        Files.write(rwPath, ArrayUtils.EMPTY_BYTE_ARRAY, StandardOpenOption.CREATE);
++    }
+ }
+diff --git a/src/test/java/org/apache/commons/io/build/AbstractStreamBuilderTest.java b/src/test/java/org/apache/commons/io/build/AbstractStreamBuilderTest.java
+index f94957f5351..fc3bbafca6d 100644
+--- a/src/test/java/org/apache/commons/io/build/AbstractStreamBuilderTest.java
++++ b/src/test/java/org/apache/commons/io/build/AbstractStreamBuilderTest.java
+@@ -17,13 +17,30 @@
+ 
+ package org.apache.commons.io.build;
+ 
++import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+ import static org.junit.jupiter.api.Assertions.assertEquals;
+ import static org.junit.jupiter.api.Assertions.assertNotNull;
+ import static org.junit.jupiter.api.Assertions.assertThrows;
++import static org.junit.jupiter.api.Assertions.assertTrue;
+ 
++import java.io.FileInputStream;
++import java.io.RandomAccessFile;
++import java.net.URI;
++import java.net.URISyntaxException;
++import java.nio.channels.ReadableByteChannel;
++import java.nio.channels.SeekableByteChannel;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.nio.file.Paths;
+ import java.util.Arrays;
++import java.util.Objects;
++import java.util.stream.Stream;
+ 
++import org.apache.commons.io.function.IOConsumer;
++import org.apache.commons.lang3.ArrayUtils;
+ import org.junit.jupiter.api.Test;
++import org.junit.jupiter.params.ParameterizedTest;
++import org.junit.jupiter.params.provider.MethodSource;
+ 
+ /**
+  * Tests {@link AbstractStreamBuilder}.
+@@ -65,4 +82,51 @@ void testBufferSizeChecker() {
+         // resize
+         assertResult(builder().setBufferSizeMax(2).setBufferSizeChecker(i -> 100).setBufferSize(3).get(), 100);
+     }
++
++    private static Stream<IOConsumer<Builder>> fileBasedConfigurers() throws URISyntaxException {
++        final URI uri = Objects.requireNonNull(
++                        AbstractStreamBuilderTest.class.getResource(AbstractOriginTest.FILE_RES_RO))
++                .toURI();
++        final Path path = Paths.get(AbstractOriginTest.FILE_NAME_RO);
++        return Stream.of(
++                b -> b.setByteArray(ArrayUtils.EMPTY_BYTE_ARRAY),
++                b -> b.setFile(AbstractOriginTest.FILE_NAME_RO),
++                b -> b.setFile(path.toFile()),
++                b -> b.setPath(AbstractOriginTest.FILE_NAME_RO),
++                b -> b.setPath(path),
++                b -> b.setRandomAccessFile(new RandomAccessFile(AbstractOriginTest.FILE_NAME_RO, "r")),
++                // We can convert FileInputStream to ReadableByteChannel, but not the reverse.
++                // Therefore, we don't use Files.newInputStream.
++                b -> b.setInputStream(new FileInputStream(AbstractOriginTest.FILE_NAME_RO)),
++                b -> b.setChannel(Files.newByteChannel(path)),
++                b -> b.setURI(uri));
++    }
++
++    /**
++     * Tests various ways to obtain a {@link java.io.InputStream}.
++     *
++     * @param configurer Lambda to configure the builder.
++     */
++    @ParameterizedTest
++    @MethodSource("fileBasedConfigurers")
++    void testGetInputStream(IOConsumer<Builder> configurer) throws Exception {
++        final Builder builder = builder();
++            configurer.accept(builder);
++        assertNotNull(builder.getInputStream());
++    }
++
++    /**
++     * Tests various ways to obtain a {@link SeekableByteChannel}.
++     *
++     * @param configurer Lambda to configure the builder.
++     */
++    @ParameterizedTest
++    @MethodSource("fileBasedConfigurers")
++    void getGetSeekableByteChannel(IOConsumer<Builder> configurer) throws Exception {
++        final Builder builder = builder();
++        configurer.accept(builder);
++        try (ReadableByteChannel channel = assertDoesNotThrow(() -> builder.getChannel(SeekableByteChannel.class))) {
++            assertTrue(channel.isOpen());
++        }
++    }
+ }
+diff --git a/src/test/java/org/apache/commons/io/build/ByteArrayOriginTest.java b/src/test/java/org/apache/commons/io/build/ByteArrayOriginTest.java
+index 41a6931482c..b4fd3bf0b24 100644
+--- a/src/test/java/org/apache/commons/io/build/ByteArrayOriginTest.java
++++ b/src/test/java/org/apache/commons/io/build/ByteArrayOriginTest.java
+@@ -82,11 +82,17 @@ void testGetRandomAccessFile(final OpenOption openOption) {
+         assertThrows(UnsupportedOperationException.class, () -> super.testGetRandomAccessFile(openOption));
+     }
+ 
++    @Override
++    @Test
++    void testGetWritableByteChannel() throws IOException {
++        // Cannot convert a byte[] to a WritableByteChannel.
++        assertThrows(UnsupportedOperationException.class, super::testGetWritableByteChannel);
++    }
++
+     @Override
+     @Test
+     void testGetWriter() {
+         // Cannot convert a byte[] to a Writer.
+         assertThrows(UnsupportedOperationException.class, super::testGetWriter);
+     }
+-
+ }
+diff --git a/src/test/java/org/apache/commons/io/build/ChannelOriginTest.java b/src/test/java/org/apache/commons/io/build/ChannelOriginTest.java
+new file mode 100644
+index 00000000000..156ece2949a
+--- /dev/null
++++ b/src/test/java/org/apache/commons/io/build/ChannelOriginTest.java
+@@ -0,0 +1,108 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *      https://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.commons.io.build;
++
++import static java.nio.file.StandardOpenOption.READ;
++import static org.junit.jupiter.api.Assertions.assertThrows;
++import static org.mockito.Mockito.mock;
++
++import java.io.IOException;
++import java.nio.channels.Channel;
++import java.nio.channels.ReadableByteChannel;
++import java.nio.channels.WritableByteChannel;
++import java.nio.file.Files;
++import java.nio.file.OpenOption;
++import java.nio.file.Path;
++import java.nio.file.Paths;
++import java.nio.file.StandardOpenOption;
++import java.util.Arrays;
++import java.util.Collections;
++import java.util.HashSet;
++
++import org.apache.commons.io.build.AbstractOrigin.ChannelOrigin;
++import org.apache.commons.lang3.ArrayUtils;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.params.ParameterizedTest;
++import org.junit.jupiter.params.provider.EnumSource;
++
++class ChannelOriginTest extends AbstractOriginTest<Channel, ChannelOrigin> {
++    @Override
++    protected ChannelOrigin newOriginRo() throws IOException {
++        return new ChannelOrigin(Files.newByteChannel(Paths.get(FILE_NAME_RO), Collections.singleton(READ)));
++    }
++
++    @Override
++    protected ChannelOrigin newOriginRw() throws IOException {
++        return new ChannelOrigin(Files.newByteChannel(
++                tempPath.resolve(FILE_NAME_RW),
++                new HashSet<>(Arrays.asList(StandardOpenOption.READ, StandardOpenOption.WRITE))));
++    }
++
++    @Override
++    protected void resetOriginRw() throws IOException {
++        // Reset the file
++        final Path rwPath = tempPath.resolve(FILE_NAME_RW);
++        Files.write(rwPath, ArrayUtils.EMPTY_BYTE_ARRAY, StandardOpenOption.CREATE);
++    }
++
++    @Override
++    @Test
++    void testGetFile() {
++        // A FileByteChannel cannot be converted into a File.
++        assertThrows(UnsupportedOperationException.class, super::testGetFile);
++    }
++
++    @Override
++    @Test
++    void testGetPath() {
++        // A FileByteChannel cannot be converted into a Path.
++        assertThrows(UnsupportedOperationException.class, super::testGetPath);
++    }
++
++    @Override
++    @Test
++    void testGetRandomAccessFile() {
++        // A FileByteChannel cannot be converted into a RandomAccessFile.
++        assertThrows(UnsupportedOperationException.class, super::testGetRandomAccessFile);
++    }
++
++    @Override
++    @ParameterizedTest
++    @EnumSource(StandardOpenOption.class)
++    void testGetRandomAccessFile(OpenOption openOption) {
++        // A FileByteChannel cannot be converted into a RandomAccessFile.
++        assertThrows(UnsupportedOperationException.class, () -> super.testGetRandomAccessFile(openOption));
++    }
++
++    @Test
++    void testUnsupportedOperations_ReadableByteChannel() {
++        final ReadableByteChannel channel = mock(ReadableByteChannel.class);
++        final ChannelOrigin origin = new ChannelOrigin(channel);
++        assertThrows(UnsupportedOperationException.class, origin::getOutputStream);
++        assertThrows(UnsupportedOperationException.class, () -> origin.getWriter(null));
++        assertThrows(UnsupportedOperationException.class, () -> origin.getChannel(WritableByteChannel.class));
++    }
++
++    @Test
++    void testUnsupportedOperations_WritableByteChannel() {
++        final Channel channel = mock(WritableByteChannel.class);
++        final ChannelOrigin origin = new ChannelOrigin(channel);
++        assertThrows(UnsupportedOperationException.class, origin::getInputStream);
++        assertThrows(UnsupportedOperationException.class, () -> origin.getReader(null));
++        assertThrows(UnsupportedOperationException.class, () -> origin.getChannel(ReadableByteChannel.class));
++    }
++}
+diff --git a/src/test/java/org/apache/commons/io/build/CharSequenceOriginTest.java b/src/test/java/org/apache/commons/io/build/CharSequenceOriginTest.java
+index df29f453af8..0fc5b9c5cc6 100644
+--- a/src/test/java/org/apache/commons/io/build/CharSequenceOriginTest.java
++++ b/src/test/java/org/apache/commons/io/build/CharSequenceOriginTest.java
+@@ -109,6 +109,13 @@ void testGetReaderIgnoreCharsetNull() throws IOException {
+         }
+     }
+ 
++    @Override
++    @Test
++    void testGetWritableByteChannel() throws IOException {
++        // Cannot convert a CharSequence to a WritableByteChannel.
++        assertThrows(UnsupportedOperationException.class, super::testGetWritableByteChannel);
++    }
++
+     @Override
+     @Test
+     void testGetWriter() {
+diff --git a/src/test/java/org/apache/commons/io/build/FileOriginTest.java b/src/test/java/org/apache/commons/io/build/FileOriginTest.java
+index 4f0cb2514c7..548d788851e 100644
+--- a/src/test/java/org/apache/commons/io/build/FileOriginTest.java
++++ b/src/test/java/org/apache/commons/io/build/FileOriginTest.java
+@@ -17,8 +17,13 @@
+ package org.apache.commons.io.build;
+ 
+ import java.io.File;
++import java.io.IOException;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.nio.file.StandardOpenOption;
+ 
+ import org.apache.commons.io.build.AbstractOrigin.FileOrigin;
++import org.apache.commons.lang3.ArrayUtils;
+ 
+ /**
+  * Tests {@link FileOrigin}.
+@@ -35,8 +40,14 @@ protected FileOrigin newOriginRo() {
+     }
+ 
+     @Override
+-    protected FileOrigin newOriginRw() {
+-        return new FileOrigin(new File(FILE_NAME_RW));
++    protected FileOrigin newOriginRw() throws IOException {
++        return new FileOrigin(tempPath.resolve(FILE_NAME_RW).toFile());
+     }
+ 
++    @Override
++    protected void resetOriginRw() throws IOException {
++        // Reset the file
++        final Path rwPath = tempPath.resolve(FILE_NAME_RW);
++        Files.write(rwPath, ArrayUtils.EMPTY_BYTE_ARRAY, StandardOpenOption.CREATE);
++    }
+ }
+diff --git a/src/test/java/org/apache/commons/io/build/IORandomAccessFileOriginTest.java b/src/test/java/org/apache/commons/io/build/IORandomAccessFileOriginTest.java
+index 8d83bba1c63..b51118c657e 100644
+--- a/src/test/java/org/apache/commons/io/build/IORandomAccessFileOriginTest.java
++++ b/src/test/java/org/apache/commons/io/build/IORandomAccessFileOriginTest.java
+@@ -17,6 +17,7 @@
+ package org.apache.commons.io.build;
+ 
+ import java.io.FileNotFoundException;
++import java.io.IOException;
+ import java.io.RandomAccessFile;
+ 
+ import org.apache.commons.io.IORandomAccessFile;
+@@ -38,8 +39,7 @@ protected IORandomAccessFileOrigin newOriginRo() throws FileNotFoundException {
+ 
+     @SuppressWarnings("resource")
+     @Override
+-    protected IORandomAccessFileOrigin newOriginRw() throws FileNotFoundException {
+-        return new IORandomAccessFileOrigin(RandomAccessFileMode.READ_WRITE.io(FILE_NAME_RW));
++    protected IORandomAccessFileOrigin newOriginRw() throws IOException {
++        return new IORandomAccessFileOrigin(RandomAccessFileMode.READ_WRITE.io(tempPath.resolve(FILE_NAME_RW).toFile().getPath()));
+     }
+-
+ }
+diff --git a/src/test/java/org/apache/commons/io/build/InputStreamOriginTest.java b/src/test/java/org/apache/commons/io/build/InputStreamOriginTest.java
+index ac83acbecfb..7329fdb5783 100644
+--- a/src/test/java/org/apache/commons/io/build/InputStreamOriginTest.java
++++ b/src/test/java/org/apache/commons/io/build/InputStreamOriginTest.java
+@@ -20,6 +20,7 @@
+ 
+ import java.io.FileInputStream;
+ import java.io.FileNotFoundException;
++import java.io.IOException;
+ import java.io.InputStream;
+ import java.nio.file.OpenOption;
+ import java.nio.file.StandardOpenOption;
+@@ -87,11 +88,17 @@ void testGetRandomAccessFile(final OpenOption openOption) {
+         assertThrows(UnsupportedOperationException.class, () -> super.testGetRandomAccessFile(openOption));
+     }
+ 
++    @Override
++    @Test
++    void testGetWritableByteChannel() throws IOException {
++        // Cannot convert a InputStream to a WritableByteChannel.
++        assertThrows(UnsupportedOperationException.class, super::testGetWritableByteChannel);
++    }
++
+     @Override
+     @Test
+     void testGetWriter() {
+         // Cannot convert a InputStream to a Writer.
+         assertThrows(UnsupportedOperationException.class, super::testGetWriter);
+     }
+-
+ }
+diff --git a/src/test/java/org/apache/commons/io/build/OutputStreamOriginTest.java b/src/test/java/org/apache/commons/io/build/OutputStreamOriginTest.java
+index 5e66e244d3a..b002a7e6881 100644
+--- a/src/test/java/org/apache/commons/io/build/OutputStreamOriginTest.java
++++ b/src/test/java/org/apache/commons/io/build/OutputStreamOriginTest.java
+@@ -18,6 +18,7 @@
+ 
+ import static org.junit.jupiter.api.Assertions.assertThrows;
+ 
++import java.io.IOException;
+ import java.io.OutputStream;
+ import java.nio.file.OpenOption;
+ import java.nio.file.StandardOpenOption;
+@@ -125,6 +126,13 @@ void testGetReader() {
+         assertThrows(UnsupportedOperationException.class, super::testGetReader);
+     }
+ 
++    @Override
++    @Test
++    void testGetReadableByteChannel() throws IOException {
++        // Cannot convert a OutputStream to a ReadableByteChannel.
++        assertThrows(UnsupportedOperationException.class, super::testGetReadableByteChannel);
++    }
++
+     @Override
+     @Test
+     void testSize() {
+diff --git a/src/test/java/org/apache/commons/io/build/PathOriginTest.java b/src/test/java/org/apache/commons/io/build/PathOriginTest.java
+index 81c4fc8d900..bc29df52b54 100644
+--- a/src/test/java/org/apache/commons/io/build/PathOriginTest.java
++++ b/src/test/java/org/apache/commons/io/build/PathOriginTest.java
+@@ -16,10 +16,14 @@
+  */
+ package org.apache.commons.io.build;
+ 
++import java.io.IOException;
++import java.nio.file.Files;
+ import java.nio.file.Path;
+ import java.nio.file.Paths;
++import java.nio.file.StandardOpenOption;
+ 
+ import org.apache.commons.io.build.AbstractOrigin.PathOrigin;
++import org.apache.commons.lang3.ArrayUtils;
+ 
+ /**
+  * Tests {@link PathOrigin}.
+@@ -36,8 +40,14 @@ protected PathOrigin newOriginRo() {
+     }
+ 
+     @Override
+-    protected PathOrigin newOriginRw() {
+-        return new PathOrigin(Paths.get(FILE_NAME_RW));
++    protected PathOrigin newOriginRw() throws IOException {
++        return new PathOrigin(tempPath.resolve(FILE_NAME_RW));
+     }
+ 
++    @Override
++    protected void resetOriginRw() throws IOException {
++        // Reset the file
++        final Path rwPath = tempPath.resolve(FILE_NAME_RW);
++        Files.write(rwPath, ArrayUtils.EMPTY_BYTE_ARRAY, StandardOpenOption.CREATE);
++    }
+ }
+diff --git a/src/test/java/org/apache/commons/io/build/RandomAccessFileOriginTest.java b/src/test/java/org/apache/commons/io/build/RandomAccessFileOriginTest.java
+index 7cebf778db0..d7306c12cbc 100644
+--- a/src/test/java/org/apache/commons/io/build/RandomAccessFileOriginTest.java
++++ b/src/test/java/org/apache/commons/io/build/RandomAccessFileOriginTest.java
+@@ -20,6 +20,7 @@
+ import static org.junit.jupiter.api.Assertions.assertThrows;
+ 
+ import java.io.FileNotFoundException;
++import java.io.IOException;
+ import java.io.RandomAccessFile;
+ 
+ import org.apache.commons.io.RandomAccessFileMode;
+@@ -41,8 +42,8 @@ protected RandomAccessFileOrigin newOriginRo() throws FileNotFoundException {
+ 
+     @SuppressWarnings("resource")
+     @Override
+-    protected RandomAccessFileOrigin newOriginRw() throws FileNotFoundException {
+-        return new RandomAccessFileOrigin(RandomAccessFileMode.READ_WRITE.create(FILE_NAME_RW));
++    protected RandomAccessFileOrigin newOriginRw() throws IOException {
++        return new RandomAccessFileOrigin(RandomAccessFileMode.READ_WRITE.create(tempPath.resolve(FILE_NAME_RW)));
+     }
+ 
+     @Override
+diff --git a/src/test/java/org/apache/commons/io/build/ReaderOriginTest.java b/src/test/java/org/apache/commons/io/build/ReaderOriginTest.java
+index 6897d241868..3c1e3032fb4 100644
+--- a/src/test/java/org/apache/commons/io/build/ReaderOriginTest.java
++++ b/src/test/java/org/apache/commons/io/build/ReaderOriginTest.java
+@@ -20,6 +20,7 @@
+ 
+ import java.io.FileNotFoundException;
+ import java.io.FileReader;
++import java.io.IOException;
+ import java.io.Reader;
+ import java.nio.file.OpenOption;
+ import java.nio.file.StandardOpenOption;
+@@ -85,11 +86,17 @@ void testGetRandomAccessFile(final OpenOption openOption) {
+         assertThrows(UnsupportedOperationException.class, () -> super.testGetRandomAccessFile(openOption));
+     }
+ 
++    @Override
++    @Test
++    void testGetWritableByteChannel() throws IOException {
++        // Cannot convert a InputStream to a WritableByteChannel.
++        assertThrows(UnsupportedOperationException.class, super::testGetWritableByteChannel);
++    }
++
+     @Override
+     @Test
+     void testGetWriter() {
+         // Cannot convert a Reader to a Writer.
+         assertThrows(UnsupportedOperationException.class, super::testGetWriter);
+     }
+-
+ }
+diff --git a/src/test/java/org/apache/commons/io/build/URIOriginTest.java b/src/test/java/org/apache/commons/io/build/URIOriginTest.java
+index 303cfe1111a..6fd2043eb12 100644
+--- a/src/test/java/org/apache/commons/io/build/URIOriginTest.java
++++ b/src/test/java/org/apache/commons/io/build/URIOriginTest.java
+@@ -18,11 +18,16 @@
+ 
+ import static org.junit.jupiter.api.Assertions.assertNotEquals;
+ 
++import java.io.IOException;
+ import java.io.InputStream;
+ import java.net.URI;
++import java.nio.file.Files;
++import java.nio.file.Path;
+ import java.nio.file.Paths;
++import java.nio.file.StandardOpenOption;
+ 
+ import org.apache.commons.io.build.AbstractOrigin.URIOrigin;
++import org.apache.commons.lang3.ArrayUtils;
+ import org.junit.jupiter.api.Test;
+ import org.junit.jupiter.params.ParameterizedTest;
+ import org.junit.jupiter.params.provider.ValueSource;
+@@ -43,7 +48,14 @@ protected URIOrigin newOriginRo() {
+ 
+     @Override
+     protected URIOrigin newOriginRw() {
+-        return new URIOrigin(Paths.get(FILE_NAME_RW).toUri());
++        return new URIOrigin(tempPath.resolve(FILE_NAME_RW).toUri());
++    }
++
++    @Override
++    protected void resetOriginRw() throws IOException {
++        // Reset the file
++        final Path rwPath = tempPath.resolve(FILE_NAME_RW);
++        Files.write(rwPath, ArrayUtils.EMPTY_BYTE_ARRAY, StandardOpenOption.CREATE);
+     }
+ 
+     @ParameterizedTest
+diff --git a/src/test/java/org/apache/commons/io/build/WriterStreamOriginTest.java b/src/test/java/org/apache/commons/io/build/WriterStreamOriginTest.java
+index f0aa525127b..7b9908a11f5 100644
+--- a/src/test/java/org/apache/commons/io/build/WriterStreamOriginTest.java
++++ b/src/test/java/org/apache/commons/io/build/WriterStreamOriginTest.java
+@@ -18,6 +18,7 @@
+ 
+ import static org.junit.jupiter.api.Assertions.assertThrows;
+ 
++import java.io.IOException;
+ import java.io.StringWriter;
+ import java.io.Writer;
+ import java.nio.file.OpenOption;
+@@ -125,6 +126,12 @@ void testGetReader() {
+         assertThrows(UnsupportedOperationException.class, super::testGetReader);
+     }
+ 
++    @Override
++    void testGetReadableByteChannel() throws IOException {
++        // Cannot convert a Writer to a ReadableByteChannel.
++        assertThrows(UnsupportedOperationException.class, super::testGetReadableByteChannel);
++    }
++
+     @Override
+     @Test
+     void testSize() {
+diff --git a/src/test/java/org/apache/commons/io/channels/ByteArraySeekableByteChannelCompressTest.java b/src/test/java/org/apache/commons/io/channels/ByteArraySeekableByteChannelCompressTest.java
+index 186ed1e8d54..66c8e60b91a 100644
+--- a/src/test/java/org/apache/commons/io/channels/ByteArraySeekableByteChannelCompressTest.java
++++ b/src/test/java/org/apache/commons/io/channels/ByteArraySeekableByteChannelCompressTest.java
+@@ -31,6 +31,7 @@
+ import java.nio.charset.StandardCharsets;
+ import java.util.Arrays;
+ 
++import org.junit.jupiter.api.AfterEach;
+ import org.junit.jupiter.api.Test;
+ import org.junit.jupiter.params.ParameterizedTest;
+ import org.junit.jupiter.params.provider.ValueSource;
+@@ -40,7 +41,13 @@
+  */
+ class ByteArraySeekableByteChannelCompressTest {
+ 
+-    private final byte[] testData = "Some data".getBytes(StandardCharsets.UTF_8);
++    private static final byte[] testData = "Some data".getBytes(StandardCharsets.UTF_8);
++
++    @AfterEach
++    void afterEach() {
++        // Reading tests don't modify the data
++        assertArrayEquals("Some data".getBytes(StandardCharsets.UTF_8), testData);
++    }
+ 
+     /*
+      * <q>If the stream is already closed then invoking this method has no effect.</q>
+@@ -62,7 +69,7 @@ void testCloseIsIdempotent() throws Exception {
+     @ParameterizedTest
+     @ValueSource(ints = { 0, 1, 2, 3, 4, 5, 6 })
+     void testReadingFromAPositionAfterEndReturnsEOF(final int size) throws Exception {
+-        try (SeekableByteChannel c = new ByteArraySeekableByteChannel(size)) {
++        try (SeekableByteChannel c = ByteArraySeekableByteChannel.wrap(new byte[size])) {
+             final int position = 2;
+             c.position(position);
+             assertEquals(position, c.position());
+@@ -74,7 +81,7 @@ void testReadingFromAPositionAfterEndReturnsEOF(final int size) throws Exception
+ 
+     @Test
+     void testShouldReadContentsProperly() throws IOException {
+-        try (ByteArraySeekableByteChannel c = new ByteArraySeekableByteChannel(testData)) {
++        try (ByteArraySeekableByteChannel c = ByteArraySeekableByteChannel.wrap(testData)) {
+             final ByteBuffer readBuffer = ByteBuffer.allocate(testData.length);
+             final int readCount = c.read(readBuffer);
+             assertEquals(testData.length, readCount);
+@@ -85,7 +92,7 @@ void testShouldReadContentsProperly() throws IOException {
+ 
+     @Test
+     void testShouldReadContentsWhenBiggerBufferSupplied() throws IOException {
+-        try (ByteArraySeekableByteChannel c = new ByteArraySeekableByteChannel(testData)) {
++        try (ByteArraySeekableByteChannel c = ByteArraySeekableByteChannel.wrap(testData)) {
+             final ByteBuffer readBuffer = ByteBuffer.allocate(testData.length + 1);
+             final int readCount = c.read(readBuffer);
+             assertEquals(testData.length, readCount);
+@@ -96,7 +103,7 @@ void testShouldReadContentsWhenBiggerBufferSupplied() throws IOException {
+ 
+     @Test
+     void testShouldReadDataFromSetPosition() throws IOException {
+-        try (ByteArraySeekableByteChannel c = new ByteArraySeekableByteChannel(testData)) {
++        try (ByteArraySeekableByteChannel c = ByteArraySeekableByteChannel.wrap(testData)) {
+             final ByteBuffer readBuffer = ByteBuffer.allocate(4);
+             c.position(5L);
+             final int readCount = c.read(readBuffer);
+@@ -108,7 +115,7 @@ void testShouldReadDataFromSetPosition() throws IOException {
+ 
+     @Test
+     void testShouldSetProperPosition() throws IOException {
+-        try (ByteArraySeekableByteChannel c = new ByteArraySeekableByteChannel(testData)) {
++        try (ByteArraySeekableByteChannel c = ByteArraySeekableByteChannel.wrap(testData)) {
+             final long posAtFour = c.position(4L).position();
+             final long posAtTheEnd = c.position(testData.length).position();
+             final long posPastTheEnd = c.position(testData.length + 1L).position();
+@@ -120,7 +127,7 @@ void testShouldSetProperPosition() throws IOException {
+ 
+     @Test
+     void testShouldSetProperPositionOnTruncate() throws IOException {
+-        try (ByteArraySeekableByteChannel c = new ByteArraySeekableByteChannel(testData)) {
++        try (ByteArraySeekableByteChannel c = ByteArraySeekableByteChannel.wrap(testData)) {
+             c.position(testData.length);
+             c.truncate(4L);
+             assertEquals(4L, c.position());
+@@ -130,7 +137,7 @@ void testShouldSetProperPositionOnTruncate() throws IOException {
+ 
+     @Test
+     void testShouldSignalEOFWhenPositionAtTheEnd() throws IOException {
+-        try (ByteArraySeekableByteChannel c = new ByteArraySeekableByteChannel(testData)) {
++        try (ByteArraySeekableByteChannel c = ByteArraySeekableByteChannel.wrap(testData)) {
+             final ByteBuffer readBuffer = ByteBuffer.allocate(testData.length);
+             c.position(testData.length + 1);
+             final int readCount = c.read(readBuffer);
+@@ -170,7 +177,7 @@ void testShouldThrowExceptionWhenTruncatingToIncorrectSize() {
+ 
+     @Test
+     void testShouldTruncateContentsProperly() throws ClosedChannelException {
+-        try (ByteArraySeekableByteChannel c = new ByteArraySeekableByteChannel(testData)) {
++        try (ByteArraySeekableByteChannel c = ByteArraySeekableByteChannel.wrap(testData)) {
+             c.truncate(4);
+             final byte[] bytes = Arrays.copyOf(c.array(), (int) c.size());
+             assertEquals("Some", new String(bytes, StandardCharsets.UTF_8));
+@@ -193,7 +200,7 @@ void testShouldWriteDataProperly() throws IOException {
+ 
+     @Test
+     void testShouldWriteDataProperlyAfterPositionSet() throws IOException {
+-        try (ByteArraySeekableByteChannel c = new ByteArraySeekableByteChannel(testData)) {
++        try (ByteArraySeekableByteChannel c = ByteArraySeekableByteChannel.wrap(testData.clone())) {
+             final ByteBuffer inData = ByteBuffer.wrap(testData);
+             final ByteBuffer expectedData = ByteBuffer.allocate(testData.length + 5).put(testData, 0, 5).put(testData);
+             c.position(5L);
+@@ -242,7 +249,7 @@ void testThrowsIOExceptionWhenPositionIsSetToANegativeValue() throws Exception {
+      */
+     @Test
+     void testTruncateDoesntChangeSmallPosition() throws Exception {
+-        try (SeekableByteChannel c = new ByteArraySeekableByteChannel(testData)) {
++        try (SeekableByteChannel c = ByteArraySeekableByteChannel.wrap(testData)) {
+             c.position(1);
+             c.truncate(testData.length - 1);
+             assertEquals(testData.length - 1, c.size());
+@@ -255,7 +262,7 @@ void testTruncateDoesntChangeSmallPosition() throws Exception {
+      */
+     @Test
+     void testTruncateMovesPositionWhenNewSizeIsBiggerThanSizeAndPositionIsEvenBigger() throws Exception {
+-        try (SeekableByteChannel c = new ByteArraySeekableByteChannel(testData)) {
++        try (SeekableByteChannel c = ByteArraySeekableByteChannel.wrap(testData)) {
+             c.position(2 * testData.length);
+             c.truncate(testData.length + 1);
+             assertEquals(testData.length, c.size());
+@@ -269,7 +276,7 @@ void testTruncateMovesPositionWhenNewSizeIsBiggerThanSizeAndPositionIsEvenBigger
+      */
+     @Test
+     void testTruncateMovesPositionWhenNotResizingButPositionBiggerThanSize() throws Exception {
+-        try (SeekableByteChannel c = new ByteArraySeekableByteChannel(testData)) {
++        try (SeekableByteChannel c = ByteArraySeekableByteChannel.wrap(testData)) {
+             c.position(2 * testData.length);
+             c.truncate(testData.length);
+             assertEquals(testData.length, c.size());
+@@ -282,7 +289,7 @@ void testTruncateMovesPositionWhenNotResizingButPositionBiggerThanSize() throws
+      */
+     @Test
+     void testTruncateMovesPositionWhenShrinkingBeyondPosition() throws Exception {
+-        try (SeekableByteChannel c = new ByteArraySeekableByteChannel(testData)) {
++        try (SeekableByteChannel c = ByteArraySeekableByteChannel.wrap(testData)) {
+             c.position(4);
+             c.truncate(3);
+             assertEquals(3, c.size());
+@@ -295,7 +302,7 @@ void testTruncateMovesPositionWhenShrinkingBeyondPosition() throws Exception {
+      */
+     @Test
+     void testTruncateToBiggerSizeDoesntChangeAnything() throws Exception {
+-        try (SeekableByteChannel c = new ByteArraySeekableByteChannel(testData)) {
++        try (SeekableByteChannel c = ByteArraySeekableByteChannel.wrap(testData)) {
+             assertEquals(testData.length, c.size());
+             c.truncate(testData.length + 1);
+             assertEquals(testData.length, c.size());
+@@ -310,7 +317,7 @@ void testTruncateToBiggerSizeDoesntChangeAnything() throws Exception {
+      */
+     @Test
+     void testTruncateToCurrentSizeDoesntChangeAnything() throws Exception {
+-        try (SeekableByteChannel c = new ByteArraySeekableByteChannel(testData)) {
++        try (SeekableByteChannel c = ByteArraySeekableByteChannel.wrap(testData)) {
+             assertEquals(testData.length, c.size());
+             c.truncate(testData.length);
+             assertEquals(testData.length, c.size());
+diff --git a/src/test/java/org/apache/commons/io/channels/ByteArraySeekableByteChannelTest.java b/src/test/java/org/apache/commons/io/channels/ByteArraySeekableByteChannelTest.java
+index 96cd377d2ad..e5e1442bed0 100644
+--- a/src/test/java/org/apache/commons/io/channels/ByteArraySeekableByteChannelTest.java
++++ b/src/test/java/org/apache/commons/io/channels/ByteArraySeekableByteChannelTest.java
+@@ -17,8 +17,24 @@
+ 
+ package org.apache.commons.io.channels;
+ 
++import static org.apache.commons.lang3.ArrayUtils.EMPTY_BYTE_ARRAY;
++import static org.junit.jupiter.api.Assertions.assertArrayEquals;
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertThrows;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++
+ import java.io.IOException;
++import java.nio.ByteBuffer;
+ import java.nio.channels.SeekableByteChannel;
++import java.nio.charset.StandardCharsets;
++import java.util.stream.Stream;
++
++import org.apache.commons.io.IOUtils;
++import org.apache.commons.io.function.IOSupplier;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.params.ParameterizedTest;
++import org.junit.jupiter.params.provider.Arguments;
++import org.junit.jupiter.params.provider.MethodSource;
+ 
+ /**
+  * A sanity test to make sure {@link AbstractSeekableByteChannelTest} works for files.
+@@ -30,4 +46,71 @@ protected SeekableByteChannel createChannel() throws IOException {
+         return new ByteArraySeekableByteChannel();
+     }
+ 
++    private static final byte[] testData = "Some data".getBytes(StandardCharsets.UTF_8);
++
++    static Stream<Arguments> testConstructor() {
++        return Stream.of(
++                Arguments.of(
++                        (IOSupplier<ByteArraySeekableByteChannel>) ByteArraySeekableByteChannel::new,
++                        EMPTY_BYTE_ARRAY,
++                        IOUtils.DEFAULT_BUFFER_SIZE),
++                Arguments.of(
++                        (IOSupplier<ByteArraySeekableByteChannel>) () -> new ByteArraySeekableByteChannel(8),
++                        EMPTY_BYTE_ARRAY,
++                        8),
++                Arguments.of(
++                        (IOSupplier<ByteArraySeekableByteChannel>) () -> new ByteArraySeekableByteChannel(16),
++                        EMPTY_BYTE_ARRAY,
++                        16),
++                Arguments.of(
++                        (IOSupplier<ByteArraySeekableByteChannel>)
++                                () -> ByteArraySeekableByteChannel.wrap(EMPTY_BYTE_ARRAY),
++                        EMPTY_BYTE_ARRAY,
++                        0),
++                Arguments.of(
++                        (IOSupplier<ByteArraySeekableByteChannel>)
++                                () -> ByteArraySeekableByteChannel.wrap(testData),
++                        testData,
++                        testData.length));
++    }
++
++    @ParameterizedTest
++    @MethodSource
++    void testConstructor(IOSupplier<ByteArraySeekableByteChannel> supplier, byte[] expected, int capacity) throws IOException {
++        try (ByteArraySeekableByteChannel channel = supplier.get()) {
++            assertEquals(0, channel.position());
++            assertEquals(expected.length, channel.size());
++            assertEquals(capacity, channel.array().length);
++            assertArrayEquals(expected, channel.toByteArray());
++        }
++    }
++
++    @Test
++    void testConstructorInvalid() {
++        assertThrows(IllegalArgumentException.class, () -> new ByteArraySeekableByteChannel(-1));
++        assertThrows(NullPointerException.class, () -> ByteArraySeekableByteChannel.wrap(null));
++    }
++
++    static Stream<Arguments> testShouldResizeWhenWritingMoreDataThanCapacity() {
++        return Stream.of(
++                // Resize from 0
++                Arguments.of(EMPTY_BYTE_ARRAY, 1),
++                // Resize less than double
++                Arguments.of(new byte[8], 1),
++                // Resize more that double
++                Arguments.of(new byte[8], 20));
++    }
++
++    @ParameterizedTest
++    @MethodSource
++    void testShouldResizeWhenWritingMoreDataThanCapacity(byte[] data, int wanted) throws IOException {
++        try (ByteArraySeekableByteChannel c = ByteArraySeekableByteChannel.wrap(data)) {
++            c.position(data.length);
++            final ByteBuffer inData = ByteBuffer.wrap(new byte[wanted]);
++            final int writeCount = c.write(inData);
++            assertEquals(wanted, writeCount);
++            assertTrue(c.array().length >= data.length + wanted, "Capacity not increased sufficiently");
++        }
++    }
++
+ }

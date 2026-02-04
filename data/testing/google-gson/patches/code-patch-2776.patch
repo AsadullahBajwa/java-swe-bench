@@ -1,0 +1,71 @@
+diff --git a/gson/src/main/java/com/google/gson/FieldNamingStrategy.java b/gson/src/main/java/com/google/gson/FieldNamingStrategy.java
+index 541588696e..eebd998dfa 100644
+--- a/gson/src/main/java/com/google/gson/FieldNamingStrategy.java
++++ b/gson/src/main/java/com/google/gson/FieldNamingStrategy.java
+@@ -16,7 +16,10 @@
+ 
+ package com.google.gson;
+ 
++import com.google.gson.annotations.SerializedName;
+ import java.lang.reflect.Field;
++import java.util.Collections;
++import java.util.List;
+ 
+ /**
+  * A mechanism for providing custom field naming in Gson. This allows the client code to translate
+@@ -37,4 +40,16 @@ public interface FieldNamingStrategy {
+    * @since 1.3
+    */
+   public String translateName(Field f);
++
++  /**
++   * Returns alternative names for this field when it is being deserialized. This is similar to
++   * {@link SerializedName#alternate()}.
++   *
++   * @param f the field object
++   * @return the list of alternative field names.
++   * @since $next-version$
++   */
++  default List<String> alternateNames(Field f) {
++    return Collections.emptyList();
++  }
+ }
+diff --git a/gson/src/main/java/com/google/gson/internal/bind/ReflectiveTypeAdapterFactory.java b/gson/src/main/java/com/google/gson/internal/bind/ReflectiveTypeAdapterFactory.java
+index 94396ff1eb..3447f0c331 100644
+--- a/gson/src/main/java/com/google/gson/internal/bind/ReflectiveTypeAdapterFactory.java
++++ b/gson/src/main/java/com/google/gson/internal/bind/ReflectiveTypeAdapterFactory.java
+@@ -84,21 +84,25 @@ private boolean includeField(Field f, boolean serialize) {
+   /** first element holds the default name */
+   @SuppressWarnings("MixedMutabilityReturnType")
+   private List<String> getFieldNames(Field f) {
++
++    String fieldName;
++    List<String> alternates;
+     SerializedName annotation = f.getAnnotation(SerializedName.class);
+     if (annotation == null) {
+-      String name = fieldNamingPolicy.translateName(f);
+-      return Collections.singletonList(name);
++      fieldName = fieldNamingPolicy.translateName(f);
++      alternates = fieldNamingPolicy.alternateNames(f);
++    } else {
++      fieldName = annotation.value();
++      alternates = Arrays.asList(annotation.alternate());
+     }
+ 
+-    String serializedName = annotation.value();
+-    String[] alternates = annotation.alternate();
+-    if (alternates.length == 0) {
+-      return Collections.singletonList(serializedName);
++    if (alternates.isEmpty()) {
++      return Collections.singletonList(fieldName);
+     }
+ 
+-    List<String> fieldNames = new ArrayList<>(alternates.length + 1);
+-    fieldNames.add(serializedName);
+-    Collections.addAll(fieldNames, alternates);
++    List<String> fieldNames = new ArrayList<>(alternates.size() + 1);
++    fieldNames.add(fieldName);
++    fieldNames.addAll(alternates);
+     return fieldNames;
+   }
+ 

@@ -1,0 +1,26 @@
+diff --git a/android-test/src/test/kotlin/okhttp/android/test/DisabledInitialiserTest.kt b/android-test/src/test/kotlin/okhttp/android/test/DisabledInitialiserTest.kt
+index 844d119e66e9..09a08b8ab938 100644
+--- a/android-test/src/test/kotlin/okhttp/android/test/DisabledInitialiserTest.kt
++++ b/android-test/src/test/kotlin/okhttp/android/test/DisabledInitialiserTest.kt
+@@ -35,7 +35,7 @@ import org.robolectric.annotation.Config
+ 
+ @RunWith(RobolectricTestRunner::class)
+ @Config(
+-  sdk = [21, 26, 30, 33, 35],
++  sdk = [23, 26, 30, 33, 35],
+ )
+ class DisabledInitialiserTest {
+   @Before
+diff --git a/android-test/src/test/kotlin/okhttp/android/test/RobolectricOkHttpClientTest.kt b/android-test/src/test/kotlin/okhttp/android/test/RobolectricOkHttpClientTest.kt
+index bb48725f9bab..0bedf927cc34 100644
+--- a/android-test/src/test/kotlin/okhttp/android/test/RobolectricOkHttpClientTest.kt
++++ b/android-test/src/test/kotlin/okhttp/android/test/RobolectricOkHttpClientTest.kt
+@@ -25,7 +25,7 @@ import org.robolectric.annotation.Config
+ 
+ @RunWith(RobolectricTestRunner::class)
+ @Config(
+-  sdk = [21, 26, 30, 33, 35],
++  sdk = [23, 26, 30, 33, 35],
+ )
+ class RobolectricOkHttpClientTest : BaseOkHttpClientUnitTest() {
+   @Before

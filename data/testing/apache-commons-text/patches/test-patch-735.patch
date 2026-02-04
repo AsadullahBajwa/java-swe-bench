@@ -1,0 +1,52 @@
+diff --git a/src/test/java/org/apache/commons/text/StrBuilderTest.java b/src/test/java/org/apache/commons/text/StrBuilderTest.java
+index 6ae331e931..5edfec6fc6 100644
+--- a/src/test/java/org/apache/commons/text/StrBuilderTest.java
++++ b/src/test/java/org/apache/commons/text/StrBuilderTest.java
+@@ -2017,4 +2017,21 @@ void testTrim() {
+         assertEquals("a b c", sb.trim().toString());
+     }
+ 
++    @Test
++    void testErrorMessageShowsCorrectVariable() {
++        final StrBuilder sb = new StrBuilder("Hello");
++        final char[] chars = {'a', 'b', 'c'};
++
++        StringIndexOutOfBoundsException ex = assertThrows(
++                StringIndexOutOfBoundsException.class,
++                () -> sb.append(chars, 1, 4)
++        );
++        assertTrue(ex.getMessage().contains("length: 4"));
++
++        ex = assertThrows(
++                StringIndexOutOfBoundsException.class,
++                () -> sb.append(chars, 7, 3)
++        );
++        assertTrue(ex.getMessage().contains("startIndex: 7"));
++    }
+ }
+diff --git a/src/test/java/org/apache/commons/text/TextStringBuilderTest.java b/src/test/java/org/apache/commons/text/TextStringBuilderTest.java
+index 1900c19d68..1efbf25113 100644
+--- a/src/test/java/org/apache/commons/text/TextStringBuilderTest.java
++++ b/src/test/java/org/apache/commons/text/TextStringBuilderTest.java
+@@ -2393,4 +2393,21 @@ void testWrap_CharArray_Int_Exceptions() {
+         assertThrows(IllegalArgumentException.class, () -> TextStringBuilder.wrap(ArrayUtils.EMPTY_CHAR_ARRAY, 1));
+     }
+ 
++    @Test
++    void testErrorMessageShowsCorrectVariable() {
++        final TextStringBuilder sb = new TextStringBuilder("Hello");
++        final char[] chars = {'a', 'b', 'c'};
++
++        StringIndexOutOfBoundsException ex = assertThrows(
++                StringIndexOutOfBoundsException.class,
++                () -> sb.append(chars, 1, 4)
++        );
++        assertTrue(ex.getMessage().contains("length: 4"));
++
++        ex = assertThrows(
++                StringIndexOutOfBoundsException.class,
++                () -> sb.append(chars, 7, 3)
++        );
++        assertTrue(ex.getMessage().contains("startIndex: 7"));
++    }
+ }

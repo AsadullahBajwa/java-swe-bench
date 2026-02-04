@@ -1,0 +1,835 @@
+diff --git a/extras/src/test/java/com/google/gson/interceptors/InterceptorTest.java b/extras/src/test/java/com/google/gson/interceptors/InterceptorTest.java
+index 6c5cc91fa6..9c969b2869 100644
+--- a/extras/src/test/java/com/google/gson/interceptors/InterceptorTest.java
++++ b/extras/src/test/java/com/google/gson/interceptors/InterceptorTest.java
+@@ -157,7 +157,7 @@ private static final class User {
+     String email;
+     Address address;
+ 
+-    public User(String name, String password) {
++    User(String name, String password) {
+       this.name = name;
+       this.password = password;
+     }
+diff --git a/gson/src/test/java/com/google/gson/ExposeAnnotationExclusionStrategyTest.java b/gson/src/test/java/com/google/gson/ExposeAnnotationExclusionStrategyTest.java
+index 8738e5b98c..2146c3ff21 100644
+--- a/gson/src/test/java/com/google/gson/ExposeAnnotationExclusionStrategyTest.java
++++ b/gson/src/test/java/com/google/gson/ExposeAnnotationExclusionStrategyTest.java
+@@ -83,22 +83,22 @@ public void testDifferentSerializeAndDeserializeField() throws Exception {
+   }
+ 
+   private static Field createFieldAttributes(String fieldName) throws Exception {
+-    return MockObject.class.getField(fieldName);
++    return MockObject.class.getDeclaredField(fieldName);
+   }
+ 
+   @SuppressWarnings("unused")
+   private static class MockObject {
+-    @Expose public final int exposedField = 0;
++    @Expose final int exposedField = 0;
+ 
+     @Expose(serialize = true, deserialize = true)
+-    public final int explicitlyExposedField = 0;
++    final int explicitlyExposedField = 0;
+ 
+     @Expose(serialize = false, deserialize = false)
+-    public final int explicitlyHiddenField = 0;
++    final int explicitlyHiddenField = 0;
+ 
+     @Expose(serialize = true, deserialize = false)
+-    public final int explicitlyDifferentModeField = 0;
++    final int explicitlyDifferentModeField = 0;
+ 
+-    public final int hiddenField = 0;
++    final int hiddenField = 0;
+   }
+ }
+diff --git a/gson/src/test/java/com/google/gson/FieldAttributesTest.java b/gson/src/test/java/com/google/gson/FieldAttributesTest.java
+index 672fb3fdbc..e07b414328 100644
+--- a/gson/src/test/java/com/google/gson/FieldAttributesTest.java
++++ b/gson/src/test/java/com/google/gson/FieldAttributesTest.java
+@@ -75,7 +75,7 @@ public void testDeclaredTypeAndClass() {
+   }
+ 
+   private static class Foo {
+-    @SuppressWarnings("unused")
++    @SuppressWarnings({"unused", "EffectivelyPrivate"})
+     public transient List<String> bar;
+   }
+ }
+diff --git a/gson/src/test/java/com/google/gson/GsonBuilderTest.java b/gson/src/test/java/com/google/gson/GsonBuilderTest.java
+index 9020cf9e39..94cc8362d3 100644
+--- a/gson/src/test/java/com/google/gson/GsonBuilderTest.java
++++ b/gson/src/test/java/com/google/gson/GsonBuilderTest.java
+@@ -202,7 +202,7 @@ public void testDisableJdkUnsafe() {
+   }
+ 
+   private static class ClassWithoutNoArgsConstructor {
+-    @SuppressWarnings("unused")
++    @SuppressWarnings({"unused", "EffectivelyPrivate"})
+     public ClassWithoutNoArgsConstructor(String s) {}
+   }
+ 
+diff --git a/gson/src/test/java/com/google/gson/GsonTest.java b/gson/src/test/java/com/google/gson/GsonTest.java
+index 18ad4cbc2e..4798168984 100644
+--- a/gson/src/test/java/com/google/gson/GsonTest.java
++++ b/gson/src/test/java/com/google/gson/GsonTest.java
+@@ -664,11 +664,12 @@ private static class CustomClass3 {
+ 
+     final String s;
+ 
++    @SuppressWarnings("EffectivelyPrivate")
+     public CustomClass3(String s) {
+       this.s = s;
+     }
+ 
+-    @SuppressWarnings("unused") // called by Gson
++    @SuppressWarnings({"unused", "EffectivelyPrivate"}) // called by Gson
+     public CustomClass3() {
+       this(NO_ARG_CONSTRUCTOR_VALUE);
+     }
+diff --git a/gson/src/test/java/com/google/gson/functional/CollectionTest.java b/gson/src/test/java/com/google/gson/functional/CollectionTest.java
+index 47a39de80c..383790c2bb 100644
+--- a/gson/src/test/java/com/google/gson/functional/CollectionTest.java
++++ b/gson/src/test/java/com/google/gson/functional/CollectionTest.java
+@@ -178,7 +178,7 @@ public void testStack() {
+ 
+   private static class CollectionWithoutNoArgsConstructor<E> extends AbstractCollection<E> {
+     // Remove implicit no-args constructor
+-    public CollectionWithoutNoArgsConstructor(int unused) {}
++    CollectionWithoutNoArgsConstructor(int unused) {}
+ 
+     @Override
+     public boolean add(E e) {
+@@ -440,11 +440,11 @@ private static int[] toIntArray(Collection<?> collection) {
+   private static class ObjectWithWildcardCollection {
+     private final Collection<? extends BagOfPrimitives> collection;
+ 
+-    public ObjectWithWildcardCollection(Collection<? extends BagOfPrimitives> collection) {
++    ObjectWithWildcardCollection(Collection<? extends BagOfPrimitives> collection) {
+       this.collection = collection;
+     }
+ 
+-    public Collection<? extends BagOfPrimitives> getCollection() {
++    Collection<? extends BagOfPrimitives> getCollection() {
+       return collection;
+     }
+   }
+diff --git a/gson/src/test/java/com/google/gson/functional/ConcurrencyTest.java b/gson/src/test/java/com/google/gson/functional/ConcurrencyTest.java
+index b4af36128a..3c9e475448 100644
+--- a/gson/src/test/java/com/google/gson/functional/ConcurrencyTest.java
++++ b/gson/src/test/java/com/google/gson/functional/ConcurrencyTest.java
+@@ -144,7 +144,7 @@ private static class MyObject {
+       this("hello", "world", 42);
+     }
+ 
+-    public MyObject(String a, String b, int i) {
++    MyObject(String a, String b, int i) {
+       this.a = a;
+       this.b = b;
+       this.i = i;
+diff --git a/gson/src/test/java/com/google/gson/functional/CustomDeserializerTest.java b/gson/src/test/java/com/google/gson/functional/CustomDeserializerTest.java
+index 075399a864..2c27e6c117 100644
+--- a/gson/src/test/java/com/google/gson/functional/CustomDeserializerTest.java
++++ b/gson/src/test/java/com/google/gson/functional/CustomDeserializerTest.java
+@@ -78,11 +78,11 @@ private DataHolder() {
+       throw new IllegalStateException();
+     }
+ 
+-    public DataHolder(String data) {
++    DataHolder(String data) {
+       this.data = data;
+     }
+ 
+-    public String getData() {
++    String getData() {
+       return data;
+     }
+   }
+@@ -96,11 +96,11 @@ private DataHolderWrapper() {
+       this(new DataHolder(DEFAULT_VALUE));
+     }
+ 
+-    public DataHolderWrapper(DataHolder data) {
++    DataHolderWrapper(DataHolder data) {
+       this.wrappedData = data;
+     }
+ 
+-    public DataHolder getWrappedData() {
++    DataHolder getWrappedData() {
+       return wrappedData;
+     }
+   }
+@@ -148,7 +148,7 @@ private SubTypes(Type subClass) {
+       this.subClass = subClass;
+     }
+ 
+-    public Type getSubclass() {
++    Type getSubclass() {
+       return subClass;
+     }
+   }
+diff --git a/gson/src/test/java/com/google/gson/functional/CustomTypeAdaptersTest.java b/gson/src/test/java/com/google/gson/functional/CustomTypeAdaptersTest.java
+index ff0570dc33..caa4ba7696 100644
+--- a/gson/src/test/java/com/google/gson/functional/CustomTypeAdaptersTest.java
++++ b/gson/src/test/java/com/google/gson/functional/CustomTypeAdaptersTest.java
+@@ -304,13 +304,13 @@ private static final class StringHolder {
+     String part1;
+     String part2;
+ 
+-    public StringHolder(String string) {
++    StringHolder(String string) {
+       List<String> parts = Splitter.on(':').splitToList(string);
+       part1 = parts.get(0);
+       part2 = parts.get(1);
+     }
+ 
+-    public StringHolder(String part1, String part2) {
++    StringHolder(String part1, String part2) {
+       this.part1 = part1;
+       this.part2 = part2;
+     }
+@@ -466,7 +466,7 @@ public void testRegisterHierarchyAdapterForDate() {
+   private static class DataHolder {
+     final String data;
+ 
+-    public DataHolder(String data) {
++    DataHolder(String data) {
+       this.data = data;
+     }
+   }
+@@ -474,7 +474,7 @@ public DataHolder(String data) {
+   private static class DataHolderWrapper {
+     final DataHolder wrappedData;
+ 
+-    public DataHolderWrapper(DataHolder data) {
++    DataHolderWrapper(DataHolder data) {
+       this.wrappedData = data;
+     }
+   }
+diff --git a/gson/src/test/java/com/google/gson/functional/DelegateTypeAdapterTest.java b/gson/src/test/java/com/google/gson/functional/DelegateTypeAdapterTest.java
+index d10ab42dcb..86d0a75b6e 100644
+--- a/gson/src/test/java/com/google/gson/functional/DelegateTypeAdapterTest.java
++++ b/gson/src/test/java/com/google/gson/functional/DelegateTypeAdapterTest.java
+@@ -72,8 +72,8 @@ public void testDelegateInvokedOnStrings() {
+   }
+ 
+   private static class StatsTypeAdapterFactory implements TypeAdapterFactory {
+-    public int numReads = 0;
+-    public int numWrites = 0;
++    int numReads = 0;
++    int numWrites = 0;
+ 
+     @Override
+     public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type) {
+diff --git a/gson/src/test/java/com/google/gson/functional/EnumTest.java b/gson/src/test/java/com/google/gson/functional/EnumTest.java
+index 990a6463e8..e2a52328d7 100644
+--- a/gson/src/test/java/com/google/gson/functional/EnumTest.java
++++ b/gson/src/test/java/com/google/gson/functional/EnumTest.java
+@@ -113,7 +113,7 @@ private static class ClassWithEnumFields {
+     private final MyEnum value1 = MyEnum.VALUE1;
+     private final MyEnum value2 = MyEnum.VALUE2;
+ 
+-    public String getExpectedJson() {
++    String getExpectedJson() {
+       return "{\"value1\":\"" + value1 + "\",\"value2\":\"" + value2 + "\"}";
+     }
+   }
+diff --git a/gson/src/test/java/com/google/gson/functional/ExclusionStrategyFunctionalTest.java b/gson/src/test/java/com/google/gson/functional/ExclusionStrategyFunctionalTest.java
+index 43ffc0eb80..dc0fb05da5 100644
+--- a/gson/src/test/java/com/google/gson/functional/ExclusionStrategyFunctionalTest.java
++++ b/gson/src/test/java/com/google/gson/functional/ExclusionStrategyFunctionalTest.java
+@@ -189,11 +189,11 @@ private static class SampleObjectForTest {
+     private final String stringField;
+     private final long longField;
+ 
+-    public SampleObjectForTest() {
++    SampleObjectForTest() {
+       this(5, "someDefaultValue", 12345L);
+     }
+ 
+-    public SampleObjectForTest(int annotatedField, String stringField, long longField) {
++    SampleObjectForTest(int annotatedField, String stringField, long longField) {
+       this.annotatedField = annotatedField;
+       this.stringField = stringField;
+       this.longField = longField;
+diff --git a/gson/src/test/java/com/google/gson/functional/ExposeFieldsTest.java b/gson/src/test/java/com/google/gson/functional/ExposeFieldsTest.java
+index 678b1bcad8..68fe256301 100644
+--- a/gson/src/test/java/com/google/gson/functional/ExposeFieldsTest.java
++++ b/gson/src/test/java/com/google/gson/functional/ExposeFieldsTest.java
+@@ -138,11 +138,11 @@ private static class ClassWithExposedFields {
+     @Keep
+     final char e;
+ 
+-    public ClassWithExposedFields(Integer a, Integer b) {
++    ClassWithExposedFields(Integer a, Integer b) {
+       this(a, b, 1L, 2.0, 'a');
+     }
+ 
+-    public ClassWithExposedFields(Integer a, Integer b, long c, double d, char e) {
++    ClassWithExposedFields(Integer a, Integer b, long c, double d, char e) {
+       this.a = a;
+       this.b = b;
+       this.c = c;
+@@ -150,7 +150,7 @@ public ClassWithExposedFields(Integer a, Integer b, long c, double d, char e) {
+       this.e = e;
+     }
+ 
+-    public String getExpectedJson() {
++    String getExpectedJson() {
+       StringBuilder sb = new StringBuilder("{");
+       if (a != null) {
+         sb.append("\"a\":").append(a).append(",");
+@@ -184,7 +184,7 @@ public SomeInterface createInstance(Type type) {
+   private static class ClassWithInterfaceField {
+     @Expose private final SomeInterface interfaceField;
+ 
+-    public ClassWithInterfaceField(SomeInterface interfaceField) {
++    ClassWithInterfaceField(SomeInterface interfaceField) {
+       this.interfaceField = interfaceField;
+     }
+   }
+diff --git a/gson/src/test/java/com/google/gson/functional/FieldExclusionTest.java b/gson/src/test/java/com/google/gson/functional/FieldExclusionTest.java
+index 591cb2fd9d..01b322e420 100644
+--- a/gson/src/test/java/com/google/gson/functional/FieldExclusionTest.java
++++ b/gson/src/test/java/com/google/gson/functional/FieldExclusionTest.java
+@@ -78,7 +78,7 @@ private static class Outer {
+ 
+     @SuppressWarnings("ClassCanBeStatic")
+     private class Inner extends NestedClass {
+-      public Inner(String value) {
++      Inner(String value) {
+         super(value);
+       }
+     }
+@@ -87,11 +87,11 @@ public Inner(String value) {
+   private static class NestedClass {
+     private final String value;
+ 
+-    public NestedClass(String value) {
++    NestedClass(String value) {
+       this.value = value;
+     }
+ 
+-    public String toJson() {
++    String toJson() {
+       return "{\"value\":\"" + value + "\"}";
+     }
+   }
+diff --git a/gson/src/test/java/com/google/gson/functional/InheritanceTest.java b/gson/src/test/java/com/google/gson/functional/InheritanceTest.java
+index f41b133fb3..02b750183e 100644
+--- a/gson/src/test/java/com/google/gson/functional/InheritanceTest.java
++++ b/gson/src/test/java/com/google/gson/functional/InheritanceTest.java
+@@ -156,7 +156,7 @@ public void testBaseSerializedAsSubWhenSpecifiedWithExplicitTypeForToJsonMethod(
+   private static class SubTypeOfNested extends Nested {
+     private final long value = 5;
+ 
+-    public SubTypeOfNested(BagOfPrimitives primitive1, BagOfPrimitives primitive2) {
++    SubTypeOfNested(BagOfPrimitives primitive1, BagOfPrimitives primitive2) {
+       super(primitive1, primitive2);
+     }
+ 
+@@ -215,7 +215,7 @@ private static class ClassWithSubInterfacesOfCollection {
+     private Set<Float> set;
+     private SortedSet<Character> sortedSet;
+ 
+-    public ClassWithSubInterfacesOfCollection(
++    ClassWithSubInterfacesOfCollection(
+         List<Integer> list, Queue<Long> queue, Set<Float> set, SortedSet<Character> sortedSet) {
+       this.list = list;
+       this.queue = queue;
+@@ -259,7 +259,7 @@ boolean sortedSetContains(char... values) {
+       return true;
+     }
+ 
+-    public String getExpectedJson() {
++    String getExpectedJson() {
+       StringBuilder sb = new StringBuilder();
+       sb.append("{");
+       sb.append("\"list\":");
+diff --git a/gson/src/test/java/com/google/gson/functional/JsonAdapterAnnotationOnClassesTest.java b/gson/src/test/java/com/google/gson/functional/JsonAdapterAnnotationOnClassesTest.java
+index a4e694112b..9e8077569e 100644
+--- a/gson/src/test/java/com/google/gson/functional/JsonAdapterAnnotationOnClassesTest.java
++++ b/gson/src/test/java/com/google/gson/functional/JsonAdapterAnnotationOnClassesTest.java
+@@ -180,7 +180,7 @@ public void testFactoryReturningNull() {
+   private static class WithNullReturningFactory<T> {
+     T t;
+ 
+-    public WithNullReturningFactory(T t) {
++    WithNullReturningFactory(T t) {
+       this.t = t;
+     }
+ 
+@@ -761,11 +761,11 @@ static class Serializer implements JsonSerializer<CreatedByInstanceCreator> {
+       private final String value;
+ 
+       @SuppressWarnings("unused")
+-      public Serializer() {
++      Serializer() {
+         throw new AssertionError("should not be called");
+       }
+ 
+-      public Serializer(String value) {
++      Serializer(String value) {
+         this.value = value;
+       }
+ 
+@@ -792,7 +792,7 @@ static class Serializer implements JsonSerializer<CreatedByJdkUnsafe> {
+ 
+       // Explicit constructor with args to remove implicit no-args constructor
+       @SuppressWarnings("unused")
+-      public Serializer(int i) {
++      Serializer(int i) {
+         throw new AssertionError("should not be called");
+       }
+ 
+diff --git a/gson/src/test/java/com/google/gson/functional/JsonAdapterAnnotationOnFieldsTest.java b/gson/src/test/java/com/google/gson/functional/JsonAdapterAnnotationOnFieldsTest.java
+index 0c8422952b..459877d68f 100644
+--- a/gson/src/test/java/com/google/gson/functional/JsonAdapterAnnotationOnFieldsTest.java
++++ b/gson/src/test/java/com/google/gson/functional/JsonAdapterAnnotationOnFieldsTest.java
+@@ -126,7 +126,7 @@ private static final class Gizmo {
+   private static final class Part {
+     final String name;
+ 
+-    public Part(String name) {
++    Part(String name) {
+       this.name = name;
+     }
+   }
+@@ -173,7 +173,7 @@ private static final class Computer {
+ 
+   @JsonAdapter(UserClassAnnotationAdapter.class)
+   private static class User {
+-    public final String name;
++    final String name;
+ 
+     private User(String name) {
+       this.name = name;
+diff --git a/gson/src/test/java/com/google/gson/functional/JsonAdapterSerializerDeserializerTest.java b/gson/src/test/java/com/google/gson/functional/JsonAdapterSerializerDeserializerTest.java
+index 393aebe4a6..0e177a289d 100644
+--- a/gson/src/test/java/com/google/gson/functional/JsonAdapterSerializerDeserializerTest.java
++++ b/gson/src/test/java/com/google/gson/functional/JsonAdapterSerializerDeserializerTest.java
+@@ -76,7 +76,7 @@ private static final class Computer {
+   }
+ 
+   private static final class User {
+-    public final String name;
++    final String name;
+ 
+     private User(String name) {
+       this.name = name;
+@@ -131,7 +131,7 @@ private static final class Computer2 {
+ 
+   @JsonAdapter(UserSerializerDeserializer2.class)
+   private static final class User2 {
+-    public final String name;
++    final String name;
+ 
+     private User2(String name) {
+       this.name = name;
+diff --git a/gson/src/test/java/com/google/gson/functional/JsonTreeTest.java b/gson/src/test/java/com/google/gson/functional/JsonTreeTest.java
+index 82f8aae88c..e1efa62ea1 100644
+--- a/gson/src/test/java/com/google/gson/functional/JsonTreeTest.java
++++ b/gson/src/test/java/com/google/gson/functional/JsonTreeTest.java
+@@ -104,7 +104,7 @@ private static class SubTypeOfBagOfPrimitives extends BagOfPrimitives {
+     @SuppressWarnings("unused")
+     float f = 1.2F;
+ 
+-    public SubTypeOfBagOfPrimitives(long l, int i, boolean b, String string, float f) {
++    SubTypeOfBagOfPrimitives(long l, int i, boolean b, String string, float f) {
+       super(l, i, b, string);
+       this.f = f;
+     }
+diff --git a/gson/src/test/java/com/google/gson/functional/MapTest.java b/gson/src/test/java/com/google/gson/functional/MapTest.java
+index 7d2158ffda..39b4118de7 100644
+--- a/gson/src/test/java/com/google/gson/functional/MapTest.java
++++ b/gson/src/test/java/com/google/gson/functional/MapTest.java
+@@ -393,7 +393,7 @@ public void testCustomSerializerForSpecificMapType() {
+ 
+   private static class MapWithoutNoArgsConstructor<K, V> extends AbstractMap<K, V> {
+     // Remove implicit no-args constructor
+-    public MapWithoutNoArgsConstructor(int unused) {}
++    MapWithoutNoArgsConstructor(int unused) {}
+ 
+     @Override
+     public V put(K key, V value) {
+diff --git a/gson/src/test/java/com/google/gson/functional/NamingPolicyTest.java b/gson/src/test/java/com/google/gson/functional/NamingPolicyTest.java
+index 9369b2b744..bd91e36e1d 100644
+--- a/gson/src/test/java/com/google/gson/functional/NamingPolicyTest.java
++++ b/gson/src/test/java/com/google/gson/functional/NamingPolicyTest.java
+@@ -324,20 +324,20 @@ public String translateName(Field f) {
+ 
+   @SuppressWarnings("unused")
+   private static class ClassWithDuplicateFields {
+-    public Integer a;
++    Integer a;
+ 
+     @SerializedName("a")
+-    public Double b;
++    Double b;
+ 
+-    public ClassWithDuplicateFields(Integer a) {
++    ClassWithDuplicateFields(Integer a) {
+       this(a, null);
+     }
+ 
+-    public ClassWithDuplicateFields(Double b) {
++    ClassWithDuplicateFields(Double b) {
+       this(null, b);
+     }
+ 
+-    public ClassWithDuplicateFields(Integer a, Double b) {
++    ClassWithDuplicateFields(Integer a, Double b) {
+       this.a = a;
+       this.b = b;
+     }
+@@ -345,7 +345,7 @@ public ClassWithDuplicateFields(Integer a, Double b) {
+ 
+   private static class ClassWithComplexFieldName {
+     @SerializedName("@value\"_s$\\")
+-    public final long value;
++    final long value;
+ 
+     ClassWithComplexFieldName(long value) {
+       this.value = value;
+@@ -354,9 +354,9 @@ private static class ClassWithComplexFieldName {
+ 
+   @SuppressWarnings("unused")
+   private static class ClassWithTwoFields {
+-    public int a;
+-    public int b;
++    int a;
++    int b;
+ 
+-    public ClassWithTwoFields() {}
++    ClassWithTwoFields() {}
+   }
+ }
+diff --git a/gson/src/test/java/com/google/gson/functional/ObjectTest.java b/gson/src/test/java/com/google/gson/functional/ObjectTest.java
+index 5812daf8f1..72ea432df4 100644
+--- a/gson/src/test/java/com/google/gson/functional/ObjectTest.java
++++ b/gson/src/test/java/com/google/gson/functional/ObjectTest.java
+@@ -497,7 +497,7 @@ private class Child {
+   private static class ArrayOfArrays {
+     private final BagOfPrimitives[][] elements;
+ 
+-    public ArrayOfArrays() {
++    ArrayOfArrays() {
+       elements = new BagOfPrimitives[3][2];
+       for (int i = 0; i < elements.length; ++i) {
+         BagOfPrimitives[] row = elements[i];
+@@ -507,7 +507,7 @@ public ArrayOfArrays() {
+       }
+     }
+ 
+-    public String getExpectedJson() {
++    String getExpectedJson() {
+       StringBuilder sb = new StringBuilder("{\"elements\":[");
+       boolean first = true;
+       for (BagOfPrimitives[] row : elements) {
+@@ -534,7 +534,7 @@ public String getExpectedJson() {
+   }
+ 
+   private static class ClassWithPrivateNoArgsConstructor {
+-    public int a;
++    int a;
+ 
+     private ClassWithPrivateNoArgsConstructor() {
+       a = 10;
+diff --git a/gson/src/test/java/com/google/gson/functional/ParameterizedTypesTest.java b/gson/src/test/java/com/google/gson/functional/ParameterizedTypesTest.java
+index 81de888043..bba470774b 100644
+--- a/gson/src/test/java/com/google/gson/functional/ParameterizedTypesTest.java
++++ b/gson/src/test/java/com/google/gson/functional/ParameterizedTypesTest.java
+@@ -305,7 +305,7 @@ private ObjectWithTypeVariables() {
+       this(null, null, null, null, null, null);
+     }
+ 
+-    public ObjectWithTypeVariables(
++    ObjectWithTypeVariables(
+         T obj,
+         T[] array,
+         List<T> list,
+@@ -320,7 +320,7 @@ public ObjectWithTypeVariables(
+       this.arrayOfListOfWildcardTypeParameters = arrayOfWildcardList;
+     }
+ 
+-    public String getExpectedJson() {
++    String getExpectedJson() {
+       StringBuilder sb = new StringBuilder().append("{");
+ 
+       boolean needsComma = false;
+@@ -410,7 +410,7 @@ private void appendObjectsToBuilder(StringBuilder sb, List<? extends T>[] arrayO
+       }
+     }
+ 
+-    public String toString(T obj) {
++    String toString(T obj) {
+       return obj.toString();
+     }
+   }
+diff --git a/gson/src/test/java/com/google/gson/functional/ReflectionAccessFilterTest.java b/gson/src/test/java/com/google/gson/functional/ReflectionAccessFilterTest.java
+index 5b50fbe1a9..5e981b572e 100644
+--- a/gson/src/test/java/com/google/gson/functional/ReflectionAccessFilterTest.java
++++ b/gson/src/test/java/com/google/gson/functional/ReflectionAccessFilterTest.java
+@@ -190,12 +190,12 @@ private static class SuperTestClass {}
+ 
+   private static class SubTestClass extends SuperTestClass {
+     @SuppressWarnings("unused")
+-    public int i = 1;
++    int i = 1;
+   }
+ 
+   private static class OtherClass {
+     @SuppressWarnings("unused")
+-    public int i = 2;
++    int i = 2;
+   }
+ 
+   @Test
+@@ -329,9 +329,9 @@ public FilterResult check(Class<?> rawClass) {
+   }
+ 
+   private static class ClassWithoutNoArgsConstructor {
+-    public String s;
++    String s;
+ 
+-    public ClassWithoutNoArgsConstructor(String s) {
++    ClassWithoutNoArgsConstructor(String s) {
+       this.s = s;
+     }
+   }
+diff --git a/gson/src/test/java/com/google/gson/functional/ReusedTypeVariablesFullyResolveTest.java b/gson/src/test/java/com/google/gson/functional/ReusedTypeVariablesFullyResolveTest.java
+index e83c5771b5..831438234a 100644
+--- a/gson/src/test/java/com/google/gson/functional/ReusedTypeVariablesFullyResolveTest.java
++++ b/gson/src/test/java/com/google/gson/functional/ReusedTypeVariablesFullyResolveTest.java
+@@ -68,6 +68,6 @@ private static class TestEnumSetCollection extends SetCollection<TestEnum> {}
+   private static class SetCollection<T> extends BaseCollection<T, Set<T>> {}
+ 
+   private static class BaseCollection<U, C extends Collection<U>> {
+-    public C collection;
++    C collection;
+   }
+ }
+diff --git a/gson/src/test/java/com/google/gson/functional/RuntimeTypeAdapterFactoryFunctionalTest.java b/gson/src/test/java/com/google/gson/functional/RuntimeTypeAdapterFactoryFunctionalTest.java
+index 1a9e6bc916..d115c0df53 100644
+--- a/gson/src/test/java/com/google/gson/functional/RuntimeTypeAdapterFactoryFunctionalTest.java
++++ b/gson/src/test/java/com/google/gson/functional/RuntimeTypeAdapterFactoryFunctionalTest.java
+@@ -67,7 +67,7 @@ static class Shape {
+     }
+ 
+     private static final class JsonAdapterFactory extends RuntimeTypeAdapterFactory<Shape> {
+-      public JsonAdapterFactory() {
++      JsonAdapterFactory() {
+         super(Shape.class, "type");
+         registerSubtype(Circle.class, ShapeType.CIRCLE.toString());
+         registerSubtype(Square.class, ShapeType.SQUARE.toString());
+diff --git a/gson/src/test/java/com/google/gson/functional/TreeTypeAdaptersTest.java b/gson/src/test/java/com/google/gson/functional/TreeTypeAdaptersTest.java
+index 6e9debbb0c..2d9efca61a 100644
+--- a/gson/src/test/java/com/google/gson/functional/TreeTypeAdaptersTest.java
++++ b/gson/src/test/java/com/google/gson/functional/TreeTypeAdaptersTest.java
+@@ -91,7 +91,7 @@ private Id(String value, Type typeOfId) {
+       this.typeOfId = typeOfId;
+     }
+ 
+-    public String getValue() {
++    String getValue() {
+       return value;
+     }
+   }
+@@ -127,7 +127,7 @@ private Student() {
+       this(null, null);
+     }
+ 
+-    public Student(Id<Student> id, String name) {
++    Student(Id<Student> id, String name) {
+       this.id = id;
+       this.name = name;
+     }
+@@ -144,7 +144,7 @@ private Course() {
+       this(null, 0, null, new ArrayList<>());
+     }
+ 
+-    public Course(
++    Course(
+         Id<Course<T>> courseId,
+         int numAssignments,
+         Assignment<T> assignment,
+@@ -155,7 +155,7 @@ public Course(
+       this.students = players;
+     }
+ 
+-    public Id<Course<T>> getId() {
++    Id<Course<T>> getId() {
+       return courseId;
+     }
+ 
+@@ -173,7 +173,7 @@ private Assignment() {
+       this(null, null);
+     }
+ 
+-    public Assignment(Id<Assignment<T>> id, T data) {
++    Assignment(Id<Assignment<T>> id, T data) {
+       this.id = id;
+       this.data = data;
+     }
+diff --git a/gson/src/test/java/com/google/gson/functional/TypeAdapterRuntimeTypeWrapperTest.java b/gson/src/test/java/com/google/gson/functional/TypeAdapterRuntimeTypeWrapperTest.java
+index b81907a335..82fe45ff6a 100644
+--- a/gson/src/test/java/com/google/gson/functional/TypeAdapterRuntimeTypeWrapperTest.java
++++ b/gson/src/test/java/com/google/gson/functional/TypeAdapterRuntimeTypeWrapperTest.java
+@@ -185,7 +185,7 @@ private static class CyclicSub extends CyclicBase {
+     @SuppressWarnings("unused")
+     int i;
+ 
+-    public CyclicSub(int i) {
++    CyclicSub(int i) {
+       this.i = i;
+     }
+   }
+diff --git a/gson/src/test/java/com/google/gson/integration/OSGiManifestIT.java b/gson/src/test/java/com/google/gson/integration/OSGiManifestIT.java
+index fd407279de..4182c05ca4 100644
+--- a/gson/src/test/java/com/google/gson/integration/OSGiManifestIT.java
++++ b/gson/src/test/java/com/google/gson/integration/OSGiManifestIT.java
+@@ -48,10 +48,10 @@
+ @SuppressWarnings("MemberName") // class name must end with 'IT' for Maven Failsafe Plugin
+ public class OSGiManifestIT {
+   private static class ManifestData {
+-    public final URL url;
+-    public final Manifest manifest;
++    final URL url;
++    final Manifest manifest;
+ 
+-    public ManifestData(URL url, Manifest manifest) {
++    ManifestData(URL url, Manifest manifest) {
+       this.url = url;
+       this.manifest = manifest;
+     }
+diff --git a/gson/src/test/java/com/google/gson/internal/ConstructorConstructorTest.java b/gson/src/test/java/com/google/gson/internal/ConstructorConstructorTest.java
+index ad201fb346..f4e8029260 100644
+--- a/gson/src/test/java/com/google/gson/internal/ConstructorConstructorTest.java
++++ b/gson/src/test/java/com/google/gson/internal/ConstructorConstructorTest.java
+@@ -43,7 +43,7 @@ public class ConstructorConstructorTest {
+ 
+   private abstract static class AbstractClass {
+     @SuppressWarnings("unused")
+-    public AbstractClass() {}
++    AbstractClass() {}
+   }
+ 
+   private interface Interface {}
+diff --git a/gson/src/test/java/com/google/gson/internal/GsonTypesTest.java b/gson/src/test/java/com/google/gson/internal/GsonTypesTest.java
+index 443ef944b9..b76a7e0753 100644
+--- a/gson/src/test/java/com/google/gson/internal/GsonTypesTest.java
++++ b/gson/src/test/java/com/google/gson/internal/GsonTypesTest.java
+@@ -113,8 +113,8 @@ public static Type getFirstTypeArgument(Type type) throws Exception {
+ 
+   @Test
+   public void testEqualsOnMethodTypeVariables() throws Exception {
+-    Method m1 = TypeVariableTest.class.getMethod("method");
+-    Method m2 = TypeVariableTest.class.getMethod("method");
++    Method m1 = TypeVariableTest.class.getDeclaredMethod("method");
++    Method m2 = TypeVariableTest.class.getDeclaredMethod("method");
+ 
+     Type rt1 = m1.getGenericReturnType();
+     Type rt2 = m2.getGenericReturnType();
+@@ -124,8 +124,8 @@ public void testEqualsOnMethodTypeVariables() throws Exception {
+ 
+   @Test
+   public void testEqualsOnConstructorParameterTypeVariables() throws Exception {
+-    Constructor<TypeVariableTest> c1 = TypeVariableTest.class.getConstructor(Object.class);
+-    Constructor<TypeVariableTest> c2 = TypeVariableTest.class.getConstructor(Object.class);
++    Constructor<TypeVariableTest> c1 = TypeVariableTest.class.getDeclaredConstructor(Object.class);
++    Constructor<TypeVariableTest> c2 = TypeVariableTest.class.getDeclaredConstructor(Object.class);
+ 
+     Type rt1 = c1.getGenericParameterTypes()[0];
+     Type rt2 = c2.getGenericParameterTypes()[0];
+@@ -136,10 +136,10 @@ public void testEqualsOnConstructorParameterTypeVariables() throws Exception {
+   private static final class TypeVariableTest {
+ 
+     @SuppressWarnings("unused")
+-    public <T> TypeVariableTest(T parameter) {}
++    <T> TypeVariableTest(T parameter) {}
+ 
+     @SuppressWarnings({"unused", "TypeParameterUnusedInFormals"})
+-    public <T> T method() {
++    <T> T method() {
+       return null;
+     }
+   }
+diff --git a/gson/src/test/java/com/google/gson/internal/LinkedTreeMapSuiteTest.java b/gson/src/test/java/com/google/gson/internal/LinkedTreeMapSuiteTest.java
+index 4335e7ca11..4979717525 100644
+--- a/gson/src/test/java/com/google/gson/internal/LinkedTreeMapSuiteTest.java
++++ b/gson/src/test/java/com/google/gson/internal/LinkedTreeMapSuiteTest.java
+@@ -25,7 +25,7 @@ public class LinkedTreeMapSuiteTest {
+   private static class MapGenerator extends TestStringMapGenerator {
+     private final boolean allowNullValues;
+ 
+-    public MapGenerator(boolean allowNullValues) {
++    MapGenerator(boolean allowNullValues) {
+       this.allowNullValues = allowNullValues;
+     }
+ 
+diff --git a/gson/src/test/java/com/google/gson/internal/bind/Java17ReflectiveTypeAdapterFactoryTest.java b/gson/src/test/java/com/google/gson/internal/bind/Java17ReflectiveTypeAdapterFactoryTest.java
+index 931b1252b0..441ae17d99 100644
+--- a/gson/src/test/java/com/google/gson/internal/bind/Java17ReflectiveTypeAdapterFactoryTest.java
++++ b/gson/src/test/java/com/google/gson/internal/bind/Java17ReflectiveTypeAdapterFactoryTest.java
+@@ -47,7 +47,7 @@ public void setUp() throws Exception {
+   // Class for which the normal reflection based adapter is used
+   private static class DummyClass {
+     @SuppressWarnings("unused")
+-    public String s;
++    String s;
+   }
+ 
+   @Test
+diff --git a/gson/src/test/java/com/google/gson/internal/bind/RecursiveTypesResolveTest.java b/gson/src/test/java/com/google/gson/internal/bind/RecursiveTypesResolveTest.java
+index b30df4cac6..ed93d84b70 100644
+--- a/gson/src/test/java/com/google/gson/internal/bind/RecursiveTypesResolveTest.java
++++ b/gson/src/test/java/com/google/gson/internal/bind/RecursiveTypesResolveTest.java
+@@ -36,12 +36,12 @@ public class RecursiveTypesResolveTest {
+ 
+   @SuppressWarnings("unused")
+   private static class Foo1<A> {
+-    public Foo2<? extends A> foo2;
++    Foo2<? extends A> foo2;
+   }
+ 
+   @SuppressWarnings("unused")
+   private static class Foo2<B> {
+-    public Foo1<? super B> foo1;
++    Foo1<? super B> foo1;
+   }
+ 
+   /** Test simplest case of recursion. */
+diff --git a/gson/src/test/java/com/google/gson/metrics/PerformanceTest.java b/gson/src/test/java/com/google/gson/metrics/PerformanceTest.java
+index 2e2add3050..fc401610e3 100644
+--- a/gson/src/test/java/com/google/gson/metrics/PerformanceTest.java
++++ b/gson/src/test/java/com/google/gson/metrics/PerformanceTest.java
+@@ -83,8 +83,8 @@ private void parseLongJson(String json) throws JsonParseException {
+   }
+ 
+   private static class ExceptionHolder {
+-    public final String message;
+-    public final String stackTrace;
++    final String message;
++    final String stackTrace;
+ 
+     // For use by Gson
+     @SuppressWarnings("unused")
+@@ -92,7 +92,7 @@ private ExceptionHolder() {
+       this("", "");
+     }
+ 
+-    public ExceptionHolder(String message, String stackTrace) {
++    ExceptionHolder(String message, String stackTrace) {
+       this.message = message;
+       this.stackTrace = stackTrace;
+     }
+@@ -334,7 +334,7 @@ private static final class ClassWithField {
+       this("");
+     }
+ 
+-    public ClassWithField(String field) {
++    ClassWithField(String field) {
+       this.field = field;
+     }
+   }

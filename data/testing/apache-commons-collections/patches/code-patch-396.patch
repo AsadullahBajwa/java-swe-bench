@@ -1,0 +1,67 @@
+diff --git a/src/main/java/org/apache/commons/collections4/bloomfilter/BitMap.java b/src/main/java/org/apache/commons/collections4/bloomfilter/BitMap.java
+index 14366f96d6..8180af7086 100644
+--- a/src/main/java/org/apache/commons/collections4/bloomfilter/BitMap.java
++++ b/src/main/java/org/apache/commons/collections4/bloomfilter/BitMap.java
+@@ -113,4 +113,24 @@ public static long getLongBit(final int bitIndex) {
+         // this will identify an incorrect bit.
+         return 1L << bitIndex;
+     }
++
++    /**
++     * Performs a modulus calculation on an unsigned long and an positive integer divisor.
++     *
++     * <p><em>If the divisor is negative the behavior is not defined.</em></p>
++     *
++     * @param dividend a unsigned long value to calculate the modulus of.
++     * @param divisor the divisor for the modulus calculation, must be positive.
++     * @return the remainder or modulus value.
++     * @since 4.5
++     */
++    public static int mod(final long dividend, final int divisor) {
++        // See Hacker's Delight (2nd ed), section 9.3.
++        // Assume divisor is positive.
++        // Divide half the unsigned number and then double the quotient result.
++        final long quotient = (dividend >>> 1) / divisor << 1;
++        final long remainder = dividend - quotient * divisor;
++        // remainder in [0, 2 * divisor)
++        return (int) (remainder >= divisor ? remainder - divisor : remainder);
++    }
+ }
+diff --git a/src/main/java/org/apache/commons/collections4/bloomfilter/EnhancedDoubleHasher.java b/src/main/java/org/apache/commons/collections4/bloomfilter/EnhancedDoubleHasher.java
+index d4091cdd2f..c490ad6c54 100644
+--- a/src/main/java/org/apache/commons/collections4/bloomfilter/EnhancedDoubleHasher.java
++++ b/src/main/java/org/apache/commons/collections4/bloomfilter/EnhancedDoubleHasher.java
+@@ -129,22 +129,6 @@ long getIncrement() {
+         return increment;
+     }
+ 
+-    /**
+-     * Performs a modulus calculation on an unsigned long and an integer divisor.
+-     * @param dividend a unsigned long value to calculate the modulus of.
+-     * @param divisor the divisor for the modulus calculation (must be strictly positive).
+-     * @return the remainder or modulus value.
+-     */
+-    static int mod(final long dividend, final int divisor) {
+-        // See Hacker's Delight (2nd ed), section 9.3.
+-        // Assume divisor is positive.
+-        // Divide half the unsigned number and then double the quotient result.
+-        final long quotient = (dividend >>> 1) / divisor << 1;
+-        final long remainder = dividend - quotient * divisor;
+-        // remainder in [0, 2 * divisor)
+-        return (int) (remainder >= divisor ? remainder - divisor : remainder);
+-    }
+-
+     @Override
+     public IndexProducer indices(final Shape shape) {
+         Objects.requireNonNull(shape, "shape");
+@@ -168,8 +152,8 @@ public boolean forEachIndex(final IntPredicate consumer) {
+                 // The final hash is:
+                 // hash[i] = ( h1(x) - i*h2(x) - (i*i*i - i)/6 ) wrapped in [0, bits)
+ 
+-                int index = mod(initial, bits);
+-                int inc = mod(increment, bits);
++                int index = BitMap.mod(initial, bits);
++                int inc = BitMap.mod(increment, bits);
+ 
+                 final int k = shape.getNumberOfHashFunctions();
+                 if (k > bits) {

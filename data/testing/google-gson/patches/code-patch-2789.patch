@@ -1,0 +1,42 @@
+diff --git a/gson/src/main/java/com/google/gson/GsonBuilder.java b/gson/src/main/java/com/google/gson/GsonBuilder.java
+index a8212f8d9f..c387bc2d52 100644
+--- a/gson/src/main/java/com/google/gson/GsonBuilder.java
++++ b/gson/src/main/java/com/google/gson/GsonBuilder.java
+@@ -710,7 +710,7 @@ public GsonBuilder registerTypeAdapter(Type type, Object typeAdapter) {
+             || typeAdapter instanceof InstanceCreator<?>
+             || typeAdapter instanceof TypeAdapter<?>);
+ 
+-    if (isTypeObjectOrJsonElement(type)) {
++    if (hasNonOverridableAdapter(type)) {
+       throw new IllegalArgumentException("Cannot override built-in adapter for " + type);
+     }
+ 
+@@ -730,9 +730,14 @@ public GsonBuilder registerTypeAdapter(Type type, Object typeAdapter) {
+     return this;
+   }
+ 
+-  private static boolean isTypeObjectOrJsonElement(Type type) {
+-    return type instanceof Class
+-        && (type == Object.class || JsonElement.class.isAssignableFrom((Class<?>) type));
++  /** Whether the type has a built-in adapter which cannot be overridden. */
++  private static boolean hasNonOverridableAdapter(Type type) {
++    return type == Object.class;
++    // This should also cover `JsonElement.class.isAssignableFrom(type)`, however for backward
++    // compatibility this is not covered here because really old Gson versions had no built-in
++    // adapter for JsonElement so users registered custom adapters. These adapters don't have any
++    // effect in recent Gson versions. See
++    // https://github.com/google/gson/issues/2787#issuecomment-2581568157
+   }
+ 
+   /**
+@@ -778,10 +783,6 @@ public GsonBuilder registerTypeHierarchyAdapter(Class<?> baseType, Object typeAd
+             || typeAdapter instanceof JsonDeserializer<?>
+             || typeAdapter instanceof TypeAdapter<?>);
+ 
+-    if (JsonElement.class.isAssignableFrom(baseType)) {
+-      throw new IllegalArgumentException("Cannot override built-in adapter for " + baseType);
+-    }
+-
+     if (typeAdapter instanceof JsonDeserializer || typeAdapter instanceof JsonSerializer) {
+       hierarchyFactories.add(TreeTypeAdapter.newTypeHierarchyFactory(baseType, typeAdapter));
+     }

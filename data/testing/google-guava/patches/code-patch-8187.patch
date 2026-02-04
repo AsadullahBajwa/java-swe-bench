@@ -1,0 +1,435 @@
+diff --git a/android/guava/src/com/google/common/base/CharMatcher.java b/android/guava/src/com/google/common/base/CharMatcher.java
+index a22b8f245b12..39e89e7a865d 100644
+--- a/android/guava/src/com/google/common/base/CharMatcher.java
++++ b/android/guava/src/com/google/common/base/CharMatcher.java
+@@ -41,7 +41,7 @@
+  * assigned characters, including important CJK characters and emoji.
+  *
+  * <p>Supplementary characters are <a
+- * href="https://docs.oracle.com/javase/8/docs/api/java/lang/Character.html#supplementary">encoded
++ * href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Character.html#supplementary">encoded
+  * into a {@code String} using surrogate pairs</a>, and a {@code CharMatcher} treats these just as
+  * two separate characters. {@link #countIn} counts each supplementary character as 2 {@code char}s.
+  *
+diff --git a/android/guava/src/com/google/common/base/Strings.java b/android/guava/src/com/google/common/base/Strings.java
+index feb5915ca2f8..b9b522bfc11a 100644
+--- a/android/guava/src/com/google/common/base/Strings.java
++++ b/android/guava/src/com/google/common/base/Strings.java
+@@ -233,7 +233,7 @@ static boolean validSurrogatePairAt(CharSequence string, int index) {
+    * <p><b>Note:</b> For most string-formatting needs, use {@link String#format String.format},
+    * {@link java.io.PrintWriter#format PrintWriter.format}, and related methods. These support the
+    * full range of <a
+-   * href="https://docs.oracle.com/javase/9/docs/api/java/util/Formatter.html#syntax">format
++   * href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Formatter.html#syntax">format
+    * specifiers</a>, and alert you to usage errors by throwing {@link
+    * java.util.IllegalFormatException}.
+    *
+diff --git a/android/guava/src/com/google/common/collect/ImmutableCollection.java b/android/guava/src/com/google/common/collect/ImmutableCollection.java
+index 35ba746f2259..64e1bbbe43c8 100644
+--- a/android/guava/src/com/google/common/collect/ImmutableCollection.java
++++ b/android/guava/src/com/google/common/collect/ImmutableCollection.java
+@@ -95,8 +95,9 @@
+  * <p>Expressing the immutability guarantee directly in the type that user code references is a
+  * powerful advantage. Although Java offers certain immutable collection factory methods, such as
+  * {@link Collections#singleton(Object)} and <a
+- * href="https://docs.oracle.com/javase/9/docs/api/java/util/Set.html#immutable">{@code Set.of}</a>,
+- * we recommend using <i>these</i> classes instead for this reason (as well as for consistency).
++ * href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Set.html#unmodifiable">{@code
++ * Set.of}</a>, we recommend using <i>these</i> classes instead for this reason (as well as for
++ * consistency).
+  *
+  * <h4>Creation</h4>
+  *
+diff --git a/android/guava/src/com/google/common/io/Closer.java b/android/guava/src/com/google/common/io/Closer.java
+index f5f38cd6497f..f2c8fb3c93ca 100644
+--- a/android/guava/src/com/google/common/io/Closer.java
++++ b/android/guava/src/com/google/common/io/Closer.java
+@@ -32,7 +32,7 @@
+ /**
+  * A {@link Closeable} that collects {@code Closeable} resources and closes them all when it is
+  * {@linkplain #close closed}. This was intended to approximately emulate the behavior of Java 7's
+- * <a href="http://docs.oracle.com/javase/tutorial/essential/exceptions/tryResourceClose.html"
++ * <a href="https://docs.oracle.com/javase/tutorial/essential/exceptions/tryResourceClose.html"
+  * >try-with-resources</a> statement in JDK6-compatible code. Code using this should be
+  * approximately equivalent in behavior to the same code written with try-with-resources.
+  *
+diff --git a/android/guava/src/com/google/common/math/IntMath.java b/android/guava/src/com/google/common/math/IntMath.java
+index ed7bafdafd89..987ca0d240fd 100644
+--- a/android/guava/src/com/google/common/math/IntMath.java
++++ b/android/guava/src/com/google/common/math/IntMath.java
+@@ -383,7 +383,7 @@ public static int divide(int p, int q, RoundingMode mode) {
+    * }
+    *
+    * @throws ArithmeticException if {@code m <= 0}
+-   * @see <a href="http://docs.oracle.com/javase/specs/jls/se7/html/jls-15.html#jls-15.17.3">
++   * @see <a href="https://docs.oracle.com/javase/specs/jls/se25/html/jls-15.html#jls-15.17.3">
+    *     Remainder Operator</a>
+    */
+   public static int mod(int x, int m) {
+diff --git a/android/guava/src/com/google/common/math/LongMath.java b/android/guava/src/com/google/common/math/LongMath.java
+index 35b8de0f2d6d..38f47bff33cd 100644
+--- a/android/guava/src/com/google/common/math/LongMath.java
++++ b/android/guava/src/com/google/common/math/LongMath.java
+@@ -444,7 +444,7 @@ public static long divide(long p, long q, RoundingMode mode) {
+    * }
+    *
+    * @throws ArithmeticException if {@code m <= 0}
+-   * @see <a href="http://docs.oracle.com/javase/specs/jls/se7/html/jls-15.html#jls-15.17.3">
++   * @see <a href="https://docs.oracle.com/javase/specs/jls/se25/html/jls-15.html#jls-15.17.3">
+    *     Remainder Operator</a>
+    */
+   @GwtIncompatible // TODO
+@@ -468,7 +468,7 @@ public static int mod(long x, int m) {
+    * }
+    *
+    * @throws ArithmeticException if {@code m <= 0}
+-   * @see <a href="http://docs.oracle.com/javase/specs/jls/se7/html/jls-15.html#jls-15.17.3">
++   * @see <a href="https://docs.oracle.com/javase/specs/jls/se25/html/jls-15.html#jls-15.17.3">
+    *     Remainder Operator</a>
+    */
+   @GwtIncompatible // TODO
+diff --git a/android/guava/src/com/google/common/reflect/ClassPath.java b/android/guava/src/com/google/common/reflect/ClassPath.java
+index 4e471e07702c..fc21a3b33efe 100644
+--- a/android/guava/src/com/google/common/reflect/ClassPath.java
++++ b/android/guava/src/com/google/common/reflect/ClassPath.java
+@@ -570,7 +570,7 @@ public String toString() {
+   /**
+    * Returns the class path URIs specified by the {@code Class-Path} manifest attribute, according
+    * to <a
+-   * href="http://docs.oracle.com/javase/8/docs/technotes/guides/jar/jar.html#Main_Attributes">JAR
++   * href="https://docs.oracle.com/en/java/javase/25/docs/specs/jar/jar.html#main-attributes">JAR
+    * File Specification</a>. If {@code manifest} is null, it means the jar file has no manifest, and
+    * an empty set will be returned.
+    */
+@@ -652,7 +652,7 @@ static ImmutableList<URL> parseJavaClassPath() {
+ 
+   /**
+    * Returns the absolute uri of the Class-Path entry value as specified in <a
+-   * href="http://docs.oracle.com/javase/8/docs/technotes/guides/jar/jar.html#Main_Attributes">JAR
++   * href="https://docs.oracle.com/en/java/javase/25/docs/specs/jar/jar.html#main-attributes">JAR
+    * File Specification</a>. Even though the specification only talks about relative urls, absolute
+    * urls are actually supported too (for example, in Maven surefire plugin).
+    */
+diff --git a/android/guava/src/com/google/common/reflect/TypeToken.java b/android/guava/src/com/google/common/reflect/TypeToken.java
+index 866fa925fe36..948792ba23d5 100644
+--- a/android/guava/src/com/google/common/reflect/TypeToken.java
++++ b/android/guava/src/com/google/common/reflect/TypeToken.java
+@@ -451,8 +451,8 @@ public final TypeToken<? extends T> getSubtype(Class<?> subclass) {
+   /**
+    * Returns true if this type is a supertype of the given {@code type}. "Supertype" is defined
+    * according to <a
+-   * href="http://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-4.5.1">the rules for type
+-   * arguments</a> introduced with Java generics.
++   * href="https://docs.oracle.com/javase/specs/jls/se25/html/jls-4.html#jls-4.5.1">the rules for
++   * type arguments</a> introduced with Java generics.
+    *
+    * @since 19.0
+    */
+@@ -463,8 +463,8 @@ public final boolean isSupertypeOf(TypeToken<?> type) {
+   /**
+    * Returns true if this type is a supertype of the given {@code type}. "Supertype" is defined
+    * according to <a
+-   * href="http://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-4.5.1">the rules for type
+-   * arguments</a> introduced with Java generics.
++   * href="https://docs.oracle.com/javase/specs/jls/se25/html/jls-4.html#jls-4.5.1">the rules for
++   * type arguments</a> introduced with Java generics.
+    *
+    * @since 19.0
+    */
+@@ -475,8 +475,8 @@ public final boolean isSupertypeOf(Type type) {
+   /**
+    * Returns true if this type is a subtype of the given {@code type}. "Subtype" is defined
+    * according to <a
+-   * href="http://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-4.5.1">the rules for type
+-   * arguments</a> introduced with Java generics.
++   * href="https://docs.oracle.com/javase/specs/jls/se25/html/jls-4.html#jls-4.5.1">the rules for
++   * type arguments</a> introduced with Java generics.
+    *
+    * @since 19.0
+    */
+@@ -487,8 +487,8 @@ public final boolean isSubtypeOf(TypeToken<?> type) {
+   /**
+    * Returns true if this type is a subtype of the given {@code type}. "Subtype" is defined
+    * according to <a
+-   * href="http://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-4.5.1">the rules for type
+-   * arguments</a> introduced with Java generics.
++   * href="https://docs.oracle.com/javase/specs/jls/se25/html/jls-4.html#jls-4.5.1">the rules for
++   * type arguments</a> introduced with Java generics.
+    *
+    * @since 19.0
+    */
+diff --git a/android/guava/src/com/google/common/util/concurrent/AtomicDouble.java b/android/guava/src/com/google/common/util/concurrent/AtomicDouble.java
+index 745ca7733fec..8664c91f3f94 100644
+--- a/android/guava/src/com/google/common/util/concurrent/AtomicDouble.java
++++ b/android/guava/src/com/google/common/util/concurrent/AtomicDouble.java
+@@ -130,7 +130,7 @@ public final boolean compareAndSet(double expect, double update) {
+    * href="#bitEquals">bitwise equal</a> to the expected value.
+    *
+    * <p>May <a
+-   * href="http://download.oracle.com/javase/7/docs/api/java/util/concurrent/atomic/package-summary.html#Spurious">
++   * href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/atomic/package-summary.html#Spurious">
+    * fail spuriously</a> and does not provide ordering guarantees, so is only rarely an appropriate
+    * alternative to {@code compareAndSet}.
+    *
+diff --git a/android/guava/src/com/google/common/util/concurrent/AtomicDoubleArray.java b/android/guava/src/com/google/common/util/concurrent/AtomicDoubleArray.java
+index 2a87f088c2fb..eb63f6965504 100644
+--- a/android/guava/src/com/google/common/util/concurrent/AtomicDoubleArray.java
++++ b/android/guava/src/com/google/common/util/concurrent/AtomicDoubleArray.java
+@@ -154,7 +154,7 @@ public final boolean compareAndSet(int i, double expect, double update) {
+    * value is <a href="#bitEquals">bitwise equal</a> to the expected value.
+    *
+    * <p>May <a
+-   * href="http://download.oracle.com/javase/7/docs/api/java/util/concurrent/atomic/package-summary.html#Spurious">
++   * href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/atomic/package-summary.html#Spurious">
+    * fail spuriously</a> and does not provide ordering guarantees, so is only rarely an appropriate
+    * alternative to {@code compareAndSet}.
+    *
+diff --git a/android/guava/src/com/google/common/util/concurrent/Futures.java b/android/guava/src/com/google/common/util/concurrent/Futures.java
+index b48620645216..a1bece2bfcbc 100644
+--- a/android/guava/src/com/google/common/util/concurrent/Futures.java
++++ b/android/guava/src/com/google/common/util/concurrent/Futures.java
+@@ -1397,6 +1397,6 @@ public String toString() {
+    * try-catch block.
+    *
+    * If you think you would use this method, let us know. You might also look into the
+-   * Fork-Join framework: http://docs.oracle.com/javase/tutorial/essential/concurrency/forkjoin.html
++   * Fork-Join framework: https://docs.oracle.com/javase/tutorial/essential/concurrency/forkjoin.html
+    */
+ }
+diff --git a/android/guava/src/com/google/common/util/concurrent/ListenableFuture.java b/android/guava/src/com/google/common/util/concurrent/ListenableFuture.java
+index 8b78b6b727b6..84c449a2093c 100644
+--- a/android/guava/src/com/google/common/util/concurrent/ListenableFuture.java
++++ b/android/guava/src/com/google/common/util/concurrent/ListenableFuture.java
+@@ -143,7 +143,7 @@ public interface ListenableFuture<V extends @Nullable Object> extends Future<V>
+    * Futures#addCallback addCallback()}.
+    *
+    * <p>Memory consistency effects: Actions in a thread prior to adding a listener <a
+-   * href="https://docs.oracle.com/javase/specs/jls/se7/html/jls-17.html#jls-17.4.5">
++   * href="https://docs.oracle.com/javase/specs/jls/se25/html/jls-17.html#jls-17.4.5">
+    * <i>happen-before</i></a> its execution begins, perhaps in another thread.
+    *
+    * <p>Guava implementations of {@code ListenableFuture} promptly release references to listeners
+diff --git a/futures/listenablefuture1/src/com/google/common/util/concurrent/ListenableFuture.java b/futures/listenablefuture1/src/com/google/common/util/concurrent/ListenableFuture.java
+index 8b78b6b727b6..84c449a2093c 100644
+--- a/futures/listenablefuture1/src/com/google/common/util/concurrent/ListenableFuture.java
++++ b/futures/listenablefuture1/src/com/google/common/util/concurrent/ListenableFuture.java
+@@ -143,7 +143,7 @@ public interface ListenableFuture<V extends @Nullable Object> extends Future<V>
+    * Futures#addCallback addCallback()}.
+    *
+    * <p>Memory consistency effects: Actions in a thread prior to adding a listener <a
+-   * href="https://docs.oracle.com/javase/specs/jls/se7/html/jls-17.html#jls-17.4.5">
++   * href="https://docs.oracle.com/javase/specs/jls/se25/html/jls-17.html#jls-17.4.5">
+    * <i>happen-before</i></a> its execution begins, perhaps in another thread.
+    *
+    * <p>Guava implementations of {@code ListenableFuture} promptly release references to listeners
+diff --git a/guava/src/com/google/common/base/CharMatcher.java b/guava/src/com/google/common/base/CharMatcher.java
+index 13bcd57aa06a..be2266d2db4d 100644
+--- a/guava/src/com/google/common/base/CharMatcher.java
++++ b/guava/src/com/google/common/base/CharMatcher.java
+@@ -41,7 +41,7 @@
+  * assigned characters, including important CJK characters and emoji.
+  *
+  * <p>Supplementary characters are <a
+- * href="https://docs.oracle.com/javase/8/docs/api/java/lang/Character.html#supplementary">encoded
++ * href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Character.html#supplementary">encoded
+  * into a {@code String} using surrogate pairs</a>, and a {@code CharMatcher} treats these just as
+  * two separate characters. {@link #countIn} counts each supplementary character as 2 {@code char}s.
+  *
+diff --git a/guava/src/com/google/common/base/Strings.java b/guava/src/com/google/common/base/Strings.java
+index ff95a5268fd6..6d39d9efd0d6 100644
+--- a/guava/src/com/google/common/base/Strings.java
++++ b/guava/src/com/google/common/base/Strings.java
+@@ -239,7 +239,7 @@ static boolean validSurrogatePairAt(CharSequence string, int index) {
+    * <p><b>Note:</b> For most string-formatting needs, use {@link String#format String.format},
+    * {@link java.io.PrintWriter#format PrintWriter.format}, and related methods. These support the
+    * full range of <a
+-   * href="https://docs.oracle.com/javase/9/docs/api/java/util/Formatter.html#syntax">format
++   * href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Formatter.html#syntax">format
+    * specifiers</a>, and alert you to usage errors by throwing {@link
+    * java.util.IllegalFormatException}.
+    *
+diff --git a/guava/src/com/google/common/collect/ImmutableCollection.java b/guava/src/com/google/common/collect/ImmutableCollection.java
+index e4603b651322..32f930465adb 100644
+--- a/guava/src/com/google/common/collect/ImmutableCollection.java
++++ b/guava/src/com/google/common/collect/ImmutableCollection.java
+@@ -93,8 +93,9 @@
+  * <p>Expressing the immutability guarantee directly in the type that user code references is a
+  * powerful advantage. Although Java offers certain immutable collection factory methods, such as
+  * {@link Collections#singleton(Object)} and <a
+- * href="https://docs.oracle.com/javase/9/docs/api/java/util/Set.html#immutable">{@code Set.of}</a>,
+- * we recommend using <i>these</i> classes instead for this reason (as well as for consistency).
++ * href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Set.html#unmodifiable">{@code
++ * Set.of}</a>, we recommend using <i>these</i> classes instead for this reason (as well as for
++ * consistency).
+  *
+  * <h4>Creation</h4>
+  *
+diff --git a/guava/src/com/google/common/io/Closer.java b/guava/src/com/google/common/io/Closer.java
+index f5f38cd6497f..f2c8fb3c93ca 100644
+--- a/guava/src/com/google/common/io/Closer.java
++++ b/guava/src/com/google/common/io/Closer.java
+@@ -32,7 +32,7 @@
+ /**
+  * A {@link Closeable} that collects {@code Closeable} resources and closes them all when it is
+  * {@linkplain #close closed}. This was intended to approximately emulate the behavior of Java 7's
+- * <a href="http://docs.oracle.com/javase/tutorial/essential/exceptions/tryResourceClose.html"
++ * <a href="https://docs.oracle.com/javase/tutorial/essential/exceptions/tryResourceClose.html"
+  * >try-with-resources</a> statement in JDK6-compatible code. Code using this should be
+  * approximately equivalent in behavior to the same code written with try-with-resources.
+  *
+diff --git a/guava/src/com/google/common/math/IntMath.java b/guava/src/com/google/common/math/IntMath.java
+index ed7bafdafd89..987ca0d240fd 100644
+--- a/guava/src/com/google/common/math/IntMath.java
++++ b/guava/src/com/google/common/math/IntMath.java
+@@ -383,7 +383,7 @@ public static int divide(int p, int q, RoundingMode mode) {
+    * }
+    *
+    * @throws ArithmeticException if {@code m <= 0}
+-   * @see <a href="http://docs.oracle.com/javase/specs/jls/se7/html/jls-15.html#jls-15.17.3">
++   * @see <a href="https://docs.oracle.com/javase/specs/jls/se25/html/jls-15.html#jls-15.17.3">
+    *     Remainder Operator</a>
+    */
+   public static int mod(int x, int m) {
+diff --git a/guava/src/com/google/common/math/LongMath.java b/guava/src/com/google/common/math/LongMath.java
+index 35b8de0f2d6d..38f47bff33cd 100644
+--- a/guava/src/com/google/common/math/LongMath.java
++++ b/guava/src/com/google/common/math/LongMath.java
+@@ -444,7 +444,7 @@ public static long divide(long p, long q, RoundingMode mode) {
+    * }
+    *
+    * @throws ArithmeticException if {@code m <= 0}
+-   * @see <a href="http://docs.oracle.com/javase/specs/jls/se7/html/jls-15.html#jls-15.17.3">
++   * @see <a href="https://docs.oracle.com/javase/specs/jls/se25/html/jls-15.html#jls-15.17.3">
+    *     Remainder Operator</a>
+    */
+   @GwtIncompatible // TODO
+@@ -468,7 +468,7 @@ public static int mod(long x, int m) {
+    * }
+    *
+    * @throws ArithmeticException if {@code m <= 0}
+-   * @see <a href="http://docs.oracle.com/javase/specs/jls/se7/html/jls-15.html#jls-15.17.3">
++   * @see <a href="https://docs.oracle.com/javase/specs/jls/se25/html/jls-15.html#jls-15.17.3">
+    *     Remainder Operator</a>
+    */
+   @GwtIncompatible // TODO
+diff --git a/guava/src/com/google/common/reflect/ClassPath.java b/guava/src/com/google/common/reflect/ClassPath.java
+index 4e471e07702c..fc21a3b33efe 100644
+--- a/guava/src/com/google/common/reflect/ClassPath.java
++++ b/guava/src/com/google/common/reflect/ClassPath.java
+@@ -570,7 +570,7 @@ public String toString() {
+   /**
+    * Returns the class path URIs specified by the {@code Class-Path} manifest attribute, according
+    * to <a
+-   * href="http://docs.oracle.com/javase/8/docs/technotes/guides/jar/jar.html#Main_Attributes">JAR
++   * href="https://docs.oracle.com/en/java/javase/25/docs/specs/jar/jar.html#main-attributes">JAR
+    * File Specification</a>. If {@code manifest} is null, it means the jar file has no manifest, and
+    * an empty set will be returned.
+    */
+@@ -652,7 +652,7 @@ static ImmutableList<URL> parseJavaClassPath() {
+ 
+   /**
+    * Returns the absolute uri of the Class-Path entry value as specified in <a
+-   * href="http://docs.oracle.com/javase/8/docs/technotes/guides/jar/jar.html#Main_Attributes">JAR
++   * href="https://docs.oracle.com/en/java/javase/25/docs/specs/jar/jar.html#main-attributes">JAR
+    * File Specification</a>. Even though the specification only talks about relative urls, absolute
+    * urls are actually supported too (for example, in Maven surefire plugin).
+    */
+diff --git a/guava/src/com/google/common/reflect/TypeToken.java b/guava/src/com/google/common/reflect/TypeToken.java
+index 866fa925fe36..948792ba23d5 100644
+--- a/guava/src/com/google/common/reflect/TypeToken.java
++++ b/guava/src/com/google/common/reflect/TypeToken.java
+@@ -451,8 +451,8 @@ public final TypeToken<? extends T> getSubtype(Class<?> subclass) {
+   /**
+    * Returns true if this type is a supertype of the given {@code type}. "Supertype" is defined
+    * according to <a
+-   * href="http://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-4.5.1">the rules for type
+-   * arguments</a> introduced with Java generics.
++   * href="https://docs.oracle.com/javase/specs/jls/se25/html/jls-4.html#jls-4.5.1">the rules for
++   * type arguments</a> introduced with Java generics.
+    *
+    * @since 19.0
+    */
+@@ -463,8 +463,8 @@ public final boolean isSupertypeOf(TypeToken<?> type) {
+   /**
+    * Returns true if this type is a supertype of the given {@code type}. "Supertype" is defined
+    * according to <a
+-   * href="http://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-4.5.1">the rules for type
+-   * arguments</a> introduced with Java generics.
++   * href="https://docs.oracle.com/javase/specs/jls/se25/html/jls-4.html#jls-4.5.1">the rules for
++   * type arguments</a> introduced with Java generics.
+    *
+    * @since 19.0
+    */
+@@ -475,8 +475,8 @@ public final boolean isSupertypeOf(Type type) {
+   /**
+    * Returns true if this type is a subtype of the given {@code type}. "Subtype" is defined
+    * according to <a
+-   * href="http://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-4.5.1">the rules for type
+-   * arguments</a> introduced with Java generics.
++   * href="https://docs.oracle.com/javase/specs/jls/se25/html/jls-4.html#jls-4.5.1">the rules for
++   * type arguments</a> introduced with Java generics.
+    *
+    * @since 19.0
+    */
+@@ -487,8 +487,8 @@ public final boolean isSubtypeOf(TypeToken<?> type) {
+   /**
+    * Returns true if this type is a subtype of the given {@code type}. "Subtype" is defined
+    * according to <a
+-   * href="http://docs.oracle.com/javase/specs/jls/se8/html/jls-4.html#jls-4.5.1">the rules for type
+-   * arguments</a> introduced with Java generics.
++   * href="https://docs.oracle.com/javase/specs/jls/se25/html/jls-4.html#jls-4.5.1">the rules for
++   * type arguments</a> introduced with Java generics.
+    *
+    * @since 19.0
+    */
+diff --git a/guava/src/com/google/common/util/concurrent/AtomicDouble.java b/guava/src/com/google/common/util/concurrent/AtomicDouble.java
+index fa264d98b9e5..b250ce40b70b 100644
+--- a/guava/src/com/google/common/util/concurrent/AtomicDouble.java
++++ b/guava/src/com/google/common/util/concurrent/AtomicDouble.java
+@@ -141,7 +141,7 @@ public final boolean compareAndSet(double expect, double update) {
+    * href="#bitEquals">bitwise equal</a> to the expected value.
+    *
+    * <p>May <a
+-   * href="http://download.oracle.com/javase/7/docs/api/java/util/concurrent/atomic/package-summary.html#Spurious">
++   * href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/atomic/package-summary.html#Spurious">
+    * fail spuriously</a> and does not provide ordering guarantees, so is only rarely an appropriate
+    * alternative to {@code compareAndSet}.
+    *
+diff --git a/guava/src/com/google/common/util/concurrent/AtomicDoubleArray.java b/guava/src/com/google/common/util/concurrent/AtomicDoubleArray.java
+index 95260821bb45..3994cef3ade0 100644
+--- a/guava/src/com/google/common/util/concurrent/AtomicDoubleArray.java
++++ b/guava/src/com/google/common/util/concurrent/AtomicDoubleArray.java
+@@ -157,7 +157,7 @@ public final boolean compareAndSet(int i, double expect, double update) {
+    * value is <a href="#bitEquals">bitwise equal</a> to the expected value.
+    *
+    * <p>May <a
+-   * href="http://download.oracle.com/javase/7/docs/api/java/util/concurrent/atomic/package-summary.html#Spurious">
++   * href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/atomic/package-summary.html#Spurious">
+    * fail spuriously</a> and does not provide ordering guarantees, so is only rarely an appropriate
+    * alternative to {@code compareAndSet}.
+    *
+diff --git a/guava/src/com/google/common/util/concurrent/Futures.java b/guava/src/com/google/common/util/concurrent/Futures.java
+index 0bdddd1e7bad..78246c779768 100644
+--- a/guava/src/com/google/common/util/concurrent/Futures.java
++++ b/guava/src/com/google/common/util/concurrent/Futures.java
+@@ -1394,6 +1394,6 @@ public String toString() {
+    * try-catch block.
+    *
+    * If you think you would use this method, let us know. You might also look into the
+-   * Fork-Join framework: http://docs.oracle.com/javase/tutorial/essential/concurrency/forkjoin.html
++   * Fork-Join framework: https://docs.oracle.com/javase/tutorial/essential/concurrency/forkjoin.html
+    */
+ }
+diff --git a/guava/src/com/google/common/util/concurrent/ListenableFuture.java b/guava/src/com/google/common/util/concurrent/ListenableFuture.java
+index 8b78b6b727b6..84c449a2093c 100644
+--- a/guava/src/com/google/common/util/concurrent/ListenableFuture.java
++++ b/guava/src/com/google/common/util/concurrent/ListenableFuture.java
+@@ -143,7 +143,7 @@ public interface ListenableFuture<V extends @Nullable Object> extends Future<V>
+    * Futures#addCallback addCallback()}.
+    *
+    * <p>Memory consistency effects: Actions in a thread prior to adding a listener <a
+-   * href="https://docs.oracle.com/javase/specs/jls/se7/html/jls-17.html#jls-17.4.5">
++   * href="https://docs.oracle.com/javase/specs/jls/se25/html/jls-17.html#jls-17.4.5">
+    * <i>happen-before</i></a> its execution begins, perhaps in another thread.
+    *
+    * <p>Guava implementations of {@code ListenableFuture} promptly release references to listeners

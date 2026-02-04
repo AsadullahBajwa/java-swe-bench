@@ -1,0 +1,23 @@
+diff --git a/src/main/java/org/apache/commons/io/output/AbstractByteArrayOutputStream.java b/src/main/java/org/apache/commons/io/output/AbstractByteArrayOutputStream.java
+index 8f959751d36..b8b90b6511d 100644
+--- a/src/main/java/org/apache/commons/io/output/AbstractByteArrayOutputStream.java
++++ b/src/main/java/org/apache/commons/io/output/AbstractByteArrayOutputStream.java
+@@ -92,7 +92,7 @@ protected interface InputStreamConstructor<T extends InputStream> {
+     private byte[] currentBuffer;
+ 
+     /** The index of the current buffer. */
+-    private int currentBufferIndex;
++    private int currentBufferIndex = -1;
+ 
+     /** The total count of bytes in all the filled buffers. */
+     private int filledBufferSum;
+@@ -147,7 +147,8 @@ protected void needNewBuffer(final int newCount) {
+             // Creating new buffer
+             final int newBufferSize;
+             if (currentBuffer == null) {
+-                newBufferSize = newCount;
++                // prevents 0 size buffers
++                newBufferSize = newCount > 0 ? newCount : DEFAULT_SIZE;
+                 filledBufferSum = 0;
+             } else {
+                 newBufferSize = Math.max(currentBuffer.length << 1, newCount - filledBufferSum);

@@ -1,0 +1,144 @@
+diff --git a/src/main/java/org/apache/commons/collections4/bloomfilter/ArrayCountingBloomFilter.java b/src/main/java/org/apache/commons/collections4/bloomfilter/ArrayCountingBloomFilter.java
+index a46d7665f7..4202f6d860 100644
+--- a/src/main/java/org/apache/commons/collections4/bloomfilter/ArrayCountingBloomFilter.java
++++ b/src/main/java/org/apache/commons/collections4/bloomfilter/ArrayCountingBloomFilter.java
+@@ -110,8 +110,8 @@ public ArrayCountingBloomFilter copy() {
+     }
+ 
+     @Override
+-    public boolean isSparse() {
+-        return true;
++    public int characteristics() {
++        return SPARSE;
+     }
+ 
+     @Override
+diff --git a/src/main/java/org/apache/commons/collections4/bloomfilter/BloomFilter.java b/src/main/java/org/apache/commons/collections4/bloomfilter/BloomFilter.java
+index e13260b996..58ed6bcb5c 100644
+--- a/src/main/java/org/apache/commons/collections4/bloomfilter/BloomFilter.java
++++ b/src/main/java/org/apache/commons/collections4/bloomfilter/BloomFilter.java
+@@ -29,6 +29,15 @@
+  */
+ public interface BloomFilter extends IndexProducer, BitMapProducer {
+ 
++    /**
++     * The sparse characteristic used to determine the best method for matching.
++     * <p>For `sparse` implementations
++     * the {@code forEachIndex(IntConsumer consumer)} method is more efficient.  For non `sparse` implementations
++     * the {@code forEachBitMap(LongConsumer consumer)} is more efficient.  Implementers should determine if it is easier
++     * for the implementation to produce indexes of bit map blocks.</p>
++     */
++    int SPARSE = 0x1;
++
+     /**
+      * Creates a new instance of the BloomFilter with the same properties as the current one.
+      * @return a copy of this BloomFilter
+@@ -38,17 +47,12 @@ public interface BloomFilter extends IndexProducer, BitMapProducer {
+     // Query Operations
+ 
+     /**
+-     * This method is used to determine the best method for matching.
+-     *
+-     * <p>For `sparse` implementations
+-     * the {@code forEachIndex(IntConsumer consumer)} method is more efficient.  For non `sparse` implementations
+-     * the {@code forEachBitMap(LongConsumer consumer)} is more efficient.  Implementers should determine if it is easier
+-     * for the implementation to produce indexes of bit map blocks.</p>
+-     *
+-     * @return {@code true} if the implementation is sparse {@code false} otherwise.
+-     * @see BitMap
++     * Returns the characteristics of the filter.
++     * <p>
++     * Characteristics are defined as bits within the characteristics integer.
++     * @return the characteristics for this bloom filter.
+      */
+-    boolean isSparse();
++    int characteristics();
+ 
+     /**
+      * Gets the shape that was used when the filter was built.
+@@ -69,7 +73,7 @@ public interface BloomFilter extends IndexProducer, BitMapProducer {
+      */
+     default boolean contains(BloomFilter other) {
+         Objects.requireNonNull(other, "other");
+-        return isSparse() ? contains((IndexProducer) other) : contains((BitMapProducer) other);
++        return (characteristics() & SPARSE) != 0 ? contains((IndexProducer) other) : contains((BitMapProducer) other);
+     }
+ 
+     /**
+@@ -143,8 +147,8 @@ default boolean contains(BitMapProducer bitMapProducer) {
+     default boolean merge(Hasher hasher) {
+         Objects.requireNonNull(hasher, "hasher");
+         Shape shape = getShape();
+-        // create the bloomfilter that is most likely to merge quickly with this one
+-        BloomFilter result = isSparse() ? new SparseBloomFilter(shape, hasher) : new SimpleBloomFilter(shape, hasher);
++        // create the Bloom filter that is most likely to merge quickly with this one
++        BloomFilter result = (characteristics() & SPARSE) != 0 ? new SparseBloomFilter(shape, hasher) : new SimpleBloomFilter(shape, hasher);
+         return merge(result);
+     }
+ 
+diff --git a/src/main/java/org/apache/commons/collections4/bloomfilter/SimpleBloomFilter.java b/src/main/java/org/apache/commons/collections4/bloomfilter/SimpleBloomFilter.java
+index b78ca999af..c351f40c19 100644
+--- a/src/main/java/org/apache/commons/collections4/bloomfilter/SimpleBloomFilter.java
++++ b/src/main/java/org/apache/commons/collections4/bloomfilter/SimpleBloomFilter.java
+@@ -65,7 +65,7 @@ public SimpleBloomFilter(BloomFilter other) {
+         this.shape = other.getShape();
+         this.bitMap = new long[BitMap.numberOfBitMaps(shape.getNumberOfBits())];
+         this.cardinality = 0;
+-        if (other.isSparse()) {
++        if ((other.characteristics() & SPARSE) != 0) {
+             merge((IndexProducer) other);
+         } else {
+             merge((BitMapProducer) other);
+@@ -194,7 +194,7 @@ public boolean merge(Hasher hasher) {
+     @Override
+     public boolean merge(BloomFilter other) {
+         Objects.requireNonNull(other, "other");
+-        if (other.isSparse()) {
++        if ((other.characteristics() & SPARSE) != 0) {
+             merge((IndexProducer) other);
+         } else {
+             merge((BitMapProducer) other);
+@@ -208,8 +208,8 @@ public Shape getShape() {
+     }
+ 
+     @Override
+-    public boolean isSparse() {
+-        return false;
++    public int characteristics() {
++        return 0;
+     }
+ 
+     @Override
+diff --git a/src/main/java/org/apache/commons/collections4/bloomfilter/SparseBloomFilter.java b/src/main/java/org/apache/commons/collections4/bloomfilter/SparseBloomFilter.java
+index 794e3bcdaa..9cfa034eb2 100644
+--- a/src/main/java/org/apache/commons/collections4/bloomfilter/SparseBloomFilter.java
++++ b/src/main/java/org/apache/commons/collections4/bloomfilter/SparseBloomFilter.java
+@@ -58,7 +58,7 @@ public SparseBloomFilter(BloomFilter other) {
+         Objects.requireNonNull(other, "other");
+         this.shape = other.getShape();
+         this.indices = new TreeSet<>();
+-        if (other.isSparse()) {
++        if ((other.characteristics() & SPARSE) != 0) {
+             merge((IndexProducer) other);
+         } else {
+             merge(IndexProducer.fromBitMapProducer(other));
+@@ -169,7 +169,7 @@ public boolean merge(Hasher hasher) {
+     @Override
+     public boolean merge(BloomFilter other) {
+         Objects.requireNonNull(other, "other");
+-        IndexProducer producer = other.isSparse() ? (IndexProducer) other : IndexProducer.fromBitMapProducer(other);
++        IndexProducer producer = (other.characteristics() & SPARSE) != 0 ? (IndexProducer) other : IndexProducer.fromBitMapProducer(other);
+         merge(producer);
+         return true;
+     }
+@@ -180,8 +180,8 @@ public Shape getShape() {
+     }
+ 
+     @Override
+-    public boolean isSparse() {
+-        return true;
++    public int characteristics() {
++        return SPARSE;
+     }
+ 
+     @Override

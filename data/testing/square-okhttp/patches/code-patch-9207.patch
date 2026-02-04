@@ -1,0 +1,14 @@
+diff --git a/android-test/build.gradle.kts b/android-test/build.gradle.kts
+index 60e705263d64..e704ee806d08 100644
+--- a/android-test/build.gradle.kts
++++ b/android-test/build.gradle.kts
+@@ -111,3 +111,9 @@ dependencies {
+   androidTestImplementation(libs.junit5android.core)
+   androidTestRuntimeOnly(libs.junit5android.runner)
+ }
++
++junitPlatform {
++  filters {
++    excludeTags("Remote")
++  }
++}

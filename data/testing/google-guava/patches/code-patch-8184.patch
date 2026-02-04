@@ -1,0 +1,148 @@
+diff --git a/android/guava/src/com/google/common/cache/CacheLoader.java b/android/guava/src/com/google/common/cache/CacheLoader.java
+index bf1235f9f5ea..98999ca2c09d 100644
+--- a/android/guava/src/com/google/common/cache/CacheLoader.java
++++ b/android/guava/src/com/google/common/cache/CacheLoader.java
+@@ -68,7 +68,7 @@ protected CacheLoader() {}
+    * @throws Exception if unable to load the result
+    * @throws InterruptedException if this method is interrupted. {@code InterruptedException} is
+    *     treated like any other {@code Exception} in all respects except that, when it is caught,
+-   *     the thread's interrupt status is set
++   *     the thread's interrupted status is set
+    */
+   public abstract V load(K key) throws Exception;
+ 
+@@ -90,7 +90,7 @@ protected CacheLoader() {}
+    * @throws Exception if unable to reload the result
+    * @throws InterruptedException if this method is interrupted. {@code InterruptedException} is
+    *     treated like any other {@code Exception} in all respects except that, when it is caught,
+-   *     the thread's interrupt status is set
++   *     the thread's interrupted status is set
+    * @since 11.0
+    */
+   @GwtIncompatible // Futures
+@@ -119,7 +119,7 @@ public ListenableFuture<V> reload(K key, V oldValue) throws Exception {
+    * @throws Exception if unable to load the result
+    * @throws InterruptedException if this method is interrupted. {@code InterruptedException} is
+    *     treated like any other {@code Exception} in all respects except that, when it is caught,
+-   *     the thread's interrupt status is set
++   *     the thread's interrupted status is set
+    * @since 11.0
+    */
+   public Map<K, V> loadAll(Iterable<? extends K> keys) throws Exception {
+diff --git a/android/guava/src/com/google/common/util/concurrent/InterruptibleTask.java b/android/guava/src/com/google/common/util/concurrent/InterruptibleTask.java
+index bc17e8c34a07..c1089b866e59 100644
+--- a/android/guava/src/com/google/common/util/concurrent/InterruptibleTask.java
++++ b/android/guava/src/com/google/common/util/concurrent/InterruptibleTask.java
+@@ -156,9 +156,9 @@ private void waitForInterrupt(Thread currentThread) {
+       currentThread.interrupt();
+     }
+     /*
+-     * TODO(cpovirk): Clear interrupt status here? We currently don't, which means that an interrupt
+-     * before, during, or after runInterruptibly() (unless it produced an InterruptedException
+-     * caught above) can linger and affect listeners.
++     * TODO(cpovirk): Clear interrupted status here? We currently don't, which means that an
++     * interrupt before, during, or after runInterruptibly() (unless it produced an
++     * InterruptedException caught above) can linger and affect listeners.
+      */
+   }
+ 
+diff --git a/android/guava/src/com/google/common/util/concurrent/Monitor.java b/android/guava/src/com/google/common/util/concurrent/Monitor.java
+index a0a22f9a743b..dc98ce118b06 100644
+--- a/android/guava/src/com/google/common/util/concurrent/Monitor.java
++++ b/android/guava/src/com/google/common/util/concurrent/Monitor.java
+@@ -533,7 +533,7 @@ public boolean enterWhen(Guard guard, long time, TimeUnit unit) throws Interrupt
+     locked:
+     {
+       if (!fair) {
+-        // Check interrupt status to get behavior consistent with fair case.
++        // Check interrupted status to get behavior consistent with the fair case.
+         if (Thread.interrupted()) {
+           throw new InterruptedException();
+         }
+diff --git a/android/guava/src/com/google/common/util/concurrent/MoreExecutors.java b/android/guava/src/com/google/common/util/concurrent/MoreExecutors.java
+index 3e05328f0e54..c5e841278a75 100644
+--- a/android/guava/src/com/google/common/util/concurrent/MoreExecutors.java
++++ b/android/guava/src/com/google/common/util/concurrent/MoreExecutors.java
+@@ -1042,7 +1042,7 @@ public static boolean shutdownAndAwaitTermination(
+         service.awaitTermination(halfTimeoutNanos, NANOSECONDS);
+       }
+     } catch (InterruptedException ie) {
+-      // Preserve interrupt status
++      // Preserve interrupted status
+       Thread.currentThread().interrupt();
+       // (Re-)Cancel if current thread also interrupted
+       service.shutdownNow();
+diff --git a/guava/src/com/google/common/cache/CacheLoader.java b/guava/src/com/google/common/cache/CacheLoader.java
+index a9568fc89633..a096848acd7e 100644
+--- a/guava/src/com/google/common/cache/CacheLoader.java
++++ b/guava/src/com/google/common/cache/CacheLoader.java
+@@ -68,7 +68,7 @@ protected CacheLoader() {}
+    * @throws Exception if unable to load the result
+    * @throws InterruptedException if this method is interrupted. {@code InterruptedException} is
+    *     treated like any other {@code Exception} in all respects except that, when it is caught,
+-   *     the thread's interrupt status is set
++   *     the thread's interrupted status is set
+    */
+   public abstract V load(K key) throws Exception;
+ 
+@@ -90,7 +90,7 @@ protected CacheLoader() {}
+    * @throws Exception if unable to reload the result
+    * @throws InterruptedException if this method is interrupted. {@code InterruptedException} is
+    *     treated like any other {@code Exception} in all respects except that, when it is caught,
+-   *     the thread's interrupt status is set
++   *     the thread's interrupted status is set
+    * @since 11.0
+    */
+   @GwtIncompatible // Futures
+@@ -119,7 +119,7 @@ public ListenableFuture<V> reload(K key, V oldValue) throws Exception {
+    * @throws Exception if unable to load the result
+    * @throws InterruptedException if this method is interrupted. {@code InterruptedException} is
+    *     treated like any other {@code Exception} in all respects except that, when it is caught,
+-   *     the thread's interrupt status is set
++   *     the thread's interrupted status is set
+    * @since 11.0
+    */
+   public Map<K, V> loadAll(Iterable<? extends K> keys) throws Exception {
+diff --git a/guava/src/com/google/common/util/concurrent/InterruptibleTask.java b/guava/src/com/google/common/util/concurrent/InterruptibleTask.java
+index 8f8bb2944fa2..d57326705863 100644
+--- a/guava/src/com/google/common/util/concurrent/InterruptibleTask.java
++++ b/guava/src/com/google/common/util/concurrent/InterruptibleTask.java
+@@ -151,9 +151,9 @@ private void waitForInterrupt(Thread currentThread) {
+       currentThread.interrupt();
+     }
+     /*
+-     * TODO(cpovirk): Clear interrupt status here? We currently don't, which means that an interrupt
+-     * before, during, or after runInterruptibly() (unless it produced an InterruptedException
+-     * caught above) can linger and affect listeners.
++     * TODO(cpovirk): Clear interrupted status here? We currently don't, which means that an
++     * interrupt before, during, or after runInterruptibly() (unless it produced an
++     * InterruptedException caught above) can linger and affect listeners.
+      */
+   }
+ 
+diff --git a/guava/src/com/google/common/util/concurrent/Monitor.java b/guava/src/com/google/common/util/concurrent/Monitor.java
+index 48972e1a3d4b..7fd195b9599d 100644
+--- a/guava/src/com/google/common/util/concurrent/Monitor.java
++++ b/guava/src/com/google/common/util/concurrent/Monitor.java
+@@ -528,7 +528,7 @@ public boolean enterWhen(Guard guard, long time, TimeUnit unit) throws Interrupt
+     locked:
+     {
+       if (!fair) {
+-        // Check interrupt status to get behavior consistent with fair case.
++        // Check interrupted status to get behavior consistent with the fair case.
+         if (Thread.interrupted()) {
+           throw new InterruptedException();
+         }
+diff --git a/guava/src/com/google/common/util/concurrent/MoreExecutors.java b/guava/src/com/google/common/util/concurrent/MoreExecutors.java
+index 17ef7ae0b435..22a53c402363 100644
+--- a/guava/src/com/google/common/util/concurrent/MoreExecutors.java
++++ b/guava/src/com/google/common/util/concurrent/MoreExecutors.java
+@@ -1037,7 +1037,7 @@ public static boolean shutdownAndAwaitTermination(
+         service.awaitTermination(halfTimeoutNanos, NANOSECONDS);
+       }
+     } catch (InterruptedException ie) {
+-      // Preserve interrupt status
++      // Preserve interrupted status
+       Thread.currentThread().interrupt();
+       // (Re-)Cancel if current thread also interrupted
+       service.shutdownNow();
