@@ -3,6 +3,7 @@ package com.swebench;
 import com.swebench.pipeline.RepositoryDiscovery;
 import com.swebench.pipeline.AttributeFilter;
 import com.swebench.pipeline.ExecutionFilter;
+import com.swebench.pipeline.TestingSetup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +33,9 @@ public class Main {
                     break;
                 case "validate":
                     runExecutionFilter(args);
+                    break;
+                case "setup-testing":
+                    runTestingSetup(args);
                     break;
                 case "pipeline":
                     runFullPipeline(args);
@@ -64,6 +68,12 @@ public class Main {
         filter.execute();
     }
 
+    private static void runTestingSetup(String[] args) {
+        logger.info("Setting up testing directory structure");
+        TestingSetup setup = new TestingSetup();
+        setup.execute();
+    }
+
     private static void runFullPipeline(String[] args) {
         logger.info("Running full pipeline");
         runDiscovery(args);
@@ -77,13 +87,15 @@ public class Main {
         System.out.println("Usage: java -jar java-swe-bench.jar <command> [options]");
         System.out.println();
         System.out.println("Commands:");
-        System.out.println("  discover   - Run repository discovery stage");
-        System.out.println("  filter     - Run attribute filtering stage");
-        System.out.println("  validate   - Run execution filtering stage");
-        System.out.println("  pipeline   - Run full pipeline (all stages)");
+        System.out.println("  discover      - Run repository discovery stage");
+        System.out.println("  filter        - Run attribute filtering stage");
+        System.out.println("  validate      - Run execution filtering stage");
+        System.out.println("  setup-testing - Setup testing directory structure with patch files");
+        System.out.println("  pipeline      - Run full pipeline (all stages)");
         System.out.println();
         System.out.println("Examples:");
         System.out.println("  java -jar java-swe-bench.jar discover");
+        System.out.println("  java -jar java-swe-bench.jar setup-testing");
         System.out.println("  java -jar java-swe-bench.jar pipeline");
     }
 }
