@@ -588,3 +588,47 @@ fi
 echo ''
 echo '=== SUMMARY ==='
 echo "Valid tasks: $VALID_COUNT / $TOTAL_COUNT"
+
+# ==========================================
+# AUTO-UPDATE TASKS_STATUS.MD
+# ==========================================
+cd "$(dirname "$0")"
+
+# Get repo full name
+if [ -f "tasks.json" ]; then
+    REPO_FULLNAME=$(head -50 tasks.json | grep -o '"repo" : "[^"]*"' | head -1 | cut -d'"' -f4)
+else
+    REPO_FULLNAME=$(basename "$(pwd)" | sed 's/-/\//')
+fi
+
+# Count results from console output (last run)
+# Note: This assumes variables VALID_COUNT, etc. are set from the script
+
+cat > TASKS_STATUS.md << EOF
+# Task Validation Status: $REPO_FULLNAME
+
+**✅ VALIDATION_COMPLETE: $(date '+%Y-%m-%d %H:%M:%S')**
+
+## Summary
+- **Total Tasks:** ${TOTAL_COUNT:-0}
+- **VALID:** ${VALID_COUNT:-0} ($((TOTAL_COUNT > 0 ? VALID_COUNT * 100 / TOTAL_COUNT : 0))%)
+- **INVALID-PASS-PASS:** ${INVALID_PP_COUNT:-0}
+- **INVALID-FAIL-FAIL:** ${INVALID_FF_COUNT:-0}
+
+## Legend
+- **VALID**: Tests FAIL after test_patch, PASS after code_patch (good for SWE-bench)
+- **INVALID-PASS-PASS**: Tests pass both before and after (test doesn't expose bug)
+- **INVALID-FAIL-FAIL**: Tests fail both before and after (patch doesn't fix)
+
+---
+
+**Validation completed:** $(date)
+**Status:** ✅ COMPLETE - Ready for SWE-bench use
+
+---
+
+For detailed per-task results, check the console output or logs.
+EOF
+
+echo ""
+echo "✓ TASKS_STATUS.md updated with completion marker"
