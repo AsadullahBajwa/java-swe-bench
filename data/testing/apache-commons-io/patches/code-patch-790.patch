@@ -1,0 +1,1231 @@
+diff --git a/src/changes/changes.xml b/src/changes/changes.xml
+index 0190734a841..7c2b0971b29 100644
+--- a/src/changes/changes.xml
++++ b/src/changes/changes.xml
+@@ -68,6 +68,7 @@ The <action> type attribute can be add,update,fix,remove.
+       <action dev="ggregory" type="add"                due-to="Gary Gregory">Add IOIterable.asIterable().</action>
+       <action dev="pkarwasz" type="add"                due-to="Piotr P. Karwasz">Add NIO channel support to `AbstractStreamBuilder`.</action>
+       <action dev="pkarwasz" type="add"                due-to="Piotr P. Karwasz">Add CloseShieldChannel to close-shielded NIO Channels #786.</action>
++      <action dev="pkarwasz" type="add"                due-to="Piotr P. Karwasz">Added IOUtils.checkFromIndexSize as a Java 8 backport of Objects.checkFromIndexSize #790.</action>
+       <!-- UPDATE -->
+       <action type="update" dev="ggregory"             due-to="Gary Gregory, Dependabot">Bump org.apache.commons:commons-parent from 85 to 88 #774, #783.</action>
+       <action type="update" dev="ggregory"             due-to="Gary Gregory">[test] Bump commons-codec:commons-codec from 1.18.0 to 1.19.0.</action>
+diff --git a/src/main/java/org/apache/commons/io/IOUtils.java b/src/main/java/org/apache/commons/io/IOUtils.java
+index e37eddafb3f..a882d4d87cb 100644
+--- a/src/main/java/org/apache/commons/io/IOUtils.java
++++ b/src/main/java/org/apache/commons/io/IOUtils.java
+@@ -406,6 +406,183 @@ private static char[] charArray(final int size) {
+         return new char[size];
+     }
+ 
++    /**
++     * Validates that the sub-range {@code [off, off + len)} is within the bounds of the given array.
++     *
++     * <p>The range is valid if all of the following hold:</p>
++     * <ul>
++     *   <li>{@code off >= 0}</li>
++     *   <li>{@code len >= 0}</li>
++     *   <li>{@code off + len <= array.length}</li>
++     * </ul>
++     *
++     * <p>If the range is invalid, throws {@link IndexOutOfBoundsException} with a descriptive message.</p>
++     *
++     * <p>Typical usage in {@link InputStream#read(byte[], int, int)} and {@link OutputStream#write(byte[], int, int)} implementations:</p>
++     *
++     * <pre><code>
++     * public int read(byte[] b, int off, int len) throws IOException {
++     *     IOUtils.checkFromIndexSize(b, off, len);
++     *     if (len == 0) {
++     *         return 0;
++     *     }
++     *     ensureOpen();
++     *     // perform read...
++     * }
++     *
++     * public void write(byte[] b, int off, int len) throws IOException {
++     *     IOUtils.checkFromIndexSize(b, off, len);
++     *     if (len == 0) {
++     *         return;
++     *     }
++     *     ensureOpen();
++     *     // perform write...
++     * }
++     * </code></pre>
++     *
++     * @param array the array against which the range is validated
++     * @param off   the starting offset into the array (inclusive)
++     * @param len   the number of elements to access
++     * @throws NullPointerException      if {@code array} is {@code null}
++     * @throws IndexOutOfBoundsException if the range {@code [off, off + len)} is out of bounds for {@code array}
++     * @see InputStream#read(byte[], int, int)
++     * @see OutputStream#write(byte[], int, int)
++     * @since 2.21.0
++     */
++    public static void checkFromIndexSize(final byte[] array, final int off, final int len) {
++        checkFromIndexSize(off, len, Objects.requireNonNull(array, "byte array").length);
++    }
++
++    /**
++     * Validates that the sub-range {@code [off, off + len)} is within the bounds of the given array.
++     *
++     * <p>The range is valid if all of the following hold:</p>
++     * <ul>
++     *   <li>{@code off >= 0}</li>
++     *   <li>{@code len >= 0}</li>
++     *   <li>{@code off + len <= array.length}</li>
++     * </ul>
++     *
++     * <p>If the range is invalid, throws {@link IndexOutOfBoundsException} with a descriptive message.</p>
++     *
++     * <p>Typical usage in {@link Reader#read(char[], int, int)} and {@link Writer#write(char[], int, int)} implementations:</p>
++     *
++     * <pre><code>
++     * public int read(char[] cbuf, int off, int len) throws IOException {
++     *     ensureOpen();
++     *     IOUtils.checkFromIndexSize(cbuf, off, len);
++     *     if (len == 0) {
++     *         return 0;
++     *     }
++     *     // perform read...
++     * }
++     *
++     * public void write(char[] cbuf, int off, int len) throws IOException {
++     *     ensureOpen();
++     *     IOUtils.checkFromIndexSize(cbuf, off, len);
++     *     if (len == 0) {
++     *         return;
++     *     }
++     *     // perform write...
++     * }
++     * </code></pre>
++     *
++     * @param array the array against which the range is validated
++     * @param off   the starting offset into the array (inclusive)
++     * @param len   the number of characters to access
++     * @throws NullPointerException      if {@code array} is {@code null}
++     * @throws IndexOutOfBoundsException if the range {@code [off, off + len)} is out of bounds for {@code array}
++     * @see Reader#read(char[], int, int)
++     * @see Writer#write(char[], int, int)
++     * @since 2.21.0
++     */
++    public static void checkFromIndexSize(final char[] array, final int off, final int len) {
++        checkFromIndexSize(off, len, Objects.requireNonNull(array, "char array").length);
++    }
++
++    /**
++     * Validates that the sub-range {@code [off, off + len)} is within the bounds of the given string.
++     *
++     * <p>The range is valid if all of the following hold:</p>
++     * <ul>
++     *   <li>{@code off >= 0}</li>
++     *   <li>{@code len >= 0}</li>
++     *   <li>{@code off + len <= str.length()}</li>
++     * </ul>
++     *
++     * <p>If the range is invalid, throws {@link IndexOutOfBoundsException} with a descriptive message.</p>
++     *
++     * <p>Typical usage in {@link Writer#write(String, int, int)} implementations:</p>
++     *
++     * <pre><code>
++     * public void write(String str, int off, int len) throws IOException {
++     *     IOUtils.checkFromIndexSize(str, off, len);
++     *     if (len == 0) {
++     *         return;
++     *     }
++     *     // perform write...
++     * }
++     * </code></pre>
++     *
++     * @param str the string against which the range is validated
++     * @param off the starting offset into the string (inclusive)
++     * @param len the number of characters to write
++     * @throws NullPointerException      if {@code str} is {@code null}
++     * @throws IndexOutOfBoundsException if the range {@code [off, off + len)} is out of bounds for {@code str}
++     * @see Writer#write(String, int, int)
++     * @since 2.21.0
++     */
++    public static void checkFromIndexSize(final String str, final int off, final int len) {
++        checkFromIndexSize(off, len, Objects.requireNonNull(str, "str").length());
++    }
++
++    static void checkFromIndexSize(final int off, final int len, final int arrayLength) {
++        if ((off | len | arrayLength) < 0 || arrayLength - len < off) {
++            throw new IndexOutOfBoundsException(String.format("Range [%s, %<s + %s) out of bounds for length %s", off, len, arrayLength));
++        }
++    }
++
++    /**
++     * Validates that the sub-sequence {@code [fromIndex, toIndex)} is within the bounds of the given {@link CharSequence}.
++     *
++     * <p>The sub-sequence is valid if all of the following hold:</p>
++     * <ul>
++     *   <li>{@code fromIndex >= 0}</li>
++     *   <li>{@code fromIndex <= toIndex}</li>
++     *   <li>{@code toIndex <= seq.length()}</li>
++     * </ul>
++     *
++     * <p>If {@code seq} is {@code null}, it is treated as the literal string {@code "null"} (length {@code 4}).</p>
++     *
++     * <p>If the range is invalid, throws {@link IndexOutOfBoundsException} with a descriptive message.</p>
++     *
++     * <p>Typical usage in {@link Appendable#append(CharSequence, int, int)} implementations:</p>
++     *
++     * <pre><code>
++     * public Appendable append(CharSequence csq, int start, int end) throws IOException {
++     *     IOUtils.checkFromToIndex(csq, start, end);
++     *     // perform append...
++     *     return this;
++     * }
++     * </code></pre>
++     *
++     * @param seq       the character sequence to validate (may be {@code null}, treated as {@code "null"})
++     * @param fromIndex the starting index (inclusive)
++     * @param toIndex   the ending index (exclusive)
++     * @throws IndexOutOfBoundsException if the range {@code [fromIndex, toIndex)} is out of bounds for {@code seq}
++     * @see Appendable#append(CharSequence, int, int)
++     * @since 2.21.0
++     */
++    public static void checkFromToIndex(final CharSequence seq, final int fromIndex, final int toIndex) {
++        checkFromToIndex(fromIndex, toIndex, seq != null ? seq.length() : 4);
++    }
++
++    static void checkFromToIndex(final int fromIndex, final int toIndex, final int length) {
++        if (fromIndex < 0 || toIndex < fromIndex || length < toIndex) {
++            throw new IndexOutOfBoundsException(String.format("Range [%s, %s) out of bounds for length %s", fromIndex, toIndex, length));
++        }
++    }
++
+     /**
+      * Clears any state.
+      * <ul>
+diff --git a/src/main/java/org/apache/commons/io/input/BOMInputStream.java b/src/main/java/org/apache/commons/io/input/BOMInputStream.java
+index c5872d7cbc9..acfe8d9ddbb 100644
+--- a/src/main/java/org/apache/commons/io/input/BOMInputStream.java
++++ b/src/main/java/org/apache/commons/io/input/BOMInputStream.java
+@@ -419,8 +419,10 @@ public int read() throws IOException {
+      * Invokes the delegate's {@code read(byte[])} method, detecting and optionally skipping BOM.
+      *
+      * @param buf
+-     *            the buffer to read the bytes into
++     *            the buffer to read the bytes into, never {@code null}
+      * @return the number of bytes read (excluding BOM) or -1 if the end of stream
++     * @throws NullPointerException
++     *             if the buffer is {@code null}
+      * @throws IOException
+      *             if an I/O error occurs
+      */
+@@ -439,11 +441,19 @@ public int read(final byte[] buf) throws IOException {
+      * @param len
+      *            The number of bytes to read (excluding BOM)
+      * @return the number of bytes read or -1 if the end of stream
++     * @throws NullPointerException
++     *             if the buffer is {@code null}
++     * @throws IndexOutOfBoundsException
++     *             if {@code off} or {@code len} are negative, or if {@code off + len} is greater than {@code buf.length}
+      * @throws IOException
+      *             if an I/O error occurs
+      */
+     @Override
+     public int read(final byte[] buf, int off, int len) throws IOException {
++        IOUtils.checkFromIndexSize(buf, off, len);
++        if (len == 0) {
++            return 0;
++        }
+         int firstCount = 0;
+         int b = 0;
+         while (len > 0 && b >= 0) {
+diff --git a/src/main/java/org/apache/commons/io/input/BoundedReader.java b/src/main/java/org/apache/commons/io/input/BoundedReader.java
+index 3cd0cee6259..5c1c255c0fe 100644
+--- a/src/main/java/org/apache/commons/io/input/BoundedReader.java
++++ b/src/main/java/org/apache/commons/io/input/BoundedReader.java
+@@ -23,6 +23,8 @@
+ import java.io.IOException;
+ import java.io.Reader;
+ 
++import org.apache.commons.io.IOUtils;
++
+ /**
+  * A reader that imposes a limit to the number of characters that can be read from an underlying reader, returning EOF
+  * when this limit is reached, regardless of state of underlying reader.
+@@ -116,11 +118,14 @@ public int read() throws IOException {
+      * @param off  The offset
+      * @param len  The number of chars to read
+      * @return the number of chars read
++     * @throws NullPointerException if the buffer is {@code null}.
++     * @throws IndexOutOfBoundsException if {@code off} or {@code len} are negative, or if {@code off + len} is greater than {@code cbuf.length}.
+      * @throws IOException If an I/O error occurs while calling the underlying reader's read method
+      * @see Reader#read(char[], int, int)
+      */
+     @Override
+     public int read(final char[] cbuf, final int off, final int len) throws IOException {
++        IOUtils.checkFromIndexSize(cbuf, off, len);
+         int c;
+         for (int i = 0; i < len; i++) {
+             c = read();
+diff --git a/src/main/java/org/apache/commons/io/input/BufferedFileChannelInputStream.java b/src/main/java/org/apache/commons/io/input/BufferedFileChannelInputStream.java
+index bc5a9533038..8e81b34508a 100644
+--- a/src/main/java/org/apache/commons/io/input/BufferedFileChannelInputStream.java
++++ b/src/main/java/org/apache/commons/io/input/BufferedFileChannelInputStream.java
+@@ -254,8 +254,9 @@ public synchronized int read() throws IOException {
+ 
+     @Override
+     public synchronized int read(final byte[] b, final int offset, int len) throws IOException {
+-        if (offset < 0 || len < 0 || offset + len < 0 || offset + len > b.length) {
+-            throw new IndexOutOfBoundsException();
++        IOUtils.checkFromIndexSize(b, offset, len);
++        if (len == 0) {
++            return 0;
+         }
+         if (!refill()) {
+             return EOF;
+diff --git a/src/main/java/org/apache/commons/io/input/CharSequenceInputStream.java b/src/main/java/org/apache/commons/io/input/CharSequenceInputStream.java
+index 8666105491a..874dcf1cb39 100644
+--- a/src/main/java/org/apache/commons/io/input/CharSequenceInputStream.java
++++ b/src/main/java/org/apache/commons/io/input/CharSequenceInputStream.java
+@@ -28,7 +28,6 @@
+ import java.nio.charset.CharsetEncoder;
+ import java.nio.charset.CoderResult;
+ import java.nio.charset.CodingErrorAction;
+-import java.util.Objects;
+ 
+ import org.apache.commons.io.Charsets;
+ import org.apache.commons.io.IOUtils;
+@@ -319,10 +318,7 @@ public int read(final byte[] b) throws IOException {
+ 
+     @Override
+     public int read(final byte[] array, int off, int len) throws IOException {
+-        Objects.requireNonNull(array, "array");
+-        if (len < 0 || off + len > array.length) {
+-            throw new IndexOutOfBoundsException("Array Size=" + array.length + ", offset=" + off + ", length=" + len);
+-        }
++        IOUtils.checkFromIndexSize(array, off, len);
+         if (len == 0) {
+             return 0; // must return 0 for zero length read
+         }
+diff --git a/src/main/java/org/apache/commons/io/input/CharSequenceReader.java b/src/main/java/org/apache/commons/io/input/CharSequenceReader.java
+index 8fee366b2da..bb2be3692c9 100644
+--- a/src/main/java/org/apache/commons/io/input/CharSequenceReader.java
++++ b/src/main/java/org/apache/commons/io/input/CharSequenceReader.java
+@@ -20,7 +20,8 @@
+ 
+ import java.io.Reader;
+ import java.io.Serializable;
+-import java.util.Objects;
++
++import org.apache.commons.io.IOUtils;
+ 
+ /**
+  * {@link Reader} implementation that can read from String, StringBuffer,
+@@ -204,19 +205,19 @@ public int read() {
+      * @param array The array to store the characters in
+      * @param offset The starting position in the array to store
+      * @param length The maximum number of characters to read
+-     * @return The number of characters read or -1 if there are
+-     * no more
++     * @return The number of characters read or -1 if there are no more
++     * @throws NullPointerException if the array is {@code null}.
++     * @throws IndexOutOfBoundsException if {@code offset} or {@code length} are negative, or if {@code offset + length} is greater than {@code array.length}.
+      */
+     @Override
+     public int read(final char[] array, final int offset, final int length) {
++        IOUtils.checkFromIndexSize(array, offset, length);
++        if (length == 0) {
++            return 0;
++        }
+         if (idx >= end()) {
+             return EOF;
+         }
+-        Objects.requireNonNull(array, "array");
+-        if (length < 0 || offset < 0 || offset + length > array.length) {
+-            throw new IndexOutOfBoundsException("Array Size=" + array.length +
+-                    ", offset=" + offset + ", length=" + length);
+-        }
+ 
+         if (charSequence instanceof String) {
+             final int count = Math.min(length, end() - idx);
+diff --git a/src/main/java/org/apache/commons/io/input/ClosedInputStream.java b/src/main/java/org/apache/commons/io/input/ClosedInputStream.java
+index ceab0176090..11bc7be6e19 100644
+--- a/src/main/java/org/apache/commons/io/input/ClosedInputStream.java
++++ b/src/main/java/org/apache/commons/io/input/ClosedInputStream.java
+@@ -79,13 +79,19 @@ public int read() {
+     /**
+      * Returns {@code -1} to indicate that the stream is closed.
+      *
+-     * @param b ignored.
+-     * @param off ignored.
+-     * @param len ignored.
+-     * @return always -1.
++     * @param b The buffer to read bytes into.
++     * @param off The start offset.
++     * @param len The number of bytes to read.
++     * @return If len is zero, then {@code 0}; otherwise {@code -1}.
++     * @throws NullPointerException if the byte array is {@code null}.
++     * @throws IndexOutOfBoundsException if {@code off} or {@code len} are negative, or if {@code off + len} is greater than {@code b.length}.
+      */
+     @Override
+     public int read(final byte[] b, final int off, final int len) throws IOException {
++        IOUtils.checkFromIndexSize(b, off, len);
++        if (len == 0) {
++            return 0;
++        }
+         return EOF;
+     }
+ 
+diff --git a/src/main/java/org/apache/commons/io/input/ClosedReader.java b/src/main/java/org/apache/commons/io/input/ClosedReader.java
+index 93c99e3c550..b50721c120d 100644
+--- a/src/main/java/org/apache/commons/io/input/ClosedReader.java
++++ b/src/main/java/org/apache/commons/io/input/ClosedReader.java
+@@ -62,15 +62,26 @@ public void close() throws IOException {
+     }
+ 
+     /**
+-     * Returns -1 to indicate that the stream is closed.
++     * A no-op read method that always indicates end-of-stream.
+      *
+-     * @param cbuf ignored
+-     * @param off ignored
+-     * @param len ignored
+-     * @return always -1
++     * <p>Behavior:</p>
++     * <ul>
++     *   <li>If {@code len == 0}, returns {@code 0} immediately (no characters are read).</li>
++     *   <li>Otherwise, always returns {@value IOUtils#EOF} to signal that the stream is closed or at end-of-stream.</li>
++     * </ul>
++     *
++     * @param cbuf The destination buffer.
++     * @param off  The offset at which to start storing characters.
++     * @param len  The maximum number of characters to read.
++     * @return {@code 0} if {@code len == 0}; otherwise always {@value IOUtils#EOF}.
++     * @throws IndexOutOfBoundsException If {@code off < 0}, {@code len < 0}, or {@code off + len > cbuf.length}.
+      */
+     @Override
+     public int read(final char[] cbuf, final int off, final int len) {
++        IOUtils.checkFromIndexSize(cbuf, off, len);
++        if (len == 0) {
++            return 0;
++        }
+         return EOF;
+     }
+ 
+diff --git a/src/main/java/org/apache/commons/io/input/MemoryMappedFileInputStream.java b/src/main/java/org/apache/commons/io/input/MemoryMappedFileInputStream.java
+index 8fdd7aec8b9..22fae70ca75 100644
+--- a/src/main/java/org/apache/commons/io/input/MemoryMappedFileInputStream.java
++++ b/src/main/java/org/apache/commons/io/input/MemoryMappedFileInputStream.java
+@@ -27,6 +27,7 @@
+ import java.nio.file.Path;
+ import java.nio.file.StandardOpenOption;
+ 
++import org.apache.commons.io.IOUtils;
+ import org.apache.commons.io.build.AbstractStreamBuilder;
+ 
+ /**
+@@ -216,6 +217,10 @@ public int read() throws IOException {
+ 
+     @Override
+     public int read(final byte[] b, final int off, final int len) throws IOException {
++        IOUtils.checkFromIndexSize(b, off, len);
++        if (len == 0) {
++            return 0;
++        }
+         checkOpen();
+         if (!buffer.hasRemaining()) {
+             nextBuffer();
+diff --git a/src/main/java/org/apache/commons/io/input/NullInputStream.java b/src/main/java/org/apache/commons/io/input/NullInputStream.java
+index 5f3497863b0..5fa9b817b5c 100644
+--- a/src/main/java/org/apache/commons/io/input/NullInputStream.java
++++ b/src/main/java/org/apache/commons/io/input/NullInputStream.java
+@@ -22,6 +22,8 @@
+ import java.io.IOException;
+ import java.io.InputStream;
+ 
++import org.apache.commons.io.IOUtils;
++
+ /**
+  * A lightweight {@link InputStream} that emulates a stream of a specified size.
+  * <p>
+@@ -241,9 +243,9 @@ protected int processByte() {
+      * This implementation leaves the byte array unchanged.
+      * </p>
+      *
+-     * @param bytes  The byte array
+-     * @param offset The offset to start at.
+-     * @param length The number of bytes.
++     * @param bytes  The byte array, never {@code null}.
++     * @param offset The offset to start at, always non-negative.
++     * @param length The number of bytes to process, always non-negative and at most {@code bytes.length - offset}.
+      */
+     protected void processBytes(final byte[] bytes, final int offset, final int length) {
+         // do nothing - overridable by subclass
+@@ -272,6 +274,7 @@ public int read() throws IOException {
+      *
+      * @param bytes The byte array to read into
+      * @return The number of bytes read or {@code -1} if the end of file has been reached and {@code throwEofException} is set to {@code false}.
++     * @throws NullPointerException if the byte array is {@code null}.
+      * @throws EOFException if the end of file is reached and {@code throwEofException} is set to {@code true}.
+      * @throws IOException  if trying to read past the end of file.
+      */
+@@ -287,12 +290,15 @@ public int read(final byte[] bytes) throws IOException {
+      * @param offset The offset to start reading bytes into.
+      * @param length The number of bytes to read.
+      * @return The number of bytes read or {@code -1} if the end of file has been reached and {@code throwEofException} is set to {@code false}.
++     * @throws NullPointerException if the byte array is {@code null}.
++     * @throws IndexOutOfBoundsException if {@code offset} or {@code length} are negative, or if {@code offset + length} is greater than {@code bytes.length}.
+      * @throws EOFException if the end of file is reached and {@code throwEofException} is set to {@code true}.
+      * @throws IOException  if trying to read past the end of file.
+      */
+     @Override
+     public int read(final byte[] bytes, final int offset, final int length) throws IOException {
+-        if (bytes.length == 0 || length == 0) {
++        IOUtils.checkFromIndexSize(bytes, offset, length);
++        if (length == 0) {
+             return 0;
+         }
+         checkOpen();
+diff --git a/src/main/java/org/apache/commons/io/input/NullReader.java b/src/main/java/org/apache/commons/io/input/NullReader.java
+index c5ae530a170..28f3d37eb21 100644
+--- a/src/main/java/org/apache/commons/io/input/NullReader.java
++++ b/src/main/java/org/apache/commons/io/input/NullReader.java
+@@ -22,6 +22,8 @@
+ import java.io.IOException;
+ import java.io.Reader;
+ 
++import org.apache.commons.io.IOUtils;
++
+ /**
+  * A functional, lightweight {@link Reader} that emulates
+  * a reader of a specified size.
+@@ -270,12 +272,18 @@ public int read(final char[] chars) throws IOException {
+      * @return The number of characters read or {@code -1}
+      * if the end of file has been reached and
+      * {@code throwEofException} is set to {@code false}.
++     * @throws NullPointerException if the array is {@code null}.
++     * @throws IndexOutOfBoundsException if {@code offset} or {@code length} are negative, or if {@code offset + length} is greater than {@code chars.length}.
+      * @throws EOFException if the end of file is reached and
+      * {@code throwEofException} is set to {@code true}.
+      * @throws IOException if trying to read past the end of file.
+      */
+     @Override
+     public int read(final char[] chars, final int offset, final int length) throws IOException {
++        IOUtils.checkFromIndexSize(chars, offset, length);
++        if (length == 0) {
++            return 0;
++        }
+         if (eof) {
+             throw new IOException("Read after end of file");
+         }
+diff --git a/src/main/java/org/apache/commons/io/input/QueueInputStream.java b/src/main/java/org/apache/commons/io/input/QueueInputStream.java
+index 1515eb94036..5f701945cb3 100644
+--- a/src/main/java/org/apache/commons/io/input/QueueInputStream.java
++++ b/src/main/java/org/apache/commons/io/input/QueueInputStream.java
+@@ -30,6 +30,7 @@
+ import java.util.concurrent.LinkedBlockingQueue;
+ import java.util.concurrent.TimeUnit;
+ 
++import org.apache.commons.io.IOUtils;
+ import org.apache.commons.io.build.AbstractStreamBuilder;
+ import org.apache.commons.io.output.QueueOutputStream;
+ 
+@@ -244,13 +245,7 @@ public int read() {
+      */
+     @Override
+     public int read(final byte[] b, final int offset, final int length) {
+-        if (b == null) {
+-            throw new NullPointerException();
+-        }
+-        if (offset < 0 || length < 0 || length > b.length - offset) {
+-            throw new IndexOutOfBoundsException(
+-                    String.format("Range [%d, %<d + %d) out of bounds for length %d", offset, length, b.length));
+-        }
++        IOUtils.checkFromIndexSize(b, offset, length);
+         if (length == 0) {
+             return 0;
+         }
+diff --git a/src/main/java/org/apache/commons/io/input/ReadAheadInputStream.java b/src/main/java/org/apache/commons/io/input/ReadAheadInputStream.java
+index 08e0182373e..bcee009a431 100644
+--- a/src/main/java/org/apache/commons/io/input/ReadAheadInputStream.java
++++ b/src/main/java/org/apache/commons/io/input/ReadAheadInputStream.java
+@@ -30,6 +30,7 @@
+ import java.util.concurrent.locks.Condition;
+ import java.util.concurrent.locks.ReentrantLock;
+ 
++import org.apache.commons.io.IOUtils;
+ import org.apache.commons.io.build.AbstractStreamBuilder;
+ 
+ /**
+@@ -341,9 +342,7 @@ public int read() throws IOException {
+ 
+     @Override
+     public int read(final byte[] b, final int offset, int len) throws IOException {
+-        if (offset < 0 || len < 0 || len > b.length - offset) {
+-            throw new IndexOutOfBoundsException();
+-        }
++        IOUtils.checkFromIndexSize(b, offset, len);
+         if (len == 0) {
+             return 0;
+         }
+diff --git a/src/main/java/org/apache/commons/io/input/ReaderInputStream.java b/src/main/java/org/apache/commons/io/input/ReaderInputStream.java
+index bcd03abd565..4d22d28f891 100644
+--- a/src/main/java/org/apache/commons/io/input/ReaderInputStream.java
++++ b/src/main/java/org/apache/commons/io/input/ReaderInputStream.java
+@@ -30,7 +30,6 @@
+ import java.nio.charset.CharsetEncoder;
+ import java.nio.charset.CoderResult;
+ import java.nio.charset.CodingErrorAction;
+-import java.util.Objects;
+ 
+ import org.apache.commons.io.Charsets;
+ import org.apache.commons.io.IOUtils;
+@@ -436,8 +435,9 @@ public int read() throws IOException {
+     /**
+      * Reads the specified number of bytes into an array.
+      *
+-     * @param b the byte array to read into
++     * @param b the byte array to read into, must not be {@code null}
+      * @return the number of bytes read or {@code -1} if the end of the stream has been reached
++     * @throws NullPointerException if the byte array is {@code null}.
+      * @throws IOException if an I/O error occurs.
+      */
+     @Override
+@@ -452,18 +452,17 @@ public int read(final byte[] b) throws IOException {
+      * @param off   the offset to start reading bytes into
+      * @param len   the number of bytes to read
+      * @return the number of bytes read or {@code -1} if the end of the stream has been reached
++     * @throws NullPointerException      if the byte array is {@code null}.
++     * @throws IndexOutOfBoundsException if {@code off} or {@code len} are negative, or if {@code off + len} is greater than {@code array.length}.
+      * @throws IOException if an I/O error occurs.
+      */
+     @Override
+     public int read(final byte[] array, int off, int len) throws IOException {
+-        Objects.requireNonNull(array, "array");
+-        if (len < 0 || off < 0 || off + len > array.length) {
+-            throw new IndexOutOfBoundsException("Array size=" + array.length + ", offset=" + off + ", length=" + len);
+-        }
+-        int read = 0;
++        IOUtils.checkFromIndexSize(array, off, len);
+         if (len == 0) {
+             return 0; // Always return 0 if len == 0
+         }
++        int read = 0;
+         while (len > 0) {
+             if (encoderOut.hasRemaining()) { // Data from the last read not fully copied
+                 final int c = Math.min(encoderOut.remaining(), len);
+diff --git a/src/main/java/org/apache/commons/io/input/SequenceReader.java b/src/main/java/org/apache/commons/io/input/SequenceReader.java
+index 6632917030b..daeb71faa92 100644
+--- a/src/main/java/org/apache/commons/io/input/SequenceReader.java
++++ b/src/main/java/org/apache/commons/io/input/SequenceReader.java
+@@ -25,6 +25,7 @@
+ import java.util.Iterator;
+ import java.util.Objects;
+ 
++import org.apache.commons.io.IOUtils;
+ import org.apache.commons.io.function.Uncheck;
+ 
+ /**
+@@ -107,16 +108,11 @@ public int read() throws IOException {
+         return c;
+     }
+ 
+-    /*
+-     * (non-Javadoc)
+-     *
+-     * @see Reader#read()
+-     */
+     @Override
+     public int read(final char[] cbuf, int off, int len) throws IOException {
+-        Objects.requireNonNull(cbuf, "cbuf");
+-        if (len < 0 || off < 0 || off + len > cbuf.length) {
+-            throw new IndexOutOfBoundsException("Array Size=" + cbuf.length + ", offset=" + off + ", length=" + len);
++        IOUtils.checkFromIndexSize(cbuf, off, len);
++        if (len == 0) {
++            return 0;
+         }
+         int count = 0;
+         while (reader != null) {
+diff --git a/src/main/java/org/apache/commons/io/input/UnsynchronizedBufferedInputStream.java b/src/main/java/org/apache/commons/io/input/UnsynchronizedBufferedInputStream.java
+index 8106a065631..8d60f6cedb8 100644
+--- a/src/main/java/org/apache/commons/io/input/UnsynchronizedBufferedInputStream.java
++++ b/src/main/java/org/apache/commons/io/input/UnsynchronizedBufferedInputStream.java
+@@ -306,19 +306,16 @@ public int read() throws IOException {
+      */
+     @Override
+     public int read(final byte[] dest, int offset, final int length) throws IOException {
++        IOUtils.checkFromIndexSize(dest, offset, length);
++        if (length == 0) {
++            return 0;
++        }
+         // Use local ref since buf may be invalidated by an unsynchronized
+         // close()
+         byte[] localBuf = buffer;
+         if (localBuf == null) {
+             throw new IOException("Stream is closed");
+         }
+-        // avoid int overflow
+-        if (offset > dest.length - length || offset < 0 || length < 0) {
+-            throw new IndexOutOfBoundsException();
+-        }
+-        if (length == 0) {
+-            return 0;
+-        }
+         final InputStream localIn = inputStream;
+         if (localIn == null) {
+             throw new IOException("Stream is closed");
+diff --git a/src/main/java/org/apache/commons/io/input/UnsynchronizedBufferedReader.java b/src/main/java/org/apache/commons/io/input/UnsynchronizedBufferedReader.java
+index 51b48c07af3..bde55873f24 100644
+--- a/src/main/java/org/apache/commons/io/input/UnsynchronizedBufferedReader.java
++++ b/src/main/java/org/apache/commons/io/input/UnsynchronizedBufferedReader.java
+@@ -271,10 +271,17 @@ public int read() throws IOException {
+      */
+     @Override
+     public int read(final char[] buffer, int offset, final int length) throws IOException {
++        /*
++         * First throw on a closed reader, then check the parameters.
++         *
++         * This behavior is not specified in the Javadoc, but is followed by most readers in java.io.
++         */
+         checkOpen();
+-        if (offset < 0 || offset > buffer.length - length || length < 0) {
+-            throw new IndexOutOfBoundsException();
++        IOUtils.checkFromIndexSize(buffer, offset, length);
++        if (length == 0) {
++            return 0;
+         }
++
+         int outstanding = length;
+         while (outstanding > 0) {
+ 
+diff --git a/src/main/java/org/apache/commons/io/input/UnsynchronizedByteArrayInputStream.java b/src/main/java/org/apache/commons/io/input/UnsynchronizedByteArrayInputStream.java
+index cb2f5d3ddc5..a56dec7206c 100644
+--- a/src/main/java/org/apache/commons/io/input/UnsynchronizedByteArrayInputStream.java
++++ b/src/main/java/org/apache/commons/io/input/UnsynchronizedByteArrayInputStream.java
+@@ -21,6 +21,7 @@
+ import java.io.InputStream;
+ import java.util.Objects;
+ 
++import org.apache.commons.io.IOUtils;
+ import org.apache.commons.io.build.AbstractOrigin;
+ import org.apache.commons.io.build.AbstractStreamBuilder;
+ 
+@@ -288,9 +289,9 @@ public int read(final byte[] dest) {
+ 
+     @Override
+     public int read(final byte[] dest, final int off, final int len) {
+-        Objects.requireNonNull(dest, "dest");
+-        if (off < 0 || len < 0 || off + len > dest.length) {
+-            throw new IndexOutOfBoundsException();
++        IOUtils.checkFromIndexSize(dest, off, len);
++        if (len == 0) {
++            return 0;
+         }
+ 
+         if (offset >= eod) {
+diff --git a/src/main/java/org/apache/commons/io/input/buffer/CircularBufferInputStream.java b/src/main/java/org/apache/commons/io/input/buffer/CircularBufferInputStream.java
+index 8be305ddd04..b92163478d0 100644
+--- a/src/main/java/org/apache/commons/io/input/buffer/CircularBufferInputStream.java
++++ b/src/main/java/org/apache/commons/io/input/buffer/CircularBufferInputStream.java
+@@ -125,12 +125,9 @@ public int read() throws IOException {
+ 
+     @Override
+     public int read(final byte[] targetBuffer, final int offset, final int length) throws IOException {
+-        Objects.requireNonNull(targetBuffer, "targetBuffer");
+-        if (offset < 0) {
+-            throw new IllegalArgumentException("Offset must not be negative");
+-        }
+-        if (length < 0) {
+-            throw new IllegalArgumentException("Length must not be negative");
++        IOUtils.checkFromIndexSize(targetBuffer, offset, length);
++        if (length == 0) {
++            return 0;
+         }
+         if (!haveBytes(length)) {
+             return EOF;
+diff --git a/src/main/java/org/apache/commons/io/output/AppendableWriter.java b/src/main/java/org/apache/commons/io/output/AppendableWriter.java
+index 2130e448dea..b1ace0b908c 100644
+--- a/src/main/java/org/apache/commons/io/output/AppendableWriter.java
++++ b/src/main/java/org/apache/commons/io/output/AppendableWriter.java
+@@ -21,6 +21,8 @@
+ import java.io.Writer;
+ import java.util.Objects;
+ 
++import org.apache.commons.io.IOUtils;
++
+ /**
+  * Writer implementation that writes the data to an {@link Appendable} Object.
+  * <p>
+@@ -77,6 +79,8 @@ public Writer append(final CharSequence csq) throws IOException {
+      * @param start the index of the first character in the subsequence
+      * @param end   the index of the character following the last character in the subsequence
+      * @return this writer
++     * @throws IndexOutOfBoundsException If {@code start} or {@code end} are negative, {@code start} is greater than
++     *                                   {@code end}, or {@code end} is greater than {@code csq.length()}.
+      * @throws IOException If an I/O error occurs.
+      */
+     @Override
+@@ -120,14 +124,13 @@ public T getAppendable() {
+      * @param cbuf an array with the characters to write.
+      * @param off  offset from which to start writing characters.
+      * @param len  number of characters to write.
++     * @throws NullPointerException if the array is {@code null}.
++     * @throws IndexOutOfBoundsException if {@code off} or {@code len} are negative, or if {@code off + len} is greater than {@code cbuf.length}.
+      * @throws IOException If an I/O error occurs.
+      */
+     @Override
+     public void write(final char[] cbuf, final int off, final int len) throws IOException {
+-        Objects.requireNonNull(cbuf, "cbuf");
+-        if (len < 0 || off + len > cbuf.length) {
+-            throw new IndexOutOfBoundsException("Array Size=" + cbuf.length + ", offset=" + off + ", length=" + len);
+-        }
++        IOUtils.checkFromIndexSize(cbuf, off, len);
+         for (int i = 0; i < len; i++) {
+             appendable.append(cbuf[off + i]);
+         }
+@@ -150,6 +153,8 @@ public void write(final int c) throws IOException {
+      * @param str a string.
+      * @param off offset from which to start writing characters.
+      * @param len number of characters to write.
++     * @throws NullPointerException if the string is {@code null}.
++     * @throws IndexOutOfBoundsException if {@code off} or {@code len} are negative, or if {@code off + len} is greater than {@code str.length()}.
+      * @throws IOException If an I/O error occurs.
+      */
+     @Override
+diff --git a/src/main/java/org/apache/commons/io/output/ByteArrayOutputStream.java b/src/main/java/org/apache/commons/io/output/ByteArrayOutputStream.java
+index b2a9afbfc58..48fb793669b 100644
+--- a/src/main/java/org/apache/commons/io/output/ByteArrayOutputStream.java
++++ b/src/main/java/org/apache/commons/io/output/ByteArrayOutputStream.java
+@@ -21,6 +21,8 @@
+ import java.io.InputStream;
+ import java.io.OutputStream;
+ 
++import org.apache.commons.io.IOUtils;
++
+ /**
+  * Implements a ThreadSafe version of {@link AbstractByteArrayOutputStream} using instance synchronization.
+  */
+@@ -130,13 +132,7 @@ public synchronized InputStream toInputStream() {
+ 
+     @Override
+     public void write(final byte[] b, final int off, final int len) {
+-        if (off < 0
+-                || off > b.length
+-                || len < 0
+-                || off + len > b.length
+-                || off + len < 0) {
+-            throw new IndexOutOfBoundsException();
+-        }
++        IOUtils.checkFromIndexSize(b, off, len);
+         if (len == 0) {
+             return;
+         }
+diff --git a/src/main/java/org/apache/commons/io/output/ChunkedOutputStream.java b/src/main/java/org/apache/commons/io/output/ChunkedOutputStream.java
+index 4612a7de2f7..2588264e172 100644
+--- a/src/main/java/org/apache/commons/io/output/ChunkedOutputStream.java
++++ b/src/main/java/org/apache/commons/io/output/ChunkedOutputStream.java
+@@ -168,10 +168,14 @@ int getChunkSize() {
+      * @param data      the data to write.
+      * @param srcOffset the offset.
+      * @param length    the length of data to write.
++     * @throws NullPointerException if the data is {@code null}.
++     * @throws IndexOutOfBoundsException if {@code srcOffset} or {@code length} are negative,
++     *                                   or if {@code srcOffset + length} is greater than {@code data.length}.
+      * @throws IOException if an I/O error occurs.
+      */
+     @Override
+     public void write(final byte[] data, final int srcOffset, final int length) throws IOException {
++        IOUtils.checkFromIndexSize(data, srcOffset, length);
+         int bytes = length;
+         int dstOffset = srcOffset;
+         while (bytes > 0) {
+diff --git a/src/main/java/org/apache/commons/io/output/ChunkedWriter.java b/src/main/java/org/apache/commons/io/output/ChunkedWriter.java
+index 6a6492882b1..ed22625b667 100644
+--- a/src/main/java/org/apache/commons/io/output/ChunkedWriter.java
++++ b/src/main/java/org/apache/commons/io/output/ChunkedWriter.java
+@@ -70,10 +70,14 @@ public ChunkedWriter(final Writer writer, final int chunkSize) {
+      * @param data      The data.
+      * @param srcOffset the offset.
+      * @param length    the number of bytes to write.
++     * @throws NullPointerException if the data is {@code null}.
++     * @throws IndexOutOfBoundsException if {@code srcOffset} or {@code length} are negative,
++     *                                   or if {@code srcOffset + length} is greater than {@code data.length}.
+      * @throws IOException If an I/O error occurs.
+      */
+     @Override
+     public void write(final char[] data, final int srcOffset, final int length) throws IOException {
++        IOUtils.checkFromIndexSize(data, srcOffset, length);
+         int bytes = length;
+         int dstOffset = srcOffset;
+         while (bytes > 0) {
+diff --git a/src/main/java/org/apache/commons/io/output/ClosedOutputStream.java b/src/main/java/org/apache/commons/io/output/ClosedOutputStream.java
+index 18783481d44..c7216ce6f90 100644
+--- a/src/main/java/org/apache/commons/io/output/ClosedOutputStream.java
++++ b/src/main/java/org/apache/commons/io/output/ClosedOutputStream.java
+@@ -20,6 +20,8 @@
+ import java.io.IOException;
+ import java.io.OutputStream;
+ 
++import org.apache.commons.io.IOUtils;
++
+ /**
+  * Throws an IOException on all attempts to write to the stream.
+  * <p>
+@@ -66,13 +68,16 @@ public void flush() throws IOException {
+     /**
+      * Throws an {@link IOException} to indicate that the stream is closed.
+      *
+-     * @param b   ignored.
+-     * @param off ignored.
+-     * @param len ignored.
++     * @param b   Byte array, never {@code null}.
++     * @param off The start offset in the byte array.
++     * @param len The number of bytes to write.
++     * @throws NullPointerException if the byte array is {@code null}.
++     * @throws IndexOutOfBoundsException if {@code off} or {@code len} are negative, or if {@code off + len} is greater than {@code b.length}.
+      * @throws IOException always thrown.
+      */
+     @Override
+     public void write(final byte b[], final int off, final int len) throws IOException {
++        IOUtils.checkFromIndexSize(b, off, len);
+         throw new IOException("write(byte[], int, int) failed: stream is closed");
+     }
+ 
+diff --git a/src/main/java/org/apache/commons/io/output/ClosedWriter.java b/src/main/java/org/apache/commons/io/output/ClosedWriter.java
+index 58c3993acd3..c4e1d93b93c 100644
+--- a/src/main/java/org/apache/commons/io/output/ClosedWriter.java
++++ b/src/main/java/org/apache/commons/io/output/ClosedWriter.java
+@@ -19,6 +19,7 @@
+ 
+ import java.io.IOException;
+ import java.io.Writer;
++import java.util.Arrays;
+ 
+ /**
+  * Throws an IOException on all attempts to write with {@link #close()} implemented as a noop.
+@@ -77,6 +78,6 @@ public void flush() throws IOException {
+      */
+     @Override
+     public void write(final char[] cbuf, final int off, final int len) throws IOException {
+-        throw new IOException("write(" + new String(cbuf) + ", " + off + ", " + len + ") failed: stream is closed");
++        throw new IOException(String.format("write(%s, %d, %d) failed: stream is closed", Arrays.toString(cbuf), off, len));
+     }
+ }
+diff --git a/src/main/java/org/apache/commons/io/output/NullAppendable.java b/src/main/java/org/apache/commons/io/output/NullAppendable.java
+index 520daa3a64b..c5ea2cfcbeb 100644
+--- a/src/main/java/org/apache/commons/io/output/NullAppendable.java
++++ b/src/main/java/org/apache/commons/io/output/NullAppendable.java
+@@ -19,6 +19,8 @@
+ 
+ import java.io.IOException;
+ 
++import org.apache.commons.io.IOUtils;
++
+ /**
+  * Appends all data to the famous <strong>/dev/null</strong>.
+  * <p>
+@@ -49,8 +51,24 @@ public Appendable append(final CharSequence csq) throws IOException {
+         return this;
+     }
+ 
++    /**
++     * Does nothing except argument validation, like writing to {@code /dev/null}.
++     *
++     * @param csq   The character sequence from which a subsequence will be
++     *              appended.
++     *              If {@code csq} is {@code null}, it is treated as if it were
++     *              {@code "null"}.
++     * @param start The index of the first character in the subsequence.
++     * @param end   The index of the character following the last character in the
++     *              subsequence.
++     * @return {@code this} instance.
++     * @throws IndexOutOfBoundsException If {@code start} or {@code end} are negative, {@code end} is
++     *                                   greater than {@code csq.length()}, or {@code start} is greater
++     *                                   than {@code end}.
++     */
+     @Override
+     public Appendable append(final CharSequence csq, final int start, final int end) throws IOException {
++        IOUtils.checkFromToIndex(csq, start, end);
+         return this;
+     }
+ 
+diff --git a/src/main/java/org/apache/commons/io/output/NullOutputStream.java b/src/main/java/org/apache/commons/io/output/NullOutputStream.java
+index 5275aea9c75..0334a4ea4b8 100644
+--- a/src/main/java/org/apache/commons/io/output/NullOutputStream.java
++++ b/src/main/java/org/apache/commons/io/output/NullOutputStream.java
+@@ -19,6 +19,8 @@
+ import java.io.IOException;
+ import java.io.OutputStream;
+ 
++import org.apache.commons.io.IOUtils;
++
+ /**
+  * Never writes data. Calls never go beyond this class.
+  * <p>
+@@ -67,15 +69,20 @@ public void write(final byte[] b) throws IOException {
+     }
+ 
+     /**
+-     * Does nothing.
++     * No-op operation.
+      *
+-     * @param b This method ignores this parameter.
+-     * @param off This method ignores this parameter.
+-     * @param len This method ignores this parameter.
++     * <p>Validates the arguments but does not write the data.</p>
++     *
++     * @param b   The byte array to write from, not {@code null}.
++     * @param off The offset to start at.
++     * @param len The number of bytes to write.
++     * @throws NullPointerException      If {@code b} is {@code null}.
++     * @throws IndexOutOfBoundsException If {@code off} or {@code len} are negative, {@code off + len} is greater than
++     *                                   {@code b.length}.
+      */
+     @Override
+     public void write(final byte[] b, final int off, final int len) {
+-        // noop
++        IOUtils.checkFromIndexSize(b, off, len);
+     }
+ 
+     /**
+diff --git a/src/main/java/org/apache/commons/io/output/NullWriter.java b/src/main/java/org/apache/commons/io/output/NullWriter.java
+index ab7f4ddd6f8..635ffb044a6 100644
+--- a/src/main/java/org/apache/commons/io/output/NullWriter.java
++++ b/src/main/java/org/apache/commons/io/output/NullWriter.java
+@@ -18,6 +18,8 @@
+ 
+ import java.io.Writer;
+ 
++import org.apache.commons.io.IOUtils;
++
+ /**
+  * Never writes data. Calls never go beyond this class.
+  * <p>
+@@ -77,16 +79,24 @@ public Writer append(final CharSequence csq) {
+     }
+ 
+     /**
+-     * Does nothing, like writing to {@code /dev/null}.
++     * Does nothing except argument validation, like writing to {@code /dev/null}.
+      *
+-     * @param csq The character sequence to write.
+-     * @param start The index of the first character to write.
+-     * @param end  The index of the first character to write (exclusive).
+-     * @return this writer.
++     * @param csq   The character sequence from which a subsequence will be
++     *              appended.
++     *              If {@code csq} is {@code null}, it is treated as if it were
++     *              {@code "null"}.
++     * @param start The index of the first character in the subsequence.
++     * @param end   The index of the character following the last character in the
++     *              subsequence.
++     * @return {@code this} instance.
++     * @throws IndexOutOfBoundsException If {@code start} or {@code end} are negative, {@code end} is
++     *                                   greater than {@code csq.length()}, or {@code start} is greater
++     *                                   than {@code end}.
+      * @since 2.0
+      */
+     @Override
+     public Writer append(final CharSequence csq, final int start, final int end) {
++        IOUtils.checkFromToIndex(csq, start, end);
+         //to /dev/null
+         return this;
+     }
+@@ -104,24 +114,29 @@ public void flush() {
+     }
+ 
+     /**
+-     * Does nothing, like writing to {@code /dev/null}.
++     * Does nothing except argument validation, like writing to {@code /dev/null}.
+      *
+-     * @param chr The characters to write
++     * @param chr The characters to write, not {@code null}.
++     * @throws NullPointerException if {@code chr} is {@code null}.
+      */
+     @Override
+     public void write(final char[] chr) {
++        write(chr, 0, chr.length);
+         //to /dev/null
+     }
+ 
+     /**
+-     * Does nothing, like writing to {@code /dev/null}.
++     * Does nothing except argument validation, like writing to {@code /dev/null}.
+      *
+-     * @param chr The characters to write.
+-     * @param st The start offset.
+-     * @param end The number of characters to write.
++     * @param cbuf The characters to write, not {@code null}.
++     * @param off  The start offset.
++     * @param len  The number of characters to write.
++     * @throws NullPointerException      if {@code chr} is {@code null}.
++     * @throws IndexOutOfBoundsException If ({@code off} or {@code len} are negative, or {@code off + len} is greater than {@code cbuf.length}.
+      */
+     @Override
+-    public void write(final char[] chr, final int st, final int end) {
++    public void write(final char[] cbuf, final int off, final int len) {
++        IOUtils.checkFromIndexSize(cbuf, off, len);
+         //to /dev/null
+     }
+ 
+@@ -136,24 +151,29 @@ public void write(final int b) {
+     }
+ 
+     /**
+-     * Does nothing, like writing to {@code /dev/null}.
++     * Does nothing except argument validation, like writing to {@code /dev/null}.
+      *
+-     * @param str The string to write.
++     * @param str The string to write, not {@code null}.
++     * @throws NullPointerException if {@code str} is {@code null}.
+      */
+     @Override
+     public void write(final String str) {
++        write(str, 0, str.length());
+         //to /dev/null
+     }
+ 
+     /**
+-     * Does nothing, like writing to {@code /dev/null}.
++     * Does nothing except argument validation, like writing to {@code /dev/null}.
+      *
+-     * @param str The string to write.
+-     * @param st The start offset.
+-     * @param end The number of characters to write.
++     * @param str The string to write, not {@code null}.
++     * @param off The start offset.
++     * @param len The number of characters to write.
++     * @throws NullPointerException      If {@code str} is {@code null}.
++     * @throws IndexOutOfBoundsException If ({@code off} or {@code len} are negative, or {@code off + len} is greater than {@code str.length()}.
+      */
+     @Override
+-    public void write(final String str, final int st, final int end) {
++    public void write(final String str, final int off, final int len) {
++        IOUtils.checkFromIndexSize(str, off, len);
+         //to /dev/null
+     }
+ 
+diff --git a/src/main/java/org/apache/commons/io/output/StringBuilderWriter.java b/src/main/java/org/apache/commons/io/output/StringBuilderWriter.java
+index 106525e88f9..bdb757cf684 100644
+--- a/src/main/java/org/apache/commons/io/output/StringBuilderWriter.java
++++ b/src/main/java/org/apache/commons/io/output/StringBuilderWriter.java
+@@ -20,6 +20,8 @@
+ import java.io.StringWriter;
+ import java.io.Writer;
+ 
++import org.apache.commons.io.IOUtils;
++
+ /**
+  * {@link Writer} implementation that outputs to a {@link StringBuilder}.
+  * <p>
+@@ -146,10 +148,12 @@ public String toString() {
+      * @param value The value to write.
+      * @param offset The index of the first character.
+      * @param length The number of characters to write.
++     * @throws IndexOutOfBoundsException if {@code offset} or {@code length} are negative, or if {@code offset + length} is greater than {@code value.length}.
+      */
+     @Override
+     public void write(final char[] value, final int offset, final int length) {
+         if (value != null) {
++            IOUtils.checkFromIndexSize(value, offset, length);
+             builder.append(value, offset, length);
+         }
+     }
+diff --git a/src/main/java/org/apache/commons/io/output/ThresholdingOutputStream.java b/src/main/java/org/apache/commons/io/output/ThresholdingOutputStream.java
+index e5892dbd885..742572b2ebc 100644
+--- a/src/main/java/org/apache/commons/io/output/ThresholdingOutputStream.java
++++ b/src/main/java/org/apache/commons/io/output/ThresholdingOutputStream.java
+@@ -19,6 +19,7 @@
+ import java.io.IOException;
+ import java.io.OutputStream;
+ 
++import org.apache.commons.io.IOUtils;
+ import org.apache.commons.io.function.IOConsumer;
+ import org.apache.commons.io.function.IOFunction;
+ 
+@@ -227,6 +228,7 @@ protected void thresholdReached() throws IOException {
+      * Writes {@code b.length} bytes from the specified byte array to this output stream.
+      *
+      * @param b The array of bytes to be written.
++     * @throws NullPointerException if the byte array is {@code null}.
+      * @throws IOException if an error occurs.
+      */
+     @SuppressWarnings("resource") // the underlying stream is managed by a subclass.
+@@ -244,11 +246,14 @@ public void write(final byte[] b) throws IOException {
+      * @param b The byte array from which the data will be written.
+      * @param off The start offset in the byte array.
+      * @param len The number of bytes to write.
++     * @throws NullPointerException if the byte array is {@code null}.
++     * @throws IndexOutOfBoundsException if {@code off} or {@code len} are negative, or if {@code off + len} is greater than {@code b.length}.
+      * @throws IOException if an error occurs.
+      */
+     @SuppressWarnings("resource") // the underlying stream is managed by a subclass.
+     @Override
+     public void write(final byte[] b, final int off, final int len) throws IOException {
++        IOUtils.checkFromIndexSize(b, off, len);
+         // TODO we could write the sub-array up the threshold, fire the event,
+         // and then write the rest so the event is always fired at the precise point.
+         checkThreshold(len);
+diff --git a/src/main/java/org/apache/commons/io/output/UnsynchronizedByteArrayOutputStream.java b/src/main/java/org/apache/commons/io/output/UnsynchronizedByteArrayOutputStream.java
+index f20ccefad74..a47a3b2aa2a 100644
+--- a/src/main/java/org/apache/commons/io/output/UnsynchronizedByteArrayOutputStream.java
++++ b/src/main/java/org/apache/commons/io/output/UnsynchronizedByteArrayOutputStream.java
+@@ -21,6 +21,7 @@
+ import java.io.InputStream;
+ import java.io.OutputStream;
+ 
++import org.apache.commons.io.IOUtils;
+ import org.apache.commons.io.build.AbstractOrigin;
+ import org.apache.commons.io.build.AbstractStreamBuilder;
+ import org.apache.commons.io.function.Uncheck;
+@@ -214,9 +215,7 @@ public InputStream toInputStream() {
+ 
+     @Override
+     public void write(final byte[] b, final int off, final int len) {
+-        if (off < 0 || off > b.length || len < 0 || off + len > b.length || off + len < 0) {
+-            throw new IndexOutOfBoundsException(String.format("offset=%,d, length=%,d", off, len));
+-        }
++        IOUtils.checkFromIndexSize(b, off, len);
+         if (len == 0) {
+             return;
+         }
+diff --git a/src/main/java/org/apache/commons/io/output/WriterOutputStream.java b/src/main/java/org/apache/commons/io/output/WriterOutputStream.java
+index dcb6e226e72..d17318f79b6 100644
+--- a/src/main/java/org/apache/commons/io/output/WriterOutputStream.java
++++ b/src/main/java/org/apache/commons/io/output/WriterOutputStream.java
+@@ -431,6 +431,7 @@ private void processInput(final boolean endOfInput) throws IOException {
+      * Writes bytes from the specified byte array to the stream.
+      *
+      * @param b the byte array containing the bytes to write.
++     * @throws NullPointerException if the byte array is {@code null}.
+      * @throws IOException if an I/O error occurs.
+      */
+     @Override
+@@ -444,10 +445,13 @@ public void write(final byte[] b) throws IOException {
+      * @param b   the byte array containing the bytes to write.
+      * @param off the start offset in the byte array.
+      * @param len the number of bytes to write.
++     * @throws NullPointerException      if the byte array is {@code null}.
++     * @throws IndexOutOfBoundsException if {@code off} or {@code len} are negative, or if {@code off + len} is greater than {@code b.length}.
+      * @throws IOException if an I/O error occurs.
+      */
+     @Override
+     public void write(final byte[] b, int off, int len) throws IOException {
++        IOUtils.checkFromIndexSize(b, off, len);
+         while (len > 0) {
+             final int c = Math.min(len, decoderIn.remaining());
+             decoderIn.put(b, off, c);
+diff --git a/src/main/java/org/apache/commons/io/output/XmlStreamWriter.java b/src/main/java/org/apache/commons/io/output/XmlStreamWriter.java
+index 40fdcc8f730..873df0238d8 100644
+--- a/src/main/java/org/apache/commons/io/output/XmlStreamWriter.java
++++ b/src/main/java/org/apache/commons/io/output/XmlStreamWriter.java
+@@ -302,10 +302,14 @@ public String getEncoding() {
+      * @param cbuf the buffer to write the characters from.
+      * @param off The start offset.
+      * @param len The number of characters to write.
++     * @throws NullPointerException if the buffer is {@code null}.
++     * @throws IndexOutOfBoundsException if {@code off} or {@code len} are negative,
++     *                                   or if {@code off + len} is greater than {@code cbuf.length}.
+      * @throws IOException if an error occurs detecting the encoding.
+      */
+     @Override
+     public void write(final char[] cbuf, final int off, final int len) throws IOException {
++        IOUtils.checkFromIndexSize(cbuf, off, len);
+         if (prologWriter != null) {
+             detectEncoding(cbuf, off, len);
+         } else {

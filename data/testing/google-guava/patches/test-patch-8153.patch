@@ -1,0 +1,131 @@
+diff --git a/android/guava-tests/test/com/google/common/collect/ContiguousSetTest.java b/android/guava-tests/test/com/google/common/collect/ContiguousSetTest.java
+index 33886ca858e3..9d226a3ee076 100644
+--- a/android/guava-tests/test/com/google/common/collect/ContiguousSetTest.java
++++ b/android/guava-tests/test/com/google/common/collect/ContiguousSetTest.java
+@@ -282,7 +282,7 @@ public void testContains() {
+     assertFalse(set.contains(4));
+   }
+ 
+-  // TODO: user - Enable when Kotlin throws expected CCE.
++  // TODO: https://youtrack.jetbrains.com/issue/KT-71001/ - Enable when Kotlin throws expected CCE.
+   @J2ktIncompatible
+   public void testContains_typeMismatch() {
+     ImmutableSortedSet<Integer> set = ContiguousSet.create(Range.open(0, 4), integers());
+@@ -299,7 +299,7 @@ public void testContainsAll() {
+     }
+   }
+ 
+-  // TODO: user - Enable when Kotlin throws expected CCE.
++  // TODO: https://youtrack.jetbrains.com/issue/KT-71001/ - Enable when Kotlin throws expected CCE.
+   @J2ktIncompatible
+   public void testContainsAll_typeMismatch() {
+     ImmutableSortedSet<Integer> set = ContiguousSet.create(Range.closed(1, 3), integers());
+diff --git a/guava-tests/test/com/google/common/collect/ContiguousSetTest.java b/guava-tests/test/com/google/common/collect/ContiguousSetTest.java
+index 33886ca858e3..9d226a3ee076 100644
+--- a/guava-tests/test/com/google/common/collect/ContiguousSetTest.java
++++ b/guava-tests/test/com/google/common/collect/ContiguousSetTest.java
+@@ -282,7 +282,7 @@ public void testContains() {
+     assertFalse(set.contains(4));
+   }
+ 
+-  // TODO: user - Enable when Kotlin throws expected CCE.
++  // TODO: https://youtrack.jetbrains.com/issue/KT-71001/ - Enable when Kotlin throws expected CCE.
+   @J2ktIncompatible
+   public void testContains_typeMismatch() {
+     ImmutableSortedSet<Integer> set = ContiguousSet.create(Range.open(0, 4), integers());
+@@ -299,7 +299,7 @@ public void testContainsAll() {
+     }
+   }
+ 
+-  // TODO: user - Enable when Kotlin throws expected CCE.
++  // TODO: https://youtrack.jetbrains.com/issue/KT-71001/ - Enable when Kotlin throws expected CCE.
+   @J2ktIncompatible
+   public void testContainsAll_typeMismatch() {
+     ImmutableSortedSet<Integer> set = ContiguousSet.create(Range.closed(1, 3), integers());
+diff --git a/guava-tests/test/com/google/common/collect/ImmutableSortedMapTest.java b/guava-tests/test/com/google/common/collect/ImmutableSortedMapTest.java
+index 48e4e9757b0e..ccc4736960a7 100644
+--- a/guava-tests/test/com/google/common/collect/ImmutableSortedMapTest.java
++++ b/guava-tests/test/com/google/common/collect/ImmutableSortedMapTest.java
+@@ -22,7 +22,6 @@
+ import static com.google.common.collect.testing.Helpers.mapEntry;
+ import static com.google.common.truth.Truth.assertThat;
+ import static java.util.Collections.singletonMap;
+-import static java.util.Comparator.naturalOrder;
+ 
+ import com.google.common.annotations.GwtCompatible;
+ import com.google.common.annotations.GwtIncompatible;
+@@ -593,6 +592,25 @@ public void testBuilderComparator() {
+   }
+ 
+   public void testToImmutableSortedMap() {
++    Collector<Entry<String, Integer>, ?, ImmutableSortedMap<String, Integer>> collector =
++        toImmutableSortedMap(Entry::getKey, Entry::getValue);
++    BiPredicate<ImmutableSortedMap<String, Integer>, ImmutableSortedMap<String, Integer>>
++        equivalence =
++            Equivalence.equals()
++                .onResultOf(ImmutableSortedMap<String, Integer>::comparator)
++                .and(Equivalence.equals().onResultOf(map -> map.entrySet().asList()))
++                .and(Equivalence.equals());
++    ImmutableSortedMap<String, Integer> expected =
++        ImmutableSortedMap.<String, Integer>naturalOrder()
++            .put("one", 1)
++            .put("three", 3)
++            .put("two", 2)
++            .buildOrThrow();
++    CollectorTester.of(collector, equivalence)
++        .expectCollects(expected, mapEntry("one", 1), mapEntry("two", 2), mapEntry("three", 3));
++  }
++
++  public void testToImmutableSortedMap_withComparator() {
+     Collector<Entry<String, Integer>, ?, ImmutableSortedMap<String, Integer>> collector =
+         toImmutableSortedMap(String.CASE_INSENSITIVE_ORDER, Entry::getKey, Entry::getValue);
+     BiPredicate<ImmutableSortedMap<String, Integer>, ImmutableSortedMap<String, Integer>>
+@@ -606,14 +624,22 @@ public void testToImmutableSortedMap() {
+             .put("one", 1)
+             .put("three", 3)
+             .put("two", 2)
+-            .build();
++            .buildOrThrow();
+     CollectorTester.of(collector, equivalence)
+         .expectCollects(expected, mapEntry("one", 1), mapEntry("two", 2), mapEntry("three", 3));
+   }
+ 
+   public void testToImmutableSortedMap_exceptionOnDuplicateKey() {
+     Collector<Entry<String, Integer>, ?, ImmutableSortedMap<String, Integer>> collector =
+-        toImmutableSortedMap(Ordering.natural(), Entry::getKey, Entry::getValue);
++        toImmutableSortedMap(Entry::getKey, Entry::getValue);
++    assertThrows(
++        IllegalArgumentException.class,
++        () -> Stream.of(mapEntry("one", 1), mapEntry("one", 11)).collect(collector));
++  }
++
++  public void testToImmutableSortedMap_withComparator_exceptionOnDuplicateKey() {
++    Collector<Entry<String, Integer>, ?, ImmutableSortedMap<String, Integer>> collector =
++        toImmutableSortedMap(String.CASE_INSENSITIVE_ORDER, Entry::getKey, Entry::getValue);
+     assertThrows(
+         IllegalArgumentException.class,
+         () -> Stream.of(mapEntry("one", 1), mapEntry("one", 11)).collect(collector));
+@@ -621,7 +647,22 @@ public void testToImmutableSortedMap_exceptionOnDuplicateKey() {
+ 
+   public void testToImmutableSortedMapMerging() {
+     Collector<Entry<String, Integer>, ?, ImmutableSortedMap<String, Integer>> collector =
+-        toImmutableSortedMap(naturalOrder(), Entry::getKey, Entry::getValue, Integer::sum);
++        toImmutableSortedMap(Entry::getKey, Entry::getValue, Integer::sum);
++    Equivalence<ImmutableMap<String, Integer>> equivalence =
++        Equivalence.equals().<Entry<String, Integer>>pairwise().onResultOf(ImmutableMap::entrySet);
++    CollectorTester.of(collector, equivalence)
++        .expectCollects(
++            ImmutableSortedMap.of("one", 1, "three", 3, "two", 4),
++            mapEntry("one", 1),
++            mapEntry("two", 2),
++            mapEntry("three", 3),
++            mapEntry("two", 2));
++  }
++
++  public void testToImmutableSortedMapMerging_withComparator() {
++    Collector<Entry<String, Integer>, ?, ImmutableSortedMap<String, Integer>> collector =
++        toImmutableSortedMap(
++            String.CASE_INSENSITIVE_ORDER, Entry::getKey, Entry::getValue, Integer::sum);
+     Equivalence<ImmutableMap<String, Integer>> equivalence =
+         Equivalence.equals().<Entry<String, Integer>>pairwise().onResultOf(ImmutableMap::entrySet);
+     CollectorTester.of(collector, equivalence)

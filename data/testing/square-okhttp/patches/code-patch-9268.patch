@@ -1,0 +1,2198 @@
+diff --git a/build.gradle.kts b/build.gradle.kts
+index d5ae20871d97..3d1c8f748615 100644
+--- a/build.gradle.kts
++++ b/build.gradle.kts
+@@ -52,7 +52,12 @@ configure<SpotlessExtension> {
+   kotlin {
+     target("**/*.kt")
+     targetExclude("**/kotlinTemplates/**/*.kt")
++    targetExclude("**/generated-sources/**/*.kt")
+     ktlint()
++    suppressLintsFor {
++      step = "ktlint"
++      shortCode = "standard:mixed-condition-operators"
++    }
+   }
+ }
+ 
+diff --git a/gradle/libs.versions.toml b/gradle/libs.versions.toml
+index 98927e9a6f96..c859a1fa4dec 100644
+--- a/gradle/libs.versions.toml
++++ b/gradle/libs.versions.toml
+@@ -63,7 +63,7 @@ gradlePlugin-mavenPublish = "com.vanniktech:gradle-maven-publish-plugin:0.36.0"
+ gradlePlugin-mavenSympathy = "io.github.usefulness.maven-sympathy:io.github.usefulness.maven-sympathy.gradle.plugin:0.3.0"
+ gradlePlugin-mrjar = "me.champeau.mrjar:me.champeau.mrjar.gradle.plugin:0.1.1"
+ gradlePlugin-shadow = "com.gradleup.shadow:shadow-gradle-plugin:9.3.1"
+-gradlePlugin-spotless = "com.diffplug.spotless:spotless-plugin-gradle:8.1.0"
++gradlePlugin-spotless = "com.diffplug.spotless:spotless-plugin-gradle:8.2.0"
+ hamcrestLibrary = "org.hamcrest:hamcrest-library:3.0"
+ httpClient5 = "org.apache.httpcomponents.client5:httpclient5:5.5.2"
+ #noinspection NewerVersionAvailable
+diff --git a/mockwebserver-deprecated/src/main/kotlin/okhttp3/mockwebserver/DeprecationBridge.kt b/mockwebserver-deprecated/src/main/kotlin/okhttp3/mockwebserver/DeprecationBridge.kt
+index 0d14c2837666..695f33b40be9 100644
+--- a/mockwebserver-deprecated/src/main/kotlin/okhttp3/mockwebserver/DeprecationBridge.kt
++++ b/mockwebserver-deprecated/src/main/kotlin/okhttp3/mockwebserver/DeprecationBridge.kt
+@@ -58,34 +58,79 @@ internal fun MockResponse.wrap(): mockwebserver3.MockResponse {
+   result.trailers(trailers)
+ 
+   when (socketPolicy) {
+-    SocketPolicy.EXPECT_CONTINUE, SocketPolicy.CONTINUE_ALWAYS -> result.add100Continue()
+-    SocketPolicy.UPGRADE_TO_SSL_AT_END -> result.inTunnel()
+-    SocketPolicy.SHUTDOWN_SERVER_AFTER_RESPONSE -> result.shutdownServer(true)
+-    SocketPolicy.KEEP_OPEN -> Unit
+-    SocketPolicy.DISCONNECT_AT_END -> result.onResponseEnd(ShutdownConnection)
+-    SocketPolicy.DISCONNECT_AT_START -> result.onRequestStart(CloseSocket())
+-    SocketPolicy.DISCONNECT_AFTER_REQUEST -> result.onResponseStart(CloseSocket())
+-    SocketPolicy.DISCONNECT_DURING_REQUEST_BODY -> result.onRequestBody(CloseSocket())
+-    SocketPolicy.DISCONNECT_DURING_RESPONSE_BODY -> result.onResponseBody(CloseSocket())
+-    SocketPolicy.DO_NOT_READ_REQUEST_BODY -> result.doNotReadRequestBody()
+-    SocketPolicy.FAIL_HANDSHAKE -> result.failHandshake()
+-    SocketPolicy.SHUTDOWN_INPUT_AT_END ->
++    SocketPolicy.EXPECT_CONTINUE, SocketPolicy.CONTINUE_ALWAYS -> {
++      result.add100Continue()
++    }
++
++    SocketPolicy.UPGRADE_TO_SSL_AT_END -> {
++      result.inTunnel()
++    }
++
++    SocketPolicy.SHUTDOWN_SERVER_AFTER_RESPONSE -> {
++      result.shutdownServer(true)
++    }
++
++    SocketPolicy.KEEP_OPEN -> {
++      Unit
++    }
++
++    SocketPolicy.DISCONNECT_AT_END -> {
++      result.onResponseEnd(ShutdownConnection)
++    }
++
++    SocketPolicy.DISCONNECT_AT_START -> {
++      result.onRequestStart(CloseSocket())
++    }
++
++    SocketPolicy.DISCONNECT_AFTER_REQUEST -> {
++      result.onResponseStart(CloseSocket())
++    }
++
++    SocketPolicy.DISCONNECT_DURING_REQUEST_BODY -> {
++      result.onRequestBody(CloseSocket())
++    }
++
++    SocketPolicy.DISCONNECT_DURING_RESPONSE_BODY -> {
++      result.onResponseBody(CloseSocket())
++    }
++
++    SocketPolicy.DO_NOT_READ_REQUEST_BODY -> {
++      result.doNotReadRequestBody()
++    }
++
++    SocketPolicy.FAIL_HANDSHAKE -> {
++      result.failHandshake()
++    }
++
++    SocketPolicy.SHUTDOWN_INPUT_AT_END -> {
+       result.onResponseEnd(
+         CloseSocket(
+           closeSocket = false,
+           shutdownInput = true,
+         ),
+       )
+-    SocketPolicy.SHUTDOWN_OUTPUT_AT_END ->
++    }
++
++    SocketPolicy.SHUTDOWN_OUTPUT_AT_END -> {
+       result.onResponseEnd(
+         CloseSocket(
+           closeSocket = false,
+           shutdownOutput = true,
+         ),
+       )
+-    SocketPolicy.STALL_SOCKET_AT_START -> result.onRequestStart(SocketEffect.Stall)
+-    SocketPolicy.NO_RESPONSE -> result.onResponseStart(SocketEffect.Stall)
+-    SocketPolicy.RESET_STREAM_AT_START -> result.onRequestStart(CloseStream(http2ErrorCode))
++    }
++
++    SocketPolicy.STALL_SOCKET_AT_START -> {
++      result.onRequestStart(SocketEffect.Stall)
++    }
++
++    SocketPolicy.NO_RESPONSE -> {
++      result.onResponseStart(SocketEffect.Stall)
++    }
++
++    SocketPolicy.RESET_STREAM_AT_START -> {
++      result.onRequestStart(CloseStream(http2ErrorCode))
++    }
+   }
+ 
+   result.throttleBody(throttleBytesPerPeriod, getThrottlePeriod(MILLISECONDS), MILLISECONDS)
+diff --git a/mockwebserver/src/main/kotlin/mockwebserver3/MockWebServer.kt b/mockwebserver/src/main/kotlin/mockwebserver3/MockWebServer.kt
+index 71b5d952a0c3..60b0d28034e1 100644
+--- a/mockwebserver/src/main/kotlin/mockwebserver3/MockWebServer.kt
++++ b/mockwebserver/src/main/kotlin/mockwebserver3/MockWebServer.kt
+@@ -494,6 +494,7 @@ public class MockWebServer : Closeable {
+           }
+           openClientSockets.remove(raw)
+         }
++
+         else -> {
+           protocol =
+             when {
+diff --git a/okhttp-idna-mapping-table/src/main/kotlin/okhttp3/internal/idn/MappingTables.kt b/okhttp-idna-mapping-table/src/main/kotlin/okhttp3/internal/idn/MappingTables.kt
+index a3613656bd4f..1dddecaaf7bd 100644
+--- a/okhttp-idna-mapping-table/src/main/kotlin/okhttp3/internal/idn/MappingTables.kt
++++ b/okhttp-idna-mapping-table/src/main/kotlin/okhttp3/internal/idn/MappingTables.kt
+@@ -56,21 +56,25 @@ fun buildIdnaMappingTableData(table: SimpleIdnaMappingTable): IdnaMappingTableDa
+           rangesBuffer.writeByte('-'.code)
+           rangesBuffer.writeByte('-'.code)
+         }
++
+         is MappedRange.Inline1 -> {
+           rangesBuffer.writeByte(range.b1)
+           rangesBuffer.writeByte(range.b2)
+           rangesBuffer.writeByte('-'.code)
+         }
++
+         is MappedRange.Inline2 -> {
+           rangesBuffer.writeByte(range.b1)
+           rangesBuffer.writeByte(range.b2)
+           rangesBuffer.writeByte(range.b3)
+         }
++
+         is MappedRange.InlineDelta -> {
+           rangesBuffer.writeByte(range.b1)
+           rangesBuffer.writeByte(range.b2)
+           rangesBuffer.writeByte(range.b3)
+         }
++
+         is MappedRange.External -> {
+           // Write the mapping.
+           val mappingOffset: Int
+@@ -141,7 +145,7 @@ internal fun sections(mappings: List<Mapping>): Map<Int, List<MappedRange>> {
+ 
+     sectionList +=
+       when (mapping.type) {
+-        TYPE_MAPPED ->
++        TYPE_MAPPED -> {
+           run {
+             val deltaMapping = inlineDeltaOrNull(mapping)
+             if (deltaMapping != null) {
+@@ -154,12 +158,15 @@ internal fun sections(mappings: List<Mapping>): Map<Int, List<MappedRange>> {
+               else -> MappedRange.External(rangeStart, mapping.mappedTo)
+             }
+           }
++        }
+ 
+         TYPE_IGNORED, TYPE_VALID, TYPE_DISALLOWED -> {
+           MappedRange.Constant(rangeStart, mapping.type)
+         }
+ 
+-        else -> error("unexpected mapping type: ${mapping.type}")
++        else -> {
++          error("unexpected mapping type: ${mapping.type}")
++        }
+       }
+   }
+ 
+diff --git a/okhttp-idna-mapping-table/src/main/kotlin/okhttp3/internal/idn/SimpleIdnaMappingTable.kt b/okhttp-idna-mapping-table/src/main/kotlin/okhttp3/internal/idn/SimpleIdnaMappingTable.kt
+index ed284136cc1f..1f5c9498efba 100644
+--- a/okhttp-idna-mapping-table/src/main/kotlin/okhttp3/internal/idn/SimpleIdnaMappingTable.kt
++++ b/okhttp-idna-mapping-table/src/main/kotlin/okhttp3/internal/idn/SimpleIdnaMappingTable.kt
+@@ -62,7 +62,10 @@ class SimpleIdnaMappingTable internal constructor(
+     var result = true
+ 
+     when (mapping.type) {
+-      TYPE_IGNORED -> Unit
++      TYPE_IGNORED -> {
++        Unit
++      }
++
+       TYPE_MAPPED, TYPE_DISALLOWED_STD3_MAPPED -> {
+         sink.write(mapping.mappedTo)
+       }
+@@ -142,7 +145,9 @@ private fun BufferedSource.skipWhitespace() {
+ 
+ private fun BufferedSource.skipRestOfLine() {
+   when (val newline = indexOf('\n'.code.toByte())) {
+-    -1L -> skip(buffer.size) // Exhaust this source.
++    -1L -> skip(buffer.size)
++
++    // Exhaust this source.
+     else -> skip(newline + 1)
+   }
+ }
+@@ -195,7 +200,9 @@ fun BufferedSource.readPlainTextIdnaMappingTable(): SimpleIdnaMappingTable {
+           readHexadecimalUnsignedLong()
+         }
+ 
+-        else -> sourceCodePoint0
++        else -> {
++          sourceCodePoint0
++        }
+       }
+ 
+     skipWhitespace()
+@@ -228,9 +235,13 @@ fun BufferedSource.readPlainTextIdnaMappingTable(): SimpleIdnaMappingTable {
+         }
+       }
+ 
+-      TYPE_DISALLOWED, TYPE_DISALLOWED_STD3_VALID, TYPE_IGNORED, TYPE_VALID -> Unit
++      TYPE_DISALLOWED, TYPE_DISALLOWED_STD3_VALID, TYPE_IGNORED, TYPE_VALID -> {
++        Unit
++      }
+ 
+-      else -> throw IOException("unexpected type")
++      else -> {
++        throw IOException("unexpected type")
++      }
+     }
+ 
+     skipRestOfLine()
+diff --git a/okhttp-sse/src/main/kotlin/okhttp3/sse/internal/ServerSentEventReader.kt b/okhttp-sse/src/main/kotlin/okhttp3/sse/internal/ServerSentEventReader.kt
+index c4933eb23378..2482641b3922 100644
+--- a/okhttp-sse/src/main/kotlin/okhttp3/sse/internal/ServerSentEventReader.kt
++++ b/okhttp-sse/src/main/kotlin/okhttp3/sse/internal/ServerSentEventReader.kt
+@@ -100,7 +100,9 @@ class ServerSentEventReader(
+           }
+         }
+ 
+-        else -> throw AssertionError()
++        else -> {
++          throw AssertionError()
++        }
+       }
+     }
+   }
+diff --git a/okhttp-testing-support/src/main/kotlin/okhttp3/EventRecorder.kt b/okhttp-testing-support/src/main/kotlin/okhttp3/EventRecorder.kt
+index 2be9b6f83076..adaa50f994a4 100644
+--- a/okhttp-testing-support/src/main/kotlin/okhttp3/EventRecorder.kt
++++ b/okhttp-testing-support/src/main/kotlin/okhttp3/EventRecorder.kt
+@@ -139,8 +139,12 @@ open class EventRecorder(
+     } else {
+       eventsForMatching.forEach loop@{
+         when (e.closes(it)) {
+-          null -> return // no open event
+-          true -> return // found open event
++          null -> return
++
++          // no open event
++          true -> return
++
++          // found open event
+           false -> return@loop // this is not the open event so continue
+         }
+       }
+diff --git a/okhttp-testing-support/src/main/kotlin/okhttp3/JsseDebugLogging.kt b/okhttp-testing-support/src/main/kotlin/okhttp3/JsseDebugLogging.kt
+index e5d2e13ea01e..5d3452df1012 100644
+--- a/okhttp-testing-support/src/main/kotlin/okhttp3/JsseDebugLogging.kt
++++ b/okhttp-testing-support/src/main/kotlin/okhttp3/JsseDebugLogging.kt
+@@ -67,7 +67,10 @@ object JsseDebugLogging {
+       JsseDebugMessage.Type.Setup, JsseDebugMessage.Type.Encrypted, JsseDebugMessage.Type.Plaintext -> {
+         println(message.message + " (skipped output)")
+       }
+-      else -> println(message)
++
++      else -> {
++        println(message)
++      }
+     }
+   }
+ 
+diff --git a/okhttp-testing-support/src/main/kotlin/okhttp3/RecordingConnectionListener.kt b/okhttp-testing-support/src/main/kotlin/okhttp3/RecordingConnectionListener.kt
+index 3f5ce36c3378..e4aa31c52997 100644
+--- a/okhttp-testing-support/src/main/kotlin/okhttp3/RecordingConnectionListener.kt
++++ b/okhttp-testing-support/src/main/kotlin/okhttp3/RecordingConnectionListener.kt
+@@ -134,8 +134,12 @@ internal open class RecordingConnectionListener(
+     } else {
+       eventSequence.forEach loop@{
+         when (e.closes(it)) {
+-          null -> return // no open event
+-          true -> return // found open event
++          null -> return
++
++          // no open event
++          true -> return
++
++          // found open event
+           false -> return@loop // this is not the open event so continue
+         }
+       }
+diff --git a/okhttp-testing-support/src/main/kotlin/okhttp3/testing/Flaky.kt b/okhttp-testing-support/src/main/kotlin/okhttp3/testing/Flaky.kt
+index f3b04d8809b6..1e911de0f554 100644
+--- a/okhttp-testing-support/src/main/kotlin/okhttp3/testing/Flaky.kt
++++ b/okhttp-testing-support/src/main/kotlin/okhttp3/testing/Flaky.kt
+@@ -15,10 +15,10 @@
+  */
+ package okhttp3.testing
+ 
+-@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
+-@Retention(AnnotationRetention.RUNTIME)
+ /**
+  * Annotation marking a test as flaky, and requires extra logging and linking against
+  * a known github issue.  This does not ignore the failure.
+  */
++@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
++@Retention(AnnotationRetention.RUNTIME)
+ annotation class Flaky
+diff --git a/okhttp-testing-support/src/main/kotlin/okhttp3/testing/PlatformRule.kt b/okhttp-testing-support/src/main/kotlin/okhttp3/testing/PlatformRule.kt
+index 55e0b40d7db2..ce18eee54d7a 100644
+--- a/okhttp-testing-support/src/main/kotlin/okhttp3/testing/PlatformRule.kt
++++ b/okhttp-testing-support/src/main/kotlin/okhttp3/testing/PlatformRule.kt
+@@ -442,13 +442,25 @@ open class PlatformRule
+         if (property == null) {
+           property =
+             when (Platform.get()) {
+-              is ConscryptPlatform -> CONSCRYPT_PROPERTY
+-              is OpenJSSEPlatform -> OPENJSSE_PROPERTY
+-              is Jdk8WithJettyBootPlatform -> CONSCRYPT_PROPERTY
++              is ConscryptPlatform -> {
++                CONSCRYPT_PROPERTY
++              }
++
++              is OpenJSSEPlatform -> {
++                OPENJSSE_PROPERTY
++              }
++
++              is Jdk8WithJettyBootPlatform -> {
++                CONSCRYPT_PROPERTY
++              }
++
+               is Jdk9Platform -> {
+                 if (isCorrettoInstalled) CORRETTO_PROPERTY else JDK9_PROPERTY
+               }
+-              else -> JDK8_PROPERTY
++
++              else -> {
++                JDK8_PROPERTY
++              }
+             }
+         }
+ 
+diff --git a/okhttp-tls/src/main/kotlin/okhttp3/tls/HeldCertificate.kt b/okhttp-tls/src/main/kotlin/okhttp3/tls/HeldCertificate.kt
+index b3a1a1cf97fa..a7257ff178d5 100644
+--- a/okhttp-tls/src/main/kotlin/okhttp3/tls/HeldCertificate.kt
++++ b/okhttp-tls/src/main/kotlin/okhttp3/tls/HeldCertificate.kt
+@@ -462,6 +462,7 @@ class HeldCertificate(
+               it.canParseAsIpAddress() -> {
+                 generalNameIpAddress to InetAddress.getByName(it).address.toByteString()
+               }
++
+               else -> {
+                 generalNameDnsName to it
+               }
+@@ -480,16 +481,19 @@ class HeldCertificate(
+ 
+     private fun signatureAlgorithm(signedByKeyPair: KeyPair): AlgorithmIdentifier =
+       when (signedByKeyPair.private) {
+-        is RSAPrivateKey ->
++        is RSAPrivateKey -> {
+           AlgorithmIdentifier(
+             algorithm = SHA256_WITH_RSA_ENCRYPTION,
+             parameters = null,
+           )
+-        else ->
++        }
++
++        else -> {
+           AlgorithmIdentifier(
+             algorithm = SHA256_WITH_ECDSA,
+             parameters = ByteString.EMPTY,
+           )
++        }
+       }
+ 
+     private fun generateKeyPair(): KeyPair =
+@@ -548,10 +552,12 @@ class HeldCertificate(
+             require(certificatePem == null) { "string includes multiple certificates" }
+             certificatePem = match.groups[0]!!.value // Keep --BEGIN-- and --END-- for certificates.
+           }
++
+           "PRIVATE KEY" -> {
+             require(pkcs8Base64 == null) { "string includes multiple private keys" }
+             pkcs8Base64 = match.groups[2]!!.value // Include the contents only for PKCS8.
+           }
++
+           else -> {
+             throw IllegalArgumentException("unexpected type: $label")
+           }
+diff --git a/okhttp-tls/src/main/kotlin/okhttp3/tls/internal/der/CertificateAdapters.kt b/okhttp-tls/src/main/kotlin/okhttp3/tls/internal/der/CertificateAdapters.kt
+index db11214d2368..ad06500b3883 100644
+--- a/okhttp-tls/src/main/kotlin/okhttp3/tls/internal/der/CertificateAdapters.kt
++++ b/okhttp-tls/src/main/kotlin/okhttp3/tls/internal/der/CertificateAdapters.kt
+@@ -54,11 +54,15 @@ internal object CertificateAdapters {
+             peekHeader.tag == Adapters.UTC_TIME.tag -> {
+             Adapters.UTC_TIME.fromDer(reader)
+           }
++
+           peekHeader.tagClass == Adapters.GENERALIZED_TIME.tagClass &&
+             peekHeader.tag == Adapters.GENERALIZED_TIME.tag -> {
+             Adapters.GENERALIZED_TIME.fromDer(reader)
+           }
+-          else -> throw ProtocolException("expected time but was $peekHeader at $reader")
++
++          else -> {
++            throw ProtocolException("expected time but was $peekHeader at $reader")
++          }
+         }
+       }
+ 
+@@ -110,8 +114,11 @@ internal object CertificateAdapters {
+         // when it is present, and for others we must omit it!
+         // https://tools.ietf.org/html/rfc4055#section-2.1
+         ObjectIdentifiers.SHA256_WITH_RSA_ENCRYPTION -> Adapters.NULL
++
+         ObjectIdentifiers.RSA_ENCRYPTION -> Adapters.NULL
++
+         ObjectIdentifiers.EC_PUBLIC_KEY -> Adapters.OBJECT_IDENTIFIER
++
+         else -> null
+       }
+     }
+diff --git a/okhttp-tls/src/main/kotlin/okhttp3/tls/internal/der/DerReader.kt b/okhttp-tls/src/main/kotlin/okhttp3/tls/internal/der/DerReader.kt
+index 63d29b1895cd..0844a962d78a 100644
+--- a/okhttp-tls/src/main/kotlin/okhttp3/tls/internal/der/DerReader.kt
++++ b/okhttp-tls/src/main/kotlin/okhttp3/tls/internal/der/DerReader.kt
+@@ -127,6 +127,7 @@ internal class DerReader(
+         length0 == 0b1000_0000 -> {
+           throw ProtocolException("indefinite length not permitted for DER")
+         }
++
+         (length0 and 0b1000_0000) == 0b1000_0000 -> {
+           // Length specified over multiple bytes.
+           val lengthBytes = length0 and 0b0111_1111
+@@ -148,6 +149,7 @@ internal class DerReader(
+ 
+           lengthBits
+         }
++
+         else -> {
+           // Length is 127 or fewer bytes.
+           (length0 and 0b0111_1111).toLong()
+@@ -269,11 +271,13 @@ internal class DerReader(
+         result.writeByte(dot)
+         result.writeDecimalLong(xy)
+       }
++
+       in 40L until 80L -> {
+         result.writeDecimalLong(1)
+         result.writeByte(dot)
+         result.writeDecimalLong(xy - 40L)
+       }
++
+       else -> {
+         result.writeDecimalLong(2)
+         result.writeByte(dot)
+diff --git a/okhttp/src/androidMain/kotlin/okhttp3/internal/platform/android/ConscryptSocketAdapter.kt b/okhttp/src/androidMain/kotlin/okhttp3/internal/platform/android/ConscryptSocketAdapter.kt
+index 29b53b8d7f8f..006e593b7bcf 100644
+--- a/okhttp/src/androidMain/kotlin/okhttp3/internal/platform/android/ConscryptSocketAdapter.kt
++++ b/okhttp/src/androidMain/kotlin/okhttp3/internal/platform/android/ConscryptSocketAdapter.kt
+@@ -67,6 +67,7 @@ class ConscryptSocketAdapter : SocketAdapter {
+         when {
+           // Bump this version if we ever have a binary incompatibility
+           Conscrypt.isAvailable() && atLeastVersion(2, 1, 0) -> true
++
+           else -> false
+         }
+       } catch (e: NoClassDefFoundError) {
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/CertificatePinner.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/CertificatePinner.kt
+index 801d51e41c8f..925502aceacb 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/CertificatePinner.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/CertificatePinner.kt
+@@ -174,11 +174,15 @@ class CertificatePinner internal constructor(
+             if (sha256 == null) sha256 = peerCertificate.sha256Hash()
+             if (pin.hash == sha256) return // Success!
+           }
++
+           "sha1" -> {
+             if (sha1 == null) sha1 = peerCertificate.sha1Hash()
+             if (pin.hash == sha1) return // Success!
+           }
+-          else -> throw AssertionError("unsupported hashAlgorithm: ${pin.hashAlgorithm}")
++
++          else -> {
++            throw AssertionError("unsupported hashAlgorithm: ${pin.hashAlgorithm}")
++          }
+         }
+       }
+     }
+@@ -274,11 +278,15 @@ class CertificatePinner internal constructor(
+           this.hashAlgorithm = "sha1"
+           this.hash = pin.substring("sha1/".length).decodeBase64() ?: throw IllegalArgumentException("Invalid pin hash: $pin")
+         }
++
+         pin.startsWith("sha256/") -> {
+           this.hashAlgorithm = "sha256"
+           this.hash = pin.substring("sha256/".length).decodeBase64() ?: throw IllegalArgumentException("Invalid pin hash: $pin")
+         }
+-        else -> throw IllegalArgumentException("pins must start with 'sha256/' or 'sha1/': $pin")
++
++        else -> {
++          throw IllegalArgumentException("pins must start with 'sha256/' or 'sha1/': $pin")
++        }
+       }
+     }
+ 
+@@ -291,6 +299,7 @@ class CertificatePinner internal constructor(
+           hostname.regionMatches(hostname.length - suffixLength, pattern, 3, suffixLength) &&
+             (prefixLength == 0 || hostname[prefixLength - 1] == '.')
+         }
++
+         pattern.startsWith("*.") -> {
+           // With * there must be a prefix so include the dot in regionMatches().
+           val suffixLength = pattern.length - 1
+@@ -298,7 +307,10 @@ class CertificatePinner internal constructor(
+           hostname.regionMatches(hostname.length - suffixLength, pattern, 1, suffixLength) &&
+             hostname.lastIndexOf('.', prefixLength - 1) == -1
+         }
+-        else -> hostname == pattern
++
++        else -> {
++          hostname == pattern
++        }
+       }
+ 
+     fun matchesCertificate(certificate: X509Certificate): Boolean =
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/Cookie.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/Cookie.kt
+index 13094f6b8bf7..0b36b3f908c0 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/Cookie.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/Cookie.kt
+@@ -496,6 +496,7 @@ class Cookie private constructor(
+               // Ignore this attribute, it isn't recognizable as a date.
+             }
+           }
++
+           attributeName.equals("max-age", ignoreCase = true) -> {
+             try {
+               deltaSeconds = parseMaxAge(attributeValue)
+@@ -504,6 +505,7 @@ class Cookie private constructor(
+               // Ignore this attribute, it isn't recognizable as a max age.
+             }
+           }
++
+           attributeName.equals("domain", ignoreCase = true) -> {
+             try {
+               domain = parseDomain(attributeValue)
+@@ -512,15 +514,19 @@ class Cookie private constructor(
+               // Ignore this attribute, it isn't recognizable as a domain.
+             }
+           }
++
+           attributeName.equals("path", ignoreCase = true) -> {
+             path = attributeValue
+           }
++
+           attributeName.equals("secure", ignoreCase = true) -> {
+             secureOnly = true
+           }
++
+           attributeName.equals("httponly", ignoreCase = true) -> {
+             httpOnly = true
+           }
++
+           attributeName.equals("samesite", ignoreCase = true) -> {
+             sameSite = attributeValue
+           }
+@@ -610,13 +616,16 @@ class Cookie private constructor(
+             minute = matcher.group(2).toInt()
+             second = matcher.group(3).toInt()
+           }
++
+           dayOfMonth == -1 && matcher.usePattern(DAY_OF_MONTH_PATTERN).matches() -> {
+             dayOfMonth = matcher.group(1).toInt()
+           }
++
+           month == -1 && matcher.usePattern(MONTH_PATTERN).matches() -> {
+             val monthString = matcher.group(1).lowercase(Locale.US)
+             month = MONTH_PATTERN.pattern().indexOf(monthString) / 4 // Sneaky! jan=1, dec=12.
+           }
++
+           year == -1 && matcher.usePattern(YEAR_PATTERN).matches() -> {
+             year = matcher.group(1).toInt()
+           }
+@@ -663,15 +672,14 @@ class Cookie private constructor(
+     ): Int {
+       for (i in pos until limit) {
+         val c = input[i].code
+-        val dateCharacter = (
+-          c < ' '.code &&
+-            c != '\t'.code ||
+-            c >= '\u007f'.code ||
+-            c in '0'.code..'9'.code ||
+-            c in 'a'.code..'z'.code ||
+-            c in 'A'.code..'Z'.code ||
+-            c == ':'.code
+-        )
++        val dateCharacter =
++          (
++            (
++              ((c < ' '.code) && (c != '\t'.code)) || (c >= '\u007f'.code) || (c in ('0'.code..'9'.code)) || (c in ('a'.code..'z'.code)) ||
++                (c in ('A'.code..'Z'.code)) ||
++                (c == ':'.code)
++            )
++          )
+         if (dateCharacter == !invert) return i
+       }
+       return limit
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/Handshake.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/Handshake.kt
+index 50c776372c53..4c61fc4b7bf6 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/Handshake.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/Handshake.kt
+@@ -154,7 +154,9 @@ class Handshake internal constructor(
+             throw IOException("cipherSuite == $cipherSuiteString")
+           }
+ 
+-          else -> CipherSuite.forJavaName(cipherSuiteString)
++          else -> {
++            CipherSuite.forJavaName(cipherSuiteString)
++          }
+         }
+ 
+       val tlsVersionString = checkNotNull(protocol) { "tlsVersion == null" }
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/Headers.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/Headers.kt
+index 155aec37c584..20acbb5d96ee 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/Headers.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/Headers.kt
+@@ -215,11 +215,13 @@ class Headers internal constructor(
+           index != -1 -> {
+             addLenient(line.substring(0, index), line.substring(index + 1))
+           }
++
+           line[0] == ':' -> {
+             // Work around empty header names and header names that start with a colon (created by old
+             // broken SPDY versions of the response cache).
+             addLenient("", line.substring(1)) // Empty header name.
+           }
++
+           else -> {
+             // No header name.
+             addLenient("", line)
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/HttpUrl.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/HttpUrl.kt
+index 65501a571a40..646c698437e2 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/HttpUrl.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/HttpUrl.kt
+@@ -1344,14 +1344,18 @@ class HttpUrl private constructor(
+             this.scheme = "https"
+             pos += "https:".length
+           }
++
+           input.startsWith("http:", ignoreCase = true, startIndex = pos) -> {
+             this.scheme = "http"
+             pos += "http:".length
+           }
+-          else -> throw IllegalArgumentException(
+-            "Expected URL scheme 'http' or 'https' but was '" +
+-              input.substring(0, schemeDelimiterOffset) + "'",
+-          )
++
++          else -> {
++            throw IllegalArgumentException(
++              "Expected URL scheme 'http' or 'https' but was '" +
++                input.substring(0, schemeDelimiterOffset) + "'",
++            )
++          }
+         }
+       } else if (base != null) {
+         this.scheme = base.scheme
+@@ -1678,7 +1682,10 @@ class HttpUrl private constructor(
+               if (input[i] == ']') break
+             }
+           }
+-          ':' -> return i
++
++          ':' -> {
++            return i
++          }
+         }
+         i++
+       }
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/MediaType.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/MediaType.kt
+index 411fb3dde174..313fa70ccde5 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/MediaType.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/MediaType.kt
+@@ -130,11 +130,15 @@ class MediaType internal constructor(
+               // Value is "double-quoted". That's valid and our regex group already strips the quotes.
+               parameter.groups[3]!!.value
+             }
++
+             token.startsWith('\'') && token.endsWith('\'') && token.length > 2 -> {
+               // If the token is 'single-quoted' it's invalid! But we're lenient and strip the quotes.
+               token.substring(1, token.length - 1)
+             }
+-            else -> token
++
++            else -> {
++              token
++            }
+           }
+ 
+         parameterNamesAndValues += name
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/MultipartReader.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/MultipartReader.kt
+index 54713befaf4a..790c3a2ef19e 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/MultipartReader.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/MultipartReader.kt
+@@ -137,7 +137,9 @@ class MultipartReader
+             continue@afterBoundaryLoop
+           }
+ 
+-          -1 -> throw ProtocolException("unexpected characters after boundary")
++          -1 -> {
++            throw ProtocolException("unexpected characters after boundary")
++          }
+         }
+       }
+ 
+@@ -167,7 +169,9 @@ class MultipartReader
+ 
+         return source.timeout().intersectWith(timeout) {
+           when (val limit = currentPartBytesRemaining(maxByteCount = byteCount)) {
+-            0L -> -1L // No more bytes in this part.
++            0L -> -1L
++
++            // No more bytes in this part.
+             else -> source.read(sink, limit)
+           }
+         }
+@@ -190,8 +194,12 @@ class MultipartReader
+           toIndex = toIndex,
+         )
+       return when {
+-        boundaryIndex != -1L -> boundaryIndex // We found the boundary.
+-        source.buffer.size >= toIndex -> minOf(toIndex, maxByteCount) // No boundary before toIndex.
++        boundaryIndex != -1L -> boundaryIndex
++
++        // We found the boundary.
++        source.buffer.size >= toIndex -> minOf(toIndex, maxByteCount)
++
++        // No boundary before toIndex.
+         else -> throw EOFException() // We ran out of data before we found the required boundary.
+       }
+     }
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/OkHttpClient.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/OkHttpClient.kt
+index ebdcafad3fe9..7ceb5da755f5 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/OkHttpClient.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/OkHttpClient.kt
+@@ -191,6 +191,7 @@ open class OkHttpClient internal constructor(
+     when {
+       // Defer calls to ProxySelector.getDefault() because it can throw a SecurityException.
+       builder.proxy != null -> NullProxySelector
++
+       else -> builder.proxySelector ?: ProxySelector.getDefault() ?: NullProxySelector
+     }
+ 
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/Protocol.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/Protocol.kt
+index cc7f4e7033be..a3e290cfe2d8 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/Protocol.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/Protocol.kt
+@@ -117,12 +117,30 @@ enum class Protocol(
+       // Unroll the loop over values() to save an allocation.
+       @Suppress("DEPRECATION")
+       return when (protocol) {
+-        HTTP_1_0.protocol -> HTTP_1_0
+-        HTTP_1_1.protocol -> HTTP_1_1
+-        H2_PRIOR_KNOWLEDGE.protocol -> H2_PRIOR_KNOWLEDGE
+-        HTTP_2.protocol -> HTTP_2
+-        SPDY_3.protocol -> SPDY_3
+-        QUIC.protocol -> QUIC
++        HTTP_1_0.protocol -> {
++          HTTP_1_0
++        }
++
++        HTTP_1_1.protocol -> {
++          HTTP_1_1
++        }
++
++        H2_PRIOR_KNOWLEDGE.protocol -> {
++          H2_PRIOR_KNOWLEDGE
++        }
++
++        HTTP_2.protocol -> {
++          HTTP_2
++        }
++
++        SPDY_3.protocol -> {
++          SPDY_3
++        }
++
++        QUIC.protocol -> {
++          QUIC
++        }
++
+         else -> {
+           // Support HTTP3 draft like h3-29
+           if (protocol.startsWith(HTTP_3.protocol)) HTTP_3 else throw IOException("Unexpected protocol: $protocol")
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/-CacheControlCommon.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/-CacheControlCommon.kt
+index a0b6ea9d1a00..5ccb68fd3c96 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/-CacheControlCommon.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/-CacheControlCommon.kt
+@@ -137,10 +137,12 @@ internal fun CacheControl.Companion.commonParse(headers: Headers): CacheControl
+           headerValue = value
+         }
+       }
++
+       name.equals("Pragma", ignoreCase = true) -> {
+         // Might specify additional cache-control params. We invalidate just in case.
+         canUseHeaderValue = false
+       }
++
+       else -> {
+         continue@loop
+       }
+@@ -179,36 +181,47 @@ internal fun CacheControl.Companion.commonParse(headers: Headers): CacheControl
+         "no-cache".equals(directive, ignoreCase = true) -> {
+           noCache = true
+         }
++
+         "no-store".equals(directive, ignoreCase = true) -> {
+           noStore = true
+         }
++
+         "max-age".equals(directive, ignoreCase = true) -> {
+           maxAgeSeconds = parameter.toNonNegativeInt(-1)
+         }
++
+         "s-maxage".equals(directive, ignoreCase = true) -> {
+           sMaxAgeSeconds = parameter.toNonNegativeInt(-1)
+         }
++
+         "private".equals(directive, ignoreCase = true) -> {
+           isPrivate = true
+         }
++
+         "public".equals(directive, ignoreCase = true) -> {
+           isPublic = true
+         }
++
+         "must-revalidate".equals(directive, ignoreCase = true) -> {
+           mustRevalidate = true
+         }
++
+         "max-stale".equals(directive, ignoreCase = true) -> {
+           maxStaleSeconds = parameter.toNonNegativeInt(Int.MAX_VALUE)
+         }
++
+         "min-fresh".equals(directive, ignoreCase = true) -> {
+           minFreshSeconds = parameter.toNonNegativeInt(-1)
+         }
++
+         "only-if-cached".equals(directive, ignoreCase = true) -> {
+           onlyIfCached = true
+         }
++
+         "no-transform".equals(directive, ignoreCase = true) -> {
+           noTransform = true
+         }
++
+         "immutable".equals(directive, ignoreCase = true) -> {
+           immutable = true
+         }
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/-UtilJvm.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/-UtilJvm.kt
+index c79cd212060f..90718e37904f 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/-UtilJvm.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/-UtilJvm.kt
+@@ -88,11 +88,17 @@ internal fun BufferedSource.readBomAsCharset(default: Charset): Charset =
+   when (select(UNICODE_BOMS)) {
+     // a mapping from the index of encoding methods in UNICODE_BOMS to its corresponding encoding method
+     0 -> UTF_8
++
+     1 -> UTF_16BE
++
+     2 -> UTF_32LE
++
+     3 -> UTF_16LE
++
+     4 -> UTF_32BE
++
+     -1 -> default
++
+     else -> throw AssertionError()
+   }
+ 
+@@ -254,7 +260,9 @@ internal inline fun <K, V> Map<K, V>.unmodifiable(): Map<K, V> = Collections.unm
+ internal fun <T> List<T>.toImmutableList(): List<T> =
+   when {
+     this.isEmpty() -> emptyList()
++
+     this.size == 1 -> Collections.singletonList(this[0])
++
+     // Collection.toArray returns Object[] (covariant).
+     // It is faster than creating real T[] via reflection (Arrays.copyOf).
+     else -> (this as java.util.Collection<*>).toArray().asList().unmodifiable() as List<T>
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/Tags.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/Tags.kt
+index 2f88c9fa51f2..e087fc13b542 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/Tags.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/Tags.kt
+@@ -74,12 +74,18 @@ private class LinkedTags<K : Any>(
+     // Create a copy of this `LinkedTags` that doesn't have a mapping for `key`.
+     val thisMinusKey =
+       when {
+-        key == this.key -> next // Subtract this!
++        key == this.key -> {
++          next
++        }
++
++        // Subtract this!
+ 
+         else -> {
+           val nextMinusKey = next.plus(key, null)
+           when {
+-            nextMinusKey === next -> this // Same as the following line, but with fewer allocations.
++            nextMinusKey === next -> this
++
++            // Same as the following line, but with fewer allocations.
+             else -> LinkedTags(this.key, this.value, nextMinusKey)
+           }
+         }
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/cache/CacheStrategy.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/cache/CacheStrategy.kt
+index 34de9fddd560..17872e011304 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/cache/CacheStrategy.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/cache/CacheStrategy.kt
+@@ -105,16 +105,20 @@ class CacheStrategy internal constructor(
+               servedDate = value.toHttpDateOrNull()
+               servedDateString = value
+             }
++
+             fieldName.equals("Expires", ignoreCase = true) -> {
+               expires = value.toHttpDateOrNull()
+             }
++
+             fieldName.equals("Last-Modified", ignoreCase = true) -> {
+               lastModified = value.toHttpDateOrNull()
+               lastModifiedString = value
+             }
++
+             fieldName.equals("ETag", ignoreCase = true) -> {
+               etag = value
+             }
++
+             fieldName.equals("Age", ignoreCase = true) -> {
+               ageSeconds = value.toNonNegativeInt(-1)
+             }
+@@ -210,7 +214,9 @@ class CacheStrategy internal constructor(
+           conditionValue = servedDateString
+         }
+ 
+-        else -> return CacheStrategy(request, null) // No condition! Make a regular request.
++        else -> {
++          return CacheStrategy(request, null)
++        } // No condition! Make a regular request.
+       }
+ 
+       val conditionalRequestHeaders = request.headers.newBuilder()
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/cache/DiskLruCache.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/cache/DiskLruCache.kt
+index e540aef65d96..dbf022e26d19 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/cache/DiskLruCache.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/cache/DiskLruCache.kt
+@@ -370,7 +370,9 @@ class DiskLruCache(
+         // This work was already done by calling lruEntries.get().
+       }
+ 
+-      else -> throw IOException("unexpected journal line: $line")
++      else -> {
++        throw IOException("unexpected journal line: $line")
++      }
+     }
+   }
+ 
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/connection/ConnectPlan.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/connection/ConnectPlan.kt
+index a83bb35590d5..e90421ccdc44 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/connection/ConnectPlan.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/connection/ConnectPlan.kt
+@@ -323,6 +323,7 @@ class ConnectPlan internal constructor(
+             ),
+         )
+       }
++
+       else -> {
+         val failure =
+           ProtocolException(
+@@ -442,7 +443,9 @@ class ConnectPlan internal constructor(
+       tunnelCodec.skipConnectBody(response)
+ 
+       when (response.code) {
+-        HttpURLConnection.HTTP_OK -> return null
++        HttpURLConnection.HTTP_OK -> {
++          return null
++        }
+ 
+         HttpURLConnection.HTTP_PROXY_AUTH -> {
+           nextRequest = route.address.proxyAuthenticator.authenticate(route, response)
+@@ -453,7 +456,9 @@ class ConnectPlan internal constructor(
+           }
+         }
+ 
+-        else -> throw IOException("Unexpected response code for CONNECT: ${response.code}")
++        else -> {
++          throw IOException("Unexpected response code for CONNECT: ${response.code}")
++        }
+       }
+     }
+   }
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/connection/FastFallbackExchangeFinder.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/connection/FastFallbackExchangeFinder.kt
+index 74154b99c441..928fc24cd6a8 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/connection/FastFallbackExchangeFinder.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/connection/FastFallbackExchangeFinder.kt
+@@ -121,7 +121,10 @@ internal class FastFallbackExchangeFinder(
+             FailedPlan(e)
+           }
+         }
+-        else -> return null // Nothing further to try.
++
++        else -> {
++          return null
++        } // Nothing further to try.
+       }
+ 
+     // Already connected. Return it immediately.
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/connection/RealConnectionPool.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/connection/RealConnectionPool.kt
+index 85b334cd6bf1..2bf7da124c50 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/connection/RealConnectionPool.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/connection/RealConnectionPool.kt
+@@ -91,8 +91,14 @@ class RealConnectionPool internal constructor(
+       val acquired =
+         connection.withLock {
+           when {
+-            requireMultiplexed && !connection.isMultiplexed -> false
+-            !connection.isEligible(address, routes) -> false
++            requireMultiplexed && !connection.isMultiplexed -> {
++              false
++            }
++
++            !connection.isEligible(address, routes) -> {
++              false
++            }
++
+             else -> {
+               call.acquireConnectionNoEvents(connection)
+               true
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/connection/RealRoutePlanner.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/connection/RealRoutePlanner.kt
+index 5b6e6ddcb229..598e072b024a 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/connection/RealRoutePlanner.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/connection/RealRoutePlanner.kt
+@@ -104,10 +104,14 @@ class RealRoutePlanner internal constructor(
+             candidate.noNewExchanges = true
+             call.releaseConnectionNoEvents()
+           }
++
+           candidate.noNewExchanges || !sameHostAndPort(candidate.route().address.url) -> {
+             call.releaseConnectionNoEvents()
+           }
+-          else -> null
++
++          else -> {
++            null
++          }
+         }
+       }
+ 
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/http/HttpHeaders.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/http/HttpHeaders.kt
+index 4df249a2dd49..64b6e90feac4 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/http/HttpHeaders.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/http/HttpHeaders.kt
+@@ -152,7 +152,9 @@ private fun Buffer.skipCommasAndWhitespace(): Boolean {
+         // Consume space or tab.
+       }
+ 
+-      else -> break@loop
++      else -> {
++        break@loop
++      }
+     }
+   }
+   return commaFound
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/http/RetryAndFollowUpInterceptor.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/http/RetryAndFollowUpInterceptor.kt
+index a28ea5bf6fed..458c3eaad396 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/http/RetryAndFollowUpInterceptor.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/http/RetryAndFollowUpInterceptor.kt
+@@ -221,7 +221,9 @@ class RetryAndFollowUpInterceptor : Interceptor {
+         return chain.proxyAuthenticator.authenticate(route, userResponse)
+       }
+ 
+-      HTTP_UNAUTHORIZED -> return chain.authenticator.authenticate(route, userResponse)
++      HTTP_UNAUTHORIZED -> {
++        return chain.authenticator.authenticate(route, userResponse)
++      }
+ 
+       HTTP_PERM_REDIRECT, HTTP_TEMP_REDIRECT, HTTP_MULT_CHOICE, HTTP_MOVED_PERM, HTTP_MOVED_TEMP, HTTP_SEE_OTHER -> {
+         return buildRedirectRequest(userResponse, method, chain)
+@@ -285,7 +287,9 @@ class RetryAndFollowUpInterceptor : Interceptor {
+         return userResponse.request
+       }
+ 
+-      else -> return null
++      else -> {
++        return null
++      }
+     }
+   }
+ 
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/http1/Http1ExchangeCodec.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/http1/Http1ExchangeCodec.kt
+index 36e94d563d51..f1a176c0299d 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/http1/Http1ExchangeCodec.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/http1/Http1ExchangeCodec.kt
+@@ -95,15 +95,28 @@ class Http1ExchangeCodec(
+     contentLength: Long,
+   ): Sink =
+     when {
+-      request.body?.isDuplex() == true -> throw ProtocolException(
+-        "Duplex connections are not supported for HTTP/1",
+-      )
+-      request.isChunked -> newChunkedSink() // Stream a request body of unknown length.
+-      contentLength != -1L -> newKnownLengthSink() // Stream a request body of a known length.
+-      else -> // Stream a request body of a known length.
++      request.body?.isDuplex() == true -> {
++        throw ProtocolException(
++          "Duplex connections are not supported for HTTP/1",
++        )
++      }
++
++      request.isChunked -> {
++        newChunkedSink()
++      }
++
++      // Stream a request body of unknown length.
++      contentLength != -1L -> {
++        newKnownLengthSink()
++      }
++
++      // Stream a request body of a known length.
++      else -> {
++        // Stream a request body of a known length.
+         throw IllegalStateException(
+           "Cannot stream a request body without chunked encoding or a known content length!",
+         )
++      }
+     }
+ 
+   override fun cancel() {
+@@ -134,8 +147,14 @@ class Http1ExchangeCodec(
+ 
+   override fun openResponseBodySource(response: Response): Source =
+     when {
+-      !response.promisesBody() -> newFixedLengthSource(response.request.url, 0)
+-      response.isChunked -> newChunkedSource(response.request.url)
++      !response.promisesBody() -> {
++        newFixedLengthSource(response.request.url, 0)
++      }
++
++      response.isChunked -> {
++        newChunkedSource(response.request.url)
++      }
++
+       else -> {
+         val contentLength = response.headersContentLength()
+         if (contentLength != -1L) {
+@@ -207,16 +226,19 @@ class Http1ExchangeCodec(
+         expectContinue && statusLine.code == HTTP_CONTINUE -> {
+           null
+         }
++
+         statusLine.code == HTTP_CONTINUE -> {
+           state = STATE_READ_RESPONSE_HEADERS
+           responseBuilder
+         }
++
+         statusLine.code in (102 until 200) -> {
+           // Processing and Early Hints will mean a second headers are coming.
+           // Treat others the same for now
+           state = STATE_READ_RESPONSE_HEADERS
+           responseBuilder
+         }
++
+         else -> {
+           state = STATE_OPEN_RESPONSE_BODY
+           responseBuilder
+@@ -484,7 +506,7 @@ class Http1ExchangeCodec(
+       try {
+         bytesRemainingInChunk = socket.source.readHexadecimalUnsignedLong()
+         val extensions = socket.source.readUtf8LineStrict().trim()
+-        if (bytesRemainingInChunk < 0L || extensions.isNotEmpty() && !extensions.startsWith(";")) {
++        if ((bytesRemainingInChunk < 0L) || (extensions.isNotEmpty() && !extensions.startsWith(";"))) {
+           throw ProtocolException(
+             "expected chunk size and optional extensions" +
+               " but was \"$bytesRemainingInChunk$extensions\"",
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/http2/Hpack.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/http2/Hpack.kt
+index 19f2949d7ba8..454c66f1f9bb 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/http2/Hpack.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/http2/Hpack.kt
+@@ -207,20 +207,24 @@ object Hpack {
+               // 10000000
+               throw IOException("index == 0")
+             }
++
+             b and 0x80 == 0x80 -> {
+               // 1NNNNNNN
+               val index = readInt(b, PREFIX_7_BITS)
+               readIndexedHeader(index - 1)
+             }
++
+             b == 0x40 -> {
+               // 01000000
+               readLiteralHeaderWithIncrementalIndexingNewName()
+             }
++
+             b and 0x40 == 0x40 -> {
+               // 01NNNNNN
+               val index = readInt(b, PREFIX_6_BITS)
+               readLiteralHeaderWithIncrementalIndexingIndexedName(index - 1)
+             }
++
+             b and 0x20 == 0x20 -> {
+               // 001NNNNN
+               maxDynamicTableByteCount = readInt(b, PREFIX_5_BITS)
+@@ -229,10 +233,12 @@ object Hpack {
+               }
+               adjustDynamicTableByteCount()
+             }
++
+             b == 0x10 || b == 0 -> {
+               // 000?0000 - Ignore never indexed bit.
+               readLiteralHeaderWithoutIndexingNewName()
+             }
++
+             else -> {
+               // 000?NNNN - Ignore never indexed bit.
+               val index = readInt(b, PREFIX_4_BITS)
+@@ -541,6 +547,7 @@ object Hpack {
+               // Indexed Header Field.
+               writeInt(headerIndex, PREFIX_7_BITS, 0x80)
+             }
++
+             headerNameIndex == -1 -> {
+               // Literal Header Field with Incremental Indexing - New Name.
+               out.writeByte(0x40)
+@@ -548,12 +555,14 @@ object Hpack {
+               writeByteString(value)
+               insertIntoDynamicTable(header)
+             }
++
+             name.startsWith(Header.PSEUDO_PREFIX) && TARGET_AUTHORITY != name -> {
+               // Follow Chromes lead - only include the :authority pseudo header, but exclude all other
+               // pseudo headers. Literal Header Field without Indexing - Indexed Name.
+               writeInt(headerNameIndex, PREFIX_4_BITS, 0)
+               writeByteString(value)
+             }
++
+             else -> {
+               // Literal Header Field with Incremental Indexing - Indexed Name.
+               writeInt(headerNameIndex, PREFIX_6_BITS, 0x40)
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/http2/Http2.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/http2/Http2.kt
+index 5cc30f8bba48..409e3c1fe9e0 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/http2/Http2.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/http2/Http2.kt
+@@ -171,6 +171,7 @@ object Http2 {
+     when (type) {
+       // Special case types that have 0 or 1 flag.
+       TYPE_SETTINGS, TYPE_PING -> return if (flags == FLAG_ACK) "ACK" else BINARY[flags]
++
+       TYPE_PRIORITY, TYPE_RST_STREAM, TYPE_GOAWAY, TYPE_WINDOW_UPDATE -> return BINARY[flags]
+     }
+     val result = if (flags < FLAGS.size) FLAGS[flags]!! else BINARY[flags]
+@@ -179,10 +180,14 @@ object Http2 {
+       type == TYPE_PUSH_PROMISE && flags and FLAG_END_PUSH_PROMISE != 0 -> {
+         result.replace("HEADERS", "PUSH_PROMISE") // TODO: Avoid allocation.
+       }
++
+       type == TYPE_DATA && flags and FLAG_COMPRESSED != 0 -> {
+         result.replace("PRIORITY", "COMPRESSED") // TODO: Avoid allocation.
+       }
+-      else -> result
++
++      else -> {
++        result
++      }
+     }
+   }
+ }
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/http2/Http2Connection.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/http2/Http2Connection.kt
+index c293d5740a7d..b79401a79f64 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/http2/Http2Connection.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/http2/Http2Connection.kt
+@@ -771,7 +771,9 @@ class Http2Connection internal constructor(
+           delta = peerInitialWindowSize - previousPeerSettings.initialWindowSize.toLong()
+           streamsToNotify =
+             when {
+-              delta == 0L || streams.isEmpty() -> null // No adjustment is necessary.
++              delta == 0L || streams.isEmpty() -> null
++
++              // No adjustment is necessary.
+               else -> streams.values.toTypedArray()
+             }
+ 
+@@ -811,13 +813,16 @@ class Http2Connection internal constructor(
+             INTERVAL_PING -> {
+               intervalPongsReceived++
+             }
++
+             DEGRADED_PING -> {
+               degradedPongsReceived++
+             }
++
+             AWAIT_PING -> {
+               awaitPongsReceived++
+               notifyAll()
+             }
++
+             else -> {
+               // Ignore an unexpected pong.
+             }
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/idn/IdnaMappingTable.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/idn/IdnaMappingTable.kt
+index b4c0852d8634..e22a8ed6d325 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/idn/IdnaMappingTable.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/idn/IdnaMappingTable.kt
+@@ -135,6 +135,7 @@ internal class IdnaMappingTable internal constructor(
+         val beginIndex = ranges.read14BitInt(rangesIndex + 2)
+         sink.writeUtf8(mappings, beginIndex, beginIndex + b1)
+       }
++
+       in 64..79 -> {
+         // Mapped inline as codePoint delta to subtract
+         val b2 = ranges[rangesIndex + 2].code
+@@ -143,6 +144,7 @@ internal class IdnaMappingTable internal constructor(
+         val codepointDelta = (b1 and 0xF shl 14) or (b2 shl 7) or b3
+         sink.writeUtf8CodePoint(codePoint - codepointDelta)
+       }
++
+       in 80..95 -> {
+         // Mapped inline as codePoint delta to add
+         val b2 = ranges[rangesIndex + 2].code
+@@ -151,47 +153,59 @@ internal class IdnaMappingTable internal constructor(
+         val codepointDelta = (b1 and 0xF shl 14) or (b2 shl 7) or b3
+         sink.writeUtf8CodePoint(codePoint + codepointDelta)
+       }
++
+       119 -> {
+         // Ignored.
+       }
++
+       120 -> {
+         // Valid.
+         sink.writeUtf8CodePoint(codePoint)
+       }
++
+       121 -> {
+         // Disallowed.
+         sink.writeUtf8CodePoint(codePoint)
+         return false
+       }
++
+       122 -> {
+         // Mapped inline to the sequence: [b2].
+         sink.writeByte(ranges[rangesIndex + 2].code)
+       }
++
+       123 -> {
+         // Mapped inline to the sequence: [b2a].
+         sink.writeByte(ranges[rangesIndex + 2].code or 0x80)
+       }
++
+       124 -> {
+         // Mapped inline to the sequence: [b2, b3].
+         sink.writeByte(ranges[rangesIndex + 2].code)
+         sink.writeByte(ranges[rangesIndex + 3].code)
+       }
++
+       125 -> {
+         // Mapped inline to the sequence: [b2a, b3].
+         sink.writeByte(ranges[rangesIndex + 2].code or 0x80)
+         sink.writeByte(ranges[rangesIndex + 3].code)
+       }
++
+       126 -> {
+         // Mapped inline to the sequence: [b2, b3a].
+         sink.writeByte(ranges[rangesIndex + 2].code)
+         sink.writeByte(ranges[rangesIndex + 3].code or 0x80)
+       }
++
+       127 -> {
+         // Mapped inline to the sequence: [b2a, b3a].
+         sink.writeByte(ranges[rangesIndex + 2].code or 0x80)
+         sink.writeByte(ranges[rangesIndex + 3].code or 0x80)
+       }
+-      else -> error("unexpected rangesIndex for $codePoint")
++
++      else -> {
++        error("unexpected rangesIndex for $codePoint")
++      }
+     }
+ 
+     return true
+@@ -216,7 +230,9 @@ internal class IdnaMappingTable internal constructor(
+       }
+ 
+     return when {
+-      offset >= 0 -> offset * 4 // This section was found by binary search.
++      offset >= 0 -> offset * 4
++
++      // This section was found by binary search.
+       else -> (-offset - 2) * 4 // Not found? Use the preceding element.
+     }
+   }
+@@ -244,7 +260,9 @@ internal class IdnaMappingTable internal constructor(
+       }
+ 
+     return when {
+-      offset >= 0 -> offset * 4 // This entry was found by binary search.
++      offset >= 0 -> offset * 4
++
++      // This entry was found by binary search.
+       else -> (-offset - 2) * 4 // Not found? Use the preceding element.
+     }
+   }
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/idn/Punycode.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/idn/Punycode.kt
+index da60d074c811..a2959cce170c 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/idn/Punycode.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/idn/Punycode.kt
+@@ -204,7 +204,10 @@ object Punycode {
+           in 'a'..'z', in 'A'..'Z', in '0'..'9', '-' -> {
+             codePoints += codePoint.code
+           }
+-          else -> return false // Malformed.
++
++          else -> {
++            return false
++          } // Malformed.
+         }
+       }
+       pos++ // Consume '-'.
+@@ -311,7 +314,9 @@ object Punycode {
+             }
+           }
+ 
+-          else -> c.code
++          else -> {
++            c.code
++          }
+         }
+       i++
+     }
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/internal.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/internal.kt
+index 5a87df07ff14..4a31b17be342 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/internal.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/internal.kt
+@@ -14,12 +14,13 @@
+  * limitations under the License.
+  */
+ 
+-/** Exposes Kotlin-internal APIs to Java test code and code in other modules. */
+ @file:JvmName("Internal")
+ @file:Suppress("ktlint:standard:filename")
+ 
+ package okhttp3.internal
+ 
++// Exposes Kotlin-internal APIs to Java test code and code in other modules.
++
+ import java.nio.charset.Charset
+ import javax.net.ssl.SSLSocket
+ import okhttp3.Cache
+@@ -38,6 +39,8 @@ import okhttp3.internal.concurrent.TaskRunner
+ import okhttp3.internal.connection.ConnectionListener
+ import okhttp3.internal.connection.RealConnection
+ 
++// Exposes Kotlin-internal APIs to Java test code and code in other modules.
++
+ internal fun parseCookie(
+   currentTimeMillis: Long,
+   url: HttpUrl,
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/platform/Jdk9Platform.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/platform/Jdk9Platform.kt
+index a0245aebca67..ce605b6ea6d5 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/platform/Jdk9Platform.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/platform/Jdk9Platform.kt
+@@ -70,9 +70,11 @@ open class Jdk9Platform : Platform() {
+ 
+   override fun newSSLContext(): SSLContext =
+     when {
+-      majorVersion != null && majorVersion >= 9 ->
++      majorVersion != null && majorVersion >= 9 -> {
+         SSLContext.getInstance("TLS")
+-      else ->
++      }
++
++      else -> {
+         try {
+           // Based on SSLSocket.getApplicationProtocol check we should
+           // have TLSv1.3 if we request it.
+@@ -81,6 +83,7 @@ open class Jdk9Platform : Platform() {
+         } catch (nsae: NoSuchAlgorithmException) {
+           SSLContext.getInstance("TLS")
+         }
++      }
+     }
+ 
+   companion object {
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/platform/Platform.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/platform/Platform.kt
+index 564640d1c995..08fa6f8e7123 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/platform/Platform.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/platform/Platform.kt
+@@ -166,7 +166,9 @@ open class Platform {
+    */
+   open fun getStackTraceForCloseable(closer: String): Any? =
+     when {
+-      logger.isLoggable(Level.FINE) -> Throwable(closer) // These are expensive to allocate.
++      logger.isLoggable(Level.FINE) -> Throwable(closer)
++
++      // These are expensive to allocate.
+       else -> null
+     }
+ 
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/tls/OkHostnameVerifier.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/tls/OkHostnameVerifier.kt
+index d70e0959c3a8..0431b28e3ba4 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/tls/OkHostnameVerifier.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/tls/OkHostnameVerifier.kt
+@@ -89,7 +89,9 @@ object OkHostnameVerifier : HostnameVerifier {
+    */
+   private fun String.asciiToLowercase(): String =
+     when {
+-      isAscii() -> lowercase(Locale.US) // This is an ASCII string.
++      isAscii() -> lowercase(Locale.US)
++
++      // This is an ASCII string.
+       else -> this
+     }
+ 
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/ws/WebSocketExtensions.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/ws/WebSocketExtensions.kt
+index 83c2e896ae44..f48f6415daaa 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/ws/WebSocketExtensions.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/ws/WebSocketExtensions.kt
+@@ -135,21 +135,25 @@ data class WebSocketExtensions(
+                     clientMaxWindowBits = value?.toIntOrNull()
+                     if (clientMaxWindowBits == null) unexpectedValues = true // Not an int!
+                   }
++
+                   name.equals("client_no_context_takeover", ignoreCase = true) -> {
+                     if (clientNoContextTakeover) unexpectedValues = true // Repeated parameter!
+                     if (value != null) unexpectedValues = true // Unexpected value!
+                     clientNoContextTakeover = true
+                   }
++
+                   name.equals("server_max_window_bits", ignoreCase = true) -> {
+                     if (serverMaxWindowBits != null) unexpectedValues = true // Repeated parameter!
+                     serverMaxWindowBits = value?.toIntOrNull()
+                     if (serverMaxWindowBits == null) unexpectedValues = true // Not an int!
+                   }
++
+                   name.equals("server_no_context_takeover", ignoreCase = true) -> {
+                     if (serverNoContextTakeover) unexpectedValues = true // Repeated parameter!
+                     if (value != null) unexpectedValues = true // Unexpected value!
+                     serverNoContextTakeover = true
+                   }
++
+                   else -> {
+                     unexpectedValues = true // Unexpected parameter.
+                   }
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/ws/WebSocketReader.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/ws/WebSocketReader.kt
+index 3c7bd0f6d586..a80d366d1479 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/ws/WebSocketReader.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/ws/WebSocketReader.kt
+@@ -150,6 +150,7 @@ class WebSocketReader(
+             false
+           }
+       }
++
+       else -> {
+         if (reservedFlag1) throw ProtocolException("Unexpected rsv1 flag")
+       }
+@@ -215,9 +216,11 @@ class WebSocketReader(
+       OPCODE_CONTROL_PING -> {
+         frameCallback.onReadPing(controlFrameBuffer.readByteString())
+       }
++
+       OPCODE_CONTROL_PONG -> {
+         frameCallback.onReadPong(controlFrameBuffer.readByteString())
+       }
++
+       OPCODE_CONTROL_CLOSE -> {
+         var code = CLOSE_NO_STATUS_CODE
+         var reason = ""
+@@ -233,6 +236,7 @@ class WebSocketReader(
+         frameCallback.onReadClose(code, reason)
+         receivedCloseFrame = true
+       }
++
+       else -> {
+         throw ProtocolException("Unknown control opcode: " + opcode.toHexString())
+       }
+diff --git a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/ws/WebSocketWriter.kt b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/ws/WebSocketWriter.kt
+index 3416bc1ddad4..171afd2db151 100644
+--- a/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/ws/WebSocketWriter.kt
++++ b/okhttp/src/commonJvmAndroid/kotlin/okhttp3/internal/ws/WebSocketWriter.kt
+@@ -179,11 +179,13 @@ class WebSocketWriter(
+         b1 = b1 or dataSize.toInt()
+         sinkBuffer.writeByte(b1)
+       }
++
+       dataSize <= PAYLOAD_SHORT_MAX -> {
+         b1 = b1 or PAYLOAD_SHORT
+         sinkBuffer.writeByte(b1)
+         sinkBuffer.writeShort(dataSize.toInt())
+       }
++
+       else -> {
+         b1 = b1 or PAYLOAD_LONG
+         sinkBuffer.writeByte(b1)
+diff --git a/okhttp/src/jvmMain/kotlin/okhttp3/internal/platform/BouncyCastlePlatform.kt b/okhttp/src/jvmMain/kotlin/okhttp3/internal/platform/BouncyCastlePlatform.kt
+index 037f34143170..83e2e57ee61b 100644
+--- a/okhttp/src/jvmMain/kotlin/okhttp3/internal/platform/BouncyCastlePlatform.kt
++++ b/okhttp/src/jvmMain/kotlin/okhttp3/internal/platform/BouncyCastlePlatform.kt
+@@ -78,6 +78,7 @@ class BouncyCastlePlatform private constructor() : Platform() {
+       when (val protocol = (sslSocket as BCSSLSocket).applicationProtocol) {
+         // Handles both un-configured and none selected.
+         null, "" -> null
++
+         else -> protocol
+       }
+     } else {
+diff --git a/okhttp/src/jvmMain/kotlin/okhttp3/internal/platform/ConscryptPlatform.kt b/okhttp/src/jvmMain/kotlin/okhttp3/internal/platform/ConscryptPlatform.kt
+index 76cc3330948d..51ef4ca4b3c2 100644
+--- a/okhttp/src/jvmMain/kotlin/okhttp3/internal/platform/ConscryptPlatform.kt
++++ b/okhttp/src/jvmMain/kotlin/okhttp3/internal/platform/ConscryptPlatform.kt
+@@ -113,6 +113,7 @@ class ConscryptPlatform private constructor() : Platform() {
+         when {
+           // Bump this version if we ever have a binary incompatibility
+           Conscrypt.isAvailable() && atLeastVersion(2, 1, 0) -> true
++
+           else -> false
+         }
+       } catch (e: NoClassDefFoundError) {
+diff --git a/okhttp/src/jvmMain/kotlin/okhttp3/internal/platform/OpenJSSEPlatform.kt b/okhttp/src/jvmMain/kotlin/okhttp3/internal/platform/OpenJSSEPlatform.kt
+index de01a147ce0b..e4d50a391144 100644
+--- a/okhttp/src/jvmMain/kotlin/okhttp3/internal/platform/OpenJSSEPlatform.kt
++++ b/okhttp/src/jvmMain/kotlin/okhttp3/internal/platform/OpenJSSEPlatform.kt
+@@ -84,6 +84,7 @@ class OpenJSSEPlatform private constructor() : Platform() {
+       when (val protocol = sslSocket.applicationProtocol) {
+         // Handles both un-configured and none selected.
+         null, "" -> null
++
+         else -> protocol
+       }
+     } else {
+diff --git a/okhttp/src/jvmTest/kotlin/okhttp3/CallTest.kt b/okhttp/src/jvmTest/kotlin/okhttp3/CallTest.kt
+index 542cc3b7b8fa..4d7d51433fcd 100644
+--- a/okhttp/src/jvmTest/kotlin/okhttp3/CallTest.kt
++++ b/okhttp/src/jvmTest/kotlin/okhttp3/CallTest.kt
+@@ -1470,15 +1470,20 @@ open class CallTest {
+         is SSLProtocolException -> {
+           // RI response to the FAIL_HANDSHAKE
+         }
++
+         is SSLHandshakeException -> {
+           // Android's response to the FAIL_HANDSHAKE
+         }
++
+         is SSLException -> {
+           // JDK 11 response to the FAIL_HANDSHAKE
+           val jvmVersion = System.getProperty("java.specification.version")
+           assertThat(jvmVersion).isEqualTo("11")
+         }
+-        else -> throw expected
++
++        else -> {
++          throw expected
++        }
+       }
+     }
+   }
+diff --git a/okhttp/src/jvmTest/kotlin/okhttp3/ConnectionReuseTest.kt b/okhttp/src/jvmTest/kotlin/okhttp3/ConnectionReuseTest.kt
+index 7162f1d0580b..24fe58bbe60a 100644
+--- a/okhttp/src/jvmTest/kotlin/okhttp3/ConnectionReuseTest.kt
++++ b/okhttp/src/jvmTest/kotlin/okhttp3/ConnectionReuseTest.kt
+@@ -260,7 +260,10 @@ class ConnectionReuseTest {
+     }.also { expected ->
+       when (expected) {
+         is SSLException, is TlsFatalAlert -> {}
+-        else -> throw expected
++
++        else -> {
++          throw expected
++        }
+       }
+     }
+   }
+diff --git a/okhttp/src/jvmTest/kotlin/okhttp3/EventListenerTest.kt b/okhttp/src/jvmTest/kotlin/okhttp3/EventListenerTest.kt
+index 4c3cd481c0af..a0e976bf49a4 100644
+--- a/okhttp/src/jvmTest/kotlin/okhttp3/EventListenerTest.kt
++++ b/okhttp/src/jvmTest/kotlin/okhttp3/EventListenerTest.kt
+@@ -501,18 +501,21 @@ class EventListenerTest(
+       )
+     expectedEventTypes +=
+       when {
+-        emptyBody ->
++        emptyBody -> {
+           listOf(
+             ResponseBodyStart::class,
+             ResponseBodyEnd::class,
+             FollowUpDecision::class,
+           )
+-        else ->
++        }
++
++        else -> {
+           listOf(
+             FollowUpDecision::class,
+             ResponseBodyStart::class,
+             ResponseBodyEnd::class,
+           )
++        }
+       }
+     expectedEventTypes +=
+       listOf(
+diff --git a/okhttp/src/jvmTest/kotlin/okhttp3/FakeRoutePlanner.kt b/okhttp/src/jvmTest/kotlin/okhttp3/FakeRoutePlanner.kt
+index 19c474b1c00b..f086e3d49f8b 100644
+--- a/okhttp/src/jvmTest/kotlin/okhttp3/FakeRoutePlanner.kt
++++ b/okhttp/src/jvmTest/kotlin/okhttp3/FakeRoutePlanner.kt
+@@ -145,14 +145,17 @@ class FakeRoutePlanner(
+           events += "plan $id TCP connect failed"
+           ConnectResult(this, nextPlan = connectTcpNextPlan, throwable = tcpConnectThrowable)
+         }
++
+         canceled -> {
+           events += "plan $id TCP connect canceled"
+           ConnectResult(this, nextPlan = connectTcpNextPlan, throwable = IOException("canceled"))
+         }
++
+         connectTcpNextPlan != null -> {
+           events += "plan $id needs follow-up"
+           ConnectResult(this, nextPlan = connectTcpNextPlan)
+         }
++
+         else -> {
+           events += "plan $id TCP connected"
+           connectState = ConnectState.TCP_CONNECTED
+@@ -172,14 +175,17 @@ class FakeRoutePlanner(
+           events += "plan $id TLS connect failed"
+           ConnectResult(this, nextPlan = connectTlsNextPlan, throwable = tlsConnectThrowable)
+         }
++
+         canceled -> {
+           events += "plan $id TLS connect canceled"
+           ConnectResult(this, nextPlan = connectTlsNextPlan, throwable = IOException("canceled"))
+         }
++
+         connectTlsNextPlan != null -> {
+           events += "plan $id needs follow-up"
+           ConnectResult(this, nextPlan = connectTlsNextPlan)
+         }
++
+         else -> {
+           events += "plan $id TLS connected"
+           connectState = ConnectState.TLS_CONNECTED
+diff --git a/okhttp/src/jvmTest/kotlin/okhttp3/JSSETest.kt b/okhttp/src/jvmTest/kotlin/okhttp3/JSSETest.kt
+index 098cc7870b8c..a71602189e81 100644
+--- a/okhttp/src/jvmTest/kotlin/okhttp3/JSSETest.kt
++++ b/okhttp/src/jvmTest/kotlin/okhttp3/JSSETest.kt
+@@ -100,29 +100,36 @@ class JSSETest {
+     val s = factory.createSocket() as SSLSocket
+ 
+     when {
+-      PlatformVersion.majorVersion > 11 ->
++      PlatformVersion.majorVersion > 11 -> {
+         assertThat(s.enabledProtocols.toList()).containsExactly(
+           "TLSv1.3",
+           "TLSv1.2",
+         )
++      }
++
+       // Not much we can guarantee on JDK 11.
+-      PlatformVersion.majorVersion == 11 ->
++      PlatformVersion.majorVersion == 11 -> {
+         assertThat(s.enabledProtocols.toList()).contains(
+           "TLSv1.2",
+         )
++      }
++
+       // JDK 8 291 removed older versions
+       // See https://java.com/en/jre-jdk-cryptoroadmap.html
+-      PlatformVersion.majorVersion == 8 ->
++      PlatformVersion.majorVersion == 8 -> {
+         assertThat(s.enabledProtocols.toList()).contains(
+           "TLSv1.2",
+         )
+-      else ->
++      }
++
++      else -> {
+         assertThat(s.enabledProtocols.toList()).containsExactly(
+           "TLSv1.3",
+           "TLSv1.2",
+           "TLSv1.1",
+           "TLSv1",
+         )
++      }
+     }
+   }
+ 
+diff --git a/okhttp/src/jvmTest/kotlin/okhttp3/SocksProxy.kt b/okhttp/src/jvmTest/kotlin/okhttp3/SocksProxy.kt
+index 108b7a46907c..4e2f79b1d613 100644
+--- a/okhttp/src/jvmTest/kotlin/okhttp3/SocksProxy.kt
++++ b/okhttp/src/jvmTest/kotlin/okhttp3/SocksProxy.kt
+@@ -129,7 +129,10 @@ class SocksProxy {
+         fromSink.writeByte(selectedMethod)
+         fromSink.emit()
+       }
+-      else -> throw ProtocolException("unsupported method: $selectedMethod")
++
++      else -> {
++        throw ProtocolException("unsupported method: $selectedMethod")
++      }
+     }
+   }
+ 
+@@ -162,11 +165,16 @@ class SocksProxy {
+             domainName.equals(HOSTNAME_THAT_ONLY_THE_PROXY_KNOWS, ignoreCase = true) -> {
+               InetAddress.getByName("localhost")
+             }
+-            else -> InetAddress.getByName(domainName)
++
++            else -> {
++              InetAddress.getByName(domainName)
++            }
+           }
+         }
+ 
+-        else -> throw ProtocolException("unsupported address type: $addressType")
++        else -> {
++          throw ProtocolException("unsupported address type: $addressType")
++        }
+       }
+ 
+     val port = fromSource.readShort() and 0xffff
+@@ -197,7 +205,9 @@ class SocksProxy {
+         transfer(fromAddress, toAddress, toSource, fromSink)
+       }
+ 
+-      else -> throw ProtocolException("unexpected command: $command")
++      else -> {
++        throw ProtocolException("unexpected command: $command")
++      }
+     }
+   }
+ 
+diff --git a/okhttp/src/jvmTest/kotlin/okhttp3/TrailersTest.kt b/okhttp/src/jvmTest/kotlin/okhttp3/TrailersTest.kt
+index e41124d5414c..3cf790a2d658 100644
+--- a/okhttp/src/jvmTest/kotlin/okhttp3/TrailersTest.kt
++++ b/okhttp/src/jvmTest/kotlin/okhttp3/TrailersTest.kt
+@@ -643,7 +643,9 @@ open class TrailersTest {
+     body: String,
+   ) = apply {
+     when (protocol) {
+-      Protocol.HTTP_1_1 -> chunkedBody(body, 1024) // Force multiple chunks.
++      Protocol.HTTP_1_1 -> chunkedBody(body, 1024)
++
++      // Force multiple chunks.
+       else -> body(body)
+     }
+   }
+diff --git a/okhttp/src/jvmTest/kotlin/okhttp3/URLConnectionTest.kt b/okhttp/src/jvmTest/kotlin/okhttp3/URLConnectionTest.kt
+index 24c1aab1a4a5..5b85f6384bba 100644
+--- a/okhttp/src/jvmTest/kotlin/okhttp3/URLConnectionTest.kt
++++ b/okhttp/src/jvmTest/kotlin/okhttp3/URLConnectionTest.kt
+@@ -641,7 +641,10 @@ class URLConnectionTest {
+     }.also { expected ->
+       when (expected) {
+         is SSLException, is TlsFatalAlert -> {}
+-        else -> throw expected
++
++        else -> {
++          throw expected
++        }
+       }
+     }
+   }
+@@ -762,8 +765,12 @@ class URLConnectionTest {
+             assertThat(expected.cause!!).isInstanceOf<CertificateException>()
+           }
+         }
++
+         is TlsFatalAlert -> {}
+-        else -> throw expected
++
++        else -> {
++          throw expected
++        }
+       }
+     }
+     assertThat(server.requestCount).isEqualTo(0)
+@@ -4080,17 +4087,23 @@ class URLConnectionTest {
+         is SSLProtocolException -> {
+           // RI response to the FAIL_HANDSHAKE
+         }
++
+         is SSLHandshakeException -> {
+           // Android's response to the FAIL_HANDSHAKE
+         }
++
+         is SSLException -> {
+           // JDK 1.9 response to the FAIL_HANDSHAKE
+           // javax.net.ssl.SSLException: Unexpected handshake message: client_hello
+         }
++
+         is SocketException -> {
+           // Conscrypt's response to the FAIL_HANDSHAKE
+         }
+-        else -> throw expected
++
++        else -> {
++          throw expected
++        }
+       }
+     }
+   }
+diff --git a/okhttp/src/jvmTest/kotlin/okhttp3/UrlComponentEncodingTester.kt b/okhttp/src/jvmTest/kotlin/okhttp3/UrlComponentEncodingTester.kt
+index f120eddef1c1..956dbd97afd1 100644
+--- a/okhttp/src/jvmTest/kotlin/okhttp3/UrlComponentEncodingTester.kt
++++ b/okhttp/src/jvmTest/kotlin/okhttp3/UrlComponentEncodingTester.kt
+@@ -51,35 +51,35 @@ class UrlComponentEncodingTester private constructor() {
+ 
+   fun nonPrintableAscii(encoding: Encoding) =
+     apply {
+-      encodings[ 0x0] = encoding // Null character
+-      encodings[ 0x1] = encoding // Start of Header
+-      encodings[ 0x2] = encoding // Start of Text
+-      encodings[ 0x3] = encoding // End of Text
+-      encodings[ 0x4] = encoding // End of Transmission
+-      encodings[ 0x5] = encoding // Enquiry
+-      encodings[ 0x6] = encoding // Acknowledgment
+-      encodings[ 0x7] = encoding // Bell
++      encodings[0x0] = encoding // Null character
++      encodings[0x1] = encoding // Start of Header
++      encodings[0x2] = encoding // Start of Text
++      encodings[0x3] = encoding // End of Text
++      encodings[0x4] = encoding // End of Transmission
++      encodings[0x5] = encoding // Enquiry
++      encodings[0x6] = encoding // Acknowledgment
++      encodings[0x7] = encoding // Bell
+       encodings['\b'.code] = encoding // Backspace
+-      encodings[ 0xb] = encoding // Vertical Tab
+-      encodings[ 0xe] = encoding // Shift Out
+-      encodings[ 0xf] = encoding // Shift In
+-      encodings[ 0x10] = encoding // Data Link Escape
+-      encodings[ 0x11] = encoding // Device Control 1 (oft. XON)
+-      encodings[ 0x12] = encoding // Device Control 2
+-      encodings[ 0x13] = encoding // Device Control 3 (oft. XOFF)
+-      encodings[ 0x14] = encoding // Device Control 4
+-      encodings[ 0x15] = encoding // Negative Acknowledgment
+-      encodings[ 0x16] = encoding // Synchronous idle
+-      encodings[ 0x17] = encoding // End of Transmission Block
+-      encodings[ 0x18] = encoding // Cancel
+-      encodings[ 0x19] = encoding // End of Medium
+-      encodings[ 0x1a] = encoding // Substitute
+-      encodings[ 0x1b] = encoding // Escape
+-      encodings[ 0x1c] = encoding // File Separator
+-      encodings[ 0x1d] = encoding // Group Separator
+-      encodings[ 0x1e] = encoding // Record Separator
+-      encodings[ 0x1f] = encoding // Unit Separator
+-      encodings[ 0x7f] = encoding // Delete
++      encodings[0xb] = encoding // Vertical Tab
++      encodings[0xe] = encoding // Shift Out
++      encodings[0xf] = encoding // Shift In
++      encodings[0x10] = encoding // Data Link Escape
++      encodings[0x11] = encoding // Device Control 1 (oft. XON)
++      encodings[0x12] = encoding // Device Control 2
++      encodings[0x13] = encoding // Device Control 3 (oft. XOFF)
++      encodings[0x14] = encoding // Device Control 4
++      encodings[0x15] = encoding // Negative Acknowledgment
++      encodings[0x16] = encoding // Synchronous idle
++      encodings[0x17] = encoding // End of Transmission Block
++      encodings[0x18] = encoding // Cancel
++      encodings[0x19] = encoding // End of Medium
++      encodings[0x1a] = encoding // Substitute
++      encodings[0x1b] = encoding // Escape
++      encodings[0x1c] = encoding // File Separator
++      encodings[0x1d] = encoding // Group Separator
++      encodings[0x1e] = encoding // Record Separator
++      encodings[0x1f] = encoding // Unit Separator
++      encodings[0x7f] = encoding // Delete
+     }
+ 
+   fun nonAscii(encoding: Encoding) =
+diff --git a/okhttp/src/jvmTest/kotlin/okhttp3/UrlComponentEncodingTesterJvm.kt b/okhttp/src/jvmTest/kotlin/okhttp3/UrlComponentEncodingTesterJvm.kt
+index 790dae522f1c..64a4fe35d279 100644
+--- a/okhttp/src/jvmTest/kotlin/okhttp3/UrlComponentEncodingTesterJvm.kt
++++ b/okhttp/src/jvmTest/kotlin/okhttp3/UrlComponentEncodingTesterJvm.kt
+@@ -22,15 +22,17 @@ import okhttp3.UrlComponentEncodingTester.Component
+ 
+ fun urlComponentEncodingTesterJvmPlatform(component: Component): UrlComponentEncodingTester.Platform =
+   when (component) {
+-    Component.USER ->
++    Component.USER -> {
+       UrlComponentEncodingTesterJvmPlatform()
+         .escapeForUri('%'.code)
++    }
+ 
+-    Component.PASSWORD ->
++    Component.PASSWORD -> {
+       UrlComponentEncodingTesterJvmPlatform()
+         .escapeForUri('%'.code)
++    }
+ 
+-    Component.HOST ->
++    Component.HOST -> {
+       UrlComponentEncodingTesterJvmPlatform()
+         .stripForUri(
+           '\"'.code,
+@@ -42,16 +44,18 @@ fun urlComponentEncodingTesterJvmPlatform(component: Component): UrlComponentEnc
+           '|'.code,
+           '}'.code,
+         )
++    }
+ 
+-    Component.PATH ->
++    Component.PATH -> {
+       UrlComponentEncodingTesterJvmPlatform()
+         .escapeForUri(
+           '%'.code,
+           '['.code,
+           ']'.code,
+         )
++    }
+ 
+-    Component.QUERY ->
++    Component.QUERY -> {
+       UrlComponentEncodingTesterJvmPlatform()
+         .escapeForUri(
+           '%'.code,
+@@ -62,8 +66,9 @@ fun urlComponentEncodingTesterJvmPlatform(component: Component): UrlComponentEnc
+           '|'.code,
+           '}'.code,
+         )
++    }
+ 
+-    Component.QUERY_VALUE ->
++    Component.QUERY_VALUE -> {
+       UrlComponentEncodingTesterJvmPlatform()
+         .escapeForUri(
+           '%'.code,
+@@ -74,8 +79,9 @@ fun urlComponentEncodingTesterJvmPlatform(component: Component): UrlComponentEnc
+           '|'.code,
+           '}'.code,
+         )
++    }
+ 
+-    Component.FRAGMENT ->
++    Component.FRAGMENT -> {
+       UrlComponentEncodingTesterJvmPlatform()
+         .escapeForUri(
+           '%'.code,
+@@ -91,6 +97,7 @@ fun urlComponentEncodingTesterJvmPlatform(component: Component): UrlComponentEnc
+           '|'.code,
+           '}'.code,
+         )
++    }
+   }
+ 
+ private class UrlComponentEncodingTesterJvmPlatform : UrlComponentEncodingTester.Platform() {
+diff --git a/okhttp/src/jvmTest/kotlin/okhttp3/internal/http2/HttpOverHttp2Test.kt b/okhttp/src/jvmTest/kotlin/okhttp3/internal/http2/HttpOverHttp2Test.kt
+index 174d5a18b986..aa9119bd78b3 100644
+--- a/okhttp/src/jvmTest/kotlin/okhttp3/internal/http2/HttpOverHttp2Test.kt
++++ b/okhttp/src/jvmTest/kotlin/okhttp3/internal/http2/HttpOverHttp2Test.kt
+@@ -1552,7 +1552,10 @@ class HttpOverHttp2Test(
+     }.also { expected ->
+       when (expected) {
+         is SocketTimeoutException, is SSLException -> {}
+-        else -> throw expected
++
++        else -> {
++          throw expected
++        }
+       }
+     }
+ 
+diff --git a/okhttp/src/jvmTest/kotlin/okhttp3/internal/tls/CertificatePinnerChainValidationTest.kt b/okhttp/src/jvmTest/kotlin/okhttp3/internal/tls/CertificatePinnerChainValidationTest.kt
+index f9b01cec856a..99da0f748797 100644
+--- a/okhttp/src/jvmTest/kotlin/okhttp3/internal/tls/CertificatePinnerChainValidationTest.kt
++++ b/okhttp/src/jvmTest/kotlin/okhttp3/internal/tls/CertificatePinnerChainValidationTest.kt
+@@ -439,11 +439,15 @@ class CertificatePinnerChainValidationTest {
+           // On Android, the handshake fails before the certificate pinner runs.
+           assertThat(expected.message!!).contains("Could not validate certificate")
+         }
++
+         is SSLPeerUnverifiedException -> {
+           // On OpenJDK, the handshake succeeds but the certificate pinner fails.
+           assertThat(expected.message!!).startsWith("Certificate pinning failure!")
+         }
+-        else -> throw expected
++
++        else -> {
++          throw expected
++        }
+       }
+     }
+   }
+@@ -599,11 +603,15 @@ class CertificatePinnerChainValidationTest {
+           // Certificate pinning fails!
+           assertThat(expected.message!!).startsWith("Certificate pinning failure!")
+         }
++
+         is SSLHandshakeException -> {
+           // We didn't have the opportunity to do certificate pinning because the handshake failed.
+           assertThat(expected.message!!).contains("this is not a CA certificate")
+         }
+-        else -> throw expected
++
++        else -> {
++          throw expected
++        }
+       }
+     }
+   }
+diff --git a/okhttp/src/jvmTest/kotlin/okhttp3/internal/tls/ClientAuthTest.kt b/okhttp/src/jvmTest/kotlin/okhttp3/internal/tls/ClientAuthTest.kt
+index c30d73545151..2d96d4839946 100644
+--- a/okhttp/src/jvmTest/kotlin/okhttp3/internal/tls/ClientAuthTest.kt
++++ b/okhttp/src/jvmTest/kotlin/okhttp3/internal/tls/ClientAuthTest.kt
+@@ -240,12 +240,15 @@ class ClientAuthTest {
+         is SSLHandshakeException -> {
+           // JDK 11+
+         }
++
+         is SSLException -> {
+           // javax.net.ssl.SSLException: readRecord
+         }
++
+         is SocketException -> {
+           // Conscrypt, JDK 8 (>= 292), JDK 9
+         }
++
+         else -> {
+           assertThat(expected.message).isEqualTo("exhausted all routes")
+         }
+@@ -295,15 +298,19 @@ class ClientAuthTest {
+         is SSLHandshakeException -> {
+           // JDK 11+
+         }
++
+         is SSLException -> {
+           // javax.net.ssl.SSLException: readRecord
+         }
++
+         is SocketException -> {
+           // Conscrypt, JDK 8 (>= 292), JDK 9
+         }
++
+         is ConnectionShutdownException -> {
+           // It didn't fail until it reached the application layer.
+         }
++
+         else -> {
+           assertThat(expected.message).isEqualTo("exhausted all routes")
+         }
+diff --git a/samples/guide/src/main/java/okhttp3/recipes/kt/WiresharkExample.kt b/samples/guide/src/main/java/okhttp3/recipes/kt/WiresharkExample.kt
+index 90f4ec6668f5..f44e00883d6f 100644
+--- a/samples/guide/src/main/java/okhttp3/recipes/kt/WiresharkExample.kt
++++ b/samples/guide/src/main/java/okhttp3/recipes/kt/WiresharkExample.kt
+@@ -86,6 +86,7 @@ class WireSharkListenerFactory(
+           Thread.sleep(10000)
+         }
+       }
++
+       CommandLine -> {
+         return ProcessBuilder(
+           "tshark",
+@@ -102,6 +103,7 @@ class WireSharkListenerFactory(
+           .redirectError(Redirect.INHERIT)
+           .start()
+       }
++
+       Gui -> {
+         return ProcessBuilder(
+           "nohup",

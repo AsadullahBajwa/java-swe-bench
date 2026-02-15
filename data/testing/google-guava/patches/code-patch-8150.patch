@@ -1,0 +1,70 @@
+diff --git a/.github/dependabot.yml b/.github/dependabot.yml
+index 3ce8b9a3bd1e..13a145bce977 100644
+--- a/.github/dependabot.yml
++++ b/.github/dependabot.yml
+@@ -29,3 +29,13 @@ updates:
+         applies-to: version-updates
+         patterns:
+           - "*"
++  - package-ecosystem: "github-actions"
++    target-branch: "gh-pages"
++    directory: "/"
++    schedule:
++      interval: "monthly"
++    groups:
++      github-actions:
++        applies-to: version-updates
++        patterns:
++          - "*"
+diff --git a/android/guava/src/com/google/common/base/Preconditions.java b/android/guava/src/com/google/common/base/Preconditions.java
+index 00c7caeacbfa..bf09fa93db54 100644
+--- a/android/guava/src/com/google/common/base/Preconditions.java
++++ b/android/guava/src/com/google/common/base/Preconditions.java
+@@ -458,7 +458,7 @@ public static void checkArgument(
+    */
+   public static void checkArgument(
+       boolean expression,
+-      // TODO: cl/604933487 - Make errorMessageTemplate consistently @Nullable across overloads.
++      // TODO: user - Make errorMessageTemplate consistently @Nullable across overloads.
+       @Nullable String errorMessageTemplate,
+       @Nullable Object p1,
+       @Nullable Object p2) {
+diff --git a/android/guava/src/com/google/common/util/concurrent/MoreExecutors.java b/android/guava/src/com/google/common/util/concurrent/MoreExecutors.java
+index 3e05328f0e54..7cc11f78b37c 100644
+--- a/android/guava/src/com/google/common/util/concurrent/MoreExecutors.java
++++ b/android/guava/src/com/google/common/util/concurrent/MoreExecutors.java
+@@ -529,7 +529,7 @@ public final List<Runnable> shutdownNow() {
+     }
+ 
+     /*
+-     * TODO: https://github.com/google/guava/issues/2143 - In addition to overriding `execute`, also
++     * TODO: user - In addition to overriding `execute`, also
+      * override the `Future`-returning methods of `ExecutorService` to propagate cancellation from
+      * our `TrustedListenableFutureTask` to a `Future` returned by the delegate executor?
+      */
+diff --git a/guava/src/com/google/common/base/Preconditions.java b/guava/src/com/google/common/base/Preconditions.java
+index 00c7caeacbfa..bf09fa93db54 100644
+--- a/guava/src/com/google/common/base/Preconditions.java
++++ b/guava/src/com/google/common/base/Preconditions.java
+@@ -458,7 +458,7 @@ public static void checkArgument(
+    */
+   public static void checkArgument(
+       boolean expression,
+-      // TODO: cl/604933487 - Make errorMessageTemplate consistently @Nullable across overloads.
++      // TODO: user - Make errorMessageTemplate consistently @Nullable across overloads.
+       @Nullable String errorMessageTemplate,
+       @Nullable Object p1,
+       @Nullable Object p2) {
+diff --git a/guava/src/com/google/common/util/concurrent/MoreExecutors.java b/guava/src/com/google/common/util/concurrent/MoreExecutors.java
+index 17ef7ae0b435..de19ad784c19 100644
+--- a/guava/src/com/google/common/util/concurrent/MoreExecutors.java
++++ b/guava/src/com/google/common/util/concurrent/MoreExecutors.java
+@@ -526,7 +526,7 @@ public final List<Runnable> shutdownNow() {
+     }
+ 
+     /*
+-     * TODO: https://github.com/google/guava/issues/2143 - In addition to overriding `execute`, also
++     * TODO: user - In addition to overriding `execute`, also
+      * override the `Future`-returning methods of `ExecutorService` to propagate cancellation from
+      * our `TrustedListenableFutureTask` to a `Future` returned by the delegate executor?
+      */

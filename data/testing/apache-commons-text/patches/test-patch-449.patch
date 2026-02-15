@@ -1,0 +1,139 @@
+diff --git a/src/test/java/org/apache/commons/text/lookup/StringLookupFactoryTest.java b/src/test/java/org/apache/commons/text/lookup/StringLookupFactoryTest.java
+index 0529b65f3f..1c00bf1915 100644
+--- a/src/test/java/org/apache/commons/text/lookup/StringLookupFactoryTest.java
++++ b/src/test/java/org/apache/commons/text/lookup/StringLookupFactoryTest.java
+@@ -49,7 +49,9 @@ public static void assertDefaultKeys(final Map<String, StringLookup> stringLooku
+                 StringLookupFactory.KEY_SYS,
+                 StringLookupFactory.KEY_URL_DECODER,
+                 StringLookupFactory.KEY_URL_ENCODER,
+-                StringLookupFactory.KEY_XML);
++                StringLookupFactory.KEY_XML,
++                StringLookupFactory.KEY_XML_DECODER,
++                StringLookupFactory.KEY_XML_ENCODER);
+     }
+ 
+     private static void assertMappedLookups(final Map<String, StringLookup> lookupMap, final String... keys) {
+@@ -188,7 +190,9 @@ public void testDefaultStringLookupsHolder_lookupsPropertyNotPresent() {
+                 StringLookupFactory.KEY_SYS,
+                 StringLookupFactory.KEY_URL_DECODER,
+                 StringLookupFactory.KEY_URL_ENCODER,
+-                StringLookupFactory.KEY_XML);
++                StringLookupFactory.KEY_XML,
++                StringLookupFactory.KEY_XML_DECODER,
++                StringLookupFactory.KEY_XML_ENCODER);
+     }
+ 
+     @Test
+@@ -229,6 +233,8 @@ public void testSingletons() {
+         Assertions.assertSame(UrlEncoderStringLookup.INSTANCE, stringLookupFactory.urlEncoderStringLookup());
+         Assertions.assertSame(UrlStringLookup.INSTANCE, stringLookupFactory.urlStringLookup());
+         Assertions.assertSame(XmlStringLookup.INSTANCE, stringLookupFactory.xmlStringLookup());
++        Assertions.assertSame(XmlDecoderStringLookup.INSTANCE, stringLookupFactory.xmlDecoderStringLookup());
++        Assertions.assertSame(XmlEncoderStringLookup.INSTANCE, stringLookupFactory.xmlEncoderStringLookup());
+     }
+ 
+     @Test
+diff --git a/src/test/java/org/apache/commons/text/lookup/XmlDecoderStringLookupTest.java b/src/test/java/org/apache/commons/text/lookup/XmlDecoderStringLookupTest.java
+new file mode 100644
+index 0000000000..6fba2d55f3
+--- /dev/null
++++ b/src/test/java/org/apache/commons/text/lookup/XmlDecoderStringLookupTest.java
+@@ -0,0 +1,46 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements. See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache license, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License. You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the license for the specific language governing permissions and
++ * limitations under the license.
++ */
++
++package org.apache.commons.text.lookup;
++
++import org.junit.jupiter.api.Assertions;
++import org.junit.jupiter.api.Test;
++
++/**
++ * Tests {@link XmlDecoderStringLookup}.
++ */
++public class XmlDecoderStringLookupTest {
++
++    private static final String DATA = "<element>";
++
++    @Test
++    public void testDecode() {
++        Assertions.assertEquals(DATA, XmlDecoderStringLookup.INSTANCE.lookup("&lt;element&gt;"));
++    }
++
++    @Test
++    public void testNull() {
++        Assertions.assertNull(XmlDecoderStringLookup.INSTANCE.lookup(null));
++    }
++
++    @Test
++    public void testToString() {
++        // does not blow up and gives some kind of string.
++        Assertions.assertFalse(XmlDecoderStringLookup.INSTANCE.toString().isEmpty());
++    }
++
++}
+diff --git a/src/test/java/org/apache/commons/text/lookup/XmlEncoderStringLookupTest.java b/src/test/java/org/apache/commons/text/lookup/XmlEncoderStringLookupTest.java
+new file mode 100644
+index 0000000000..d5f0615ed8
+--- /dev/null
++++ b/src/test/java/org/apache/commons/text/lookup/XmlEncoderStringLookupTest.java
+@@ -0,0 +1,46 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements. See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache license, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License. You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the license for the specific language governing permissions and
++ * limitations under the license.
++ */
++
++package org.apache.commons.text.lookup;
++
++import org.junit.jupiter.api.Assertions;
++import org.junit.jupiter.api.Test;
++
++/**
++ * Tests {@link XmlEncoderStringLookup}.
++ */
++public class XmlEncoderStringLookupTest {
++
++    private static final String DATA = "&lt;element&gt;";
++
++    @Test
++    public void testDecode() {
++        Assertions.assertEquals(DATA, XmlEncoderStringLookup.INSTANCE.lookup("<element>"));
++    }
++
++    @Test
++    public void testNull() {
++        Assertions.assertNull(XmlEncoderStringLookup.INSTANCE.lookup(null));
++    }
++
++    @Test
++    public void testToString() {
++        // does not blow up and gives some kind of string.
++        Assertions.assertFalse(XmlEncoderStringLookup.INSTANCE.toString().isEmpty());
++    }
++
++}

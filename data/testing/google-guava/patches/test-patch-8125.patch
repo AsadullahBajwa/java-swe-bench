@@ -1,0 +1,84 @@
+diff --git a/guava-tests/test/com/google/common/primitives/ImmutableDoubleArrayTest.java b/guava-tests/test/com/google/common/primitives/ImmutableDoubleArrayTest.java
+index b165d68b8e92..fc50917f95de 100644
+--- a/guava-tests/test/com/google/common/primitives/ImmutableDoubleArrayTest.java
++++ b/guava-tests/test/com/google/common/primitives/ImmutableDoubleArrayTest.java
+@@ -37,6 +37,7 @@
+ import java.util.Collections;
+ import java.util.Iterator;
+ import java.util.List;
++import java.util.PrimitiveIterator;
+ import java.util.Random;
+ import java.util.concurrent.atomic.AtomicInteger;
+ import java.util.stream.DoubleStream;
+@@ -93,6 +94,15 @@ public void testOf7() {
+         .inOrder();
+   }
+ 
++  public void testAsListIterator() {
++    PrimitiveIterator.OfDouble doubleIterator =
++        (PrimitiveIterator.OfDouble) ImmutableDoubleArray.of(1.0, 2.0, 3.0).asList().iterator();
++    assertThat(doubleIterator.nextDouble()).isEqualTo(1.0);
++    assertThat(doubleIterator.nextDouble()).isEqualTo(2.0);
++    assertThat(doubleIterator.nextDouble()).isEqualTo(3.0);
++    assertThat(doubleIterator.hasNext()).isFalse();
++  }
++
+   public void testCopyOf_array_empty() {
+     /*
+      * We don't guarantee the same-as property, so we aren't obligated to test it. However, it's
+diff --git a/guava-tests/test/com/google/common/primitives/ImmutableIntArrayTest.java b/guava-tests/test/com/google/common/primitives/ImmutableIntArrayTest.java
+index d551c6717036..d260e0aab23b 100644
+--- a/guava-tests/test/com/google/common/primitives/ImmutableIntArrayTest.java
++++ b/guava-tests/test/com/google/common/primitives/ImmutableIntArrayTest.java
+@@ -37,6 +37,7 @@
+ import java.util.Collections;
+ import java.util.Iterator;
+ import java.util.List;
++import java.util.PrimitiveIterator;
+ import java.util.Random;
+ import java.util.concurrent.atomic.AtomicInteger;
+ import java.util.stream.IntStream;
+@@ -91,6 +92,15 @@ public void testOf7() {
+         .inOrder();
+   }
+ 
++  public void testAsListIterator() {
++    PrimitiveIterator.OfInt intIterator =
++        (PrimitiveIterator.OfInt) ImmutableIntArray.of(1, 2, 3).asList().iterator();
++    assertThat(intIterator.nextInt()).isEqualTo(1);
++    assertThat(intIterator.nextInt()).isEqualTo(2);
++    assertThat(intIterator.nextInt()).isEqualTo(3);
++    assertThat(intIterator.hasNext()).isFalse();
++  }
++
+   public void testCopyOf_array_empty() {
+     /*
+      * We don't guarantee the same-as property, so we aren't obligated to test it. However, it's
+diff --git a/guava-tests/test/com/google/common/primitives/ImmutableLongArrayTest.java b/guava-tests/test/com/google/common/primitives/ImmutableLongArrayTest.java
+index 13de0819773d..080b90d61e19 100644
+--- a/guava-tests/test/com/google/common/primitives/ImmutableLongArrayTest.java
++++ b/guava-tests/test/com/google/common/primitives/ImmutableLongArrayTest.java
+@@ -37,6 +37,7 @@
+ import java.util.Collections;
+ import java.util.Iterator;
+ import java.util.List;
++import java.util.PrimitiveIterator;
+ import java.util.Random;
+ import java.util.concurrent.atomic.AtomicLong;
+ import java.util.stream.LongStream;
+@@ -93,6 +94,15 @@ public void testOf7() {
+         .inOrder();
+   }
+ 
++  public void testAsListIterator() {
++    PrimitiveIterator.OfLong longIterator =
++        (PrimitiveIterator.OfLong) ImmutableLongArray.of(1, 2, 3).asList().iterator();
++    assertThat(longIterator.nextLong()).isEqualTo(1);
++    assertThat(longIterator.nextLong()).isEqualTo(2);
++    assertThat(longIterator.nextLong()).isEqualTo(3);
++    assertThat(longIterator.hasNext()).isFalse();
++  }
++
+   public void testCopyOf_array_empty() {
+     /*
+      * We don't guarantee the same-as property, so we aren't obligated to test it. However, it's

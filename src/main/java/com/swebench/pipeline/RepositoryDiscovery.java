@@ -15,23 +15,25 @@ import java.util.List;
 
 /**
  * Stage 1: Repository Discovery
- * Searches GitHub for high-quality Java repositories that meet our criteria:
- * - Written in Java
- * - Not forked
- * - 50+ stars
- * - Updated in last 1-2 years
- * - Has issues and PRs
- * - Contains test files
+ * Can load from curated list or search GitHub for repositories.
+ * Curated list is preferred for reliable SWE-bench task extraction.
  */
 public class RepositoryDiscovery {
     private static final Logger logger = LoggerFactory.getLogger(RepositoryDiscovery.class);
     private static final String OUTPUT_DIR = "data/raw";
+    private static final String CURATED_REPOS_FILE = "config/curated_repos.json";
     private static final int TARGET_REPO_COUNT = 30;
 
     private final GitHubService gitHubService;
     private final ObjectMapper objectMapper;
+    private final boolean useCuratedRepos;
 
     public RepositoryDiscovery() {
+        this(true); // Default to curated repos
+    }
+
+    public RepositoryDiscovery(boolean useCuratedRepos) {
+        this.useCuratedRepos = useCuratedRepos;
         this.gitHubService = new GitHubService();
         this.objectMapper = new ObjectMapper();
         this.objectMapper.registerModule(new JavaTimeModule());
@@ -40,14 +42,22 @@ public class RepositoryDiscovery {
 
     public void execute() {
         logger.info("Starting repository discovery stage");
-        logger.info("Target: {} repositories", TARGET_REPO_COUNT);
+        logger.info("Mode: {}", useCuratedRepos ? "CURATED REPOS" : "GITHUB SEARCH");
 
         try {
             List<Repository> discoveredRepos = discoverRepositories();
-            List<Repository> qualifiedRepos = filterRepositories(discoveredRepos);
+
+            // For curated repos, skip filtering (they're pre-vetted)
+            List<Repository> qualifiedRepos;
+            if (useCuratedRepos) {
+                qualifiedRepos = discoveredRepos;
+                logger.info("Using {} curated repositories (skipping filter)", qualifiedRepos.size());
+            } else {
+                qualifiedRepos = filterRepositories(discoveredRepos);
+                logger.info("Qualified {} repositories after filtering", qualifiedRepos.size());
+            }
 
             logger.info("Discovered {} total repositories", discoveredRepos.size());
-            logger.info("Qualified {} repositories after filtering", qualifiedRepos.size());
 
             saveResults(qualifiedRepos);
             generateReport(qualifiedRepos);
@@ -59,6 +69,47 @@ public class RepositoryDiscovery {
     }
 
     private List<Repository> discoverRepositories() {
+        if (useCuratedRepos) {
+            return loadCuratedRepositories();
+        } else {
+            return searchGitHubRepositories();
+        }
+    }
+
+    /**
+     * Load repositories from curated list (preferred method).
+     */
+    private List<Repository> loadCuratedRepositories() {
+        logger.info("Loading curated repositories from {}", CURATED_REPOS_FILE);
+
+        List<Repository> repositories = new ArrayList<>();
+        File curatedFile = new File(CURATED_REPOS_FILE);
+
+        if (!curatedFile.exists()) {
+            logger.warn("Curated repos file not found, falling back to GitHub search");
+            return searchGitHubRepositories();
+        }
+
+        try {
+            Repository[] repos = objectMapper.readValue(curatedFile, Repository[].class);
+            for (Repository repo : repos) {
+                repositories.add(repo);
+                logger.info("Loaded curated repo: {} ({})", repo.getFullName(), repo.getBuildTool());
+            }
+            logger.info("Loaded {} curated repositories", repositories.size());
+
+        } catch (IOException e) {
+            logger.error("Failed to load curated repos: {}", e.getMessage());
+            return searchGitHubRepositories();
+        }
+
+        return repositories;
+    }
+
+    /**
+     * Search GitHub for repositories (fallback method).
+     */
+    private List<Repository> searchGitHubRepositories() {
         logger.info("Searching GitHub for Java repositories...");
 
         List<Repository> repositories = new ArrayList<>();

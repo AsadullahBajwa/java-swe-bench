@@ -1,0 +1,81 @@
+diff --git a/mockito-core/src/test/java/org/mockitousage/bugs/MockitoRunnerBreaksWhenNoTestMethodsTest.java b/mockito-core/src/test/java/org/mockitousage/bugs/MockitoRunnerBreaksWhenNoTestMethodsTest.java
+deleted file mode 100644
+index 312984c764..0000000000
+--- a/mockito-core/src/test/java/org/mockitousage/bugs/MockitoRunnerBreaksWhenNoTestMethodsTest.java
++++ /dev/null
+@@ -1,59 +0,0 @@
+-/*
+- * Copyright (c) 2007 Mockito contributors
+- * This program is made available under the terms of the MIT License.
+- */
+-package org.mockitousage.bugs;
+-
+-import static org.junit.Assert.assertEquals;
+-import static org.junit.Assert.assertFalse;
+-import static org.junit.Assert.assertTrue;
+-
+-import java.io.OutputStream;
+-import java.io.PrintStream;
+-
+-import org.junit.Test;
+-import org.junit.internal.TextListener;
+-import org.junit.runner.JUnitCore;
+-import org.junit.runner.Result;
+-import org.junit.runner.RunWith;
+-import org.mockito.exceptions.base.MockitoException;
+-import org.mockito.junit.MockitoJUnitRunner;
+-import org.mockitoutil.TestBase;
+-
+-// @Ignore("for demo only. this test cannot be enabled as it fails :)")
+-public class MockitoRunnerBreaksWhenNoTestMethodsTest extends TestBase {
+-
+-    @Test
+-    public void ensure_the_test_runner_breaks() throws Exception {
+-        JUnitCore runner = new JUnitCore();
+-        //        runner.addListener(new TextListener(System.out));
+-        runner.addListener(new TextListener(DevNull.out));
+-
+-        Result result = runner.run(TestClassWithoutTestMethod.class);
+-
+-        assertEquals(1, result.getFailureCount());
+-        assertTrue(result.getFailures().get(0).getException() instanceof MockitoException);
+-        assertFalse(result.wasSuccessful());
+-    }
+-
+-    @RunWith(MockitoJUnitRunner.class)
+-    static class TestClassWithoutTestMethod { // package visibility is important
+-        public void notATestMethod() {}
+-    }
+-
+-    public static final class DevNull {
+-        public static final PrintStream out =
+-                new PrintStream(
+-                        new OutputStream() {
+-                            public void close() {}
+-
+-                            public void flush() {}
+-
+-                            public void write(byte[] b) {}
+-
+-                            public void write(byte[] b, int off, int len) {}
+-
+-                            public void write(int b) {}
+-                        });
+-    }
+-}
+diff --git a/mockito-core/src/test/java/org/mockitousage/spies/PartialMockingWithSpiesTest.java b/mockito-core/src/test/java/org/mockitousage/spies/PartialMockingWithSpiesTest.java
+index ccd85c2b29..232b4e09cb 100644
+--- a/mockito-core/src/test/java/org/mockitousage/spies/PartialMockingWithSpiesTest.java
++++ b/mockito-core/src/test/java/org/mockitousage/spies/PartialMockingWithSpiesTest.java
+@@ -178,11 +178,6 @@ public void shouldStackTraceGetFilteredOnUserExceptionsReflectionForJava21AndHig
+         }
+     }
+ 
+-    //    @Test //manual verification
+-    public void verifyTheStackTrace() {
+-        spy.getNameButDelegateToMethodThatThrows();
+-    }
+-
+     @Test
+     public void shouldVerify() {
+         // when

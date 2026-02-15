@@ -1,0 +1,235 @@
+diff --git a/gson/pom.xml b/gson/pom.xml
+index 04cadef3e3..de3ba32dee 100644
+--- a/gson/pom.xml
++++ b/gson/pom.xml
+@@ -50,7 +50,7 @@
+     <dependency>
+       <groupId>com.google.errorprone</groupId>
+       <artifactId>error_prone_annotations</artifactId>
+-      <version>2.36.0</version>
++      <version>2.37.0</version>
+     </dependency>
+ 
+     <dependency>
+diff --git a/gson/src/main/java/com/google/gson/internal/LinkedTreeMap.java b/gson/src/main/java/com/google/gson/internal/LinkedTreeMap.java
+index 099dd573c0..15a100730f 100644
+--- a/gson/src/main/java/com/google/gson/internal/LinkedTreeMap.java
++++ b/gson/src/main/java/com/google/gson/internal/LinkedTreeMap.java
+@@ -451,13 +451,19 @@ private void rotateRight(Node<K, V> root) {
+   @Override
+   public Set<Entry<K, V>> entrySet() {
+     EntrySet result = entrySet;
+-    return result != null ? result : (entrySet = new EntrySet());
++    if (result == null) {
++      result = entrySet = new EntrySet();
++    }
++    return result;
+   }
+ 
+   @Override
+   public Set<K> keySet() {
+     KeySet result = keySet;
+-    return result != null ? result : (keySet = new KeySet());
++    if (result == null) {
++      result = keySet = new KeySet();
++    }
++    return result;
+   }
+ 
+   static final class Node<K, V> implements Entry<K, V> {
+@@ -576,7 +582,8 @@ final Node<K, V> nextNode() {
+         throw new ConcurrentModificationException();
+       }
+       next = e.next;
+-      return lastReturned = e;
++      lastReturned = e;
++      return e;
+     }
+ 
+     @Override
+diff --git a/gson/src/main/java/com/google/gson/internal/bind/TreeTypeAdapter.java b/gson/src/main/java/com/google/gson/internal/bind/TreeTypeAdapter.java
+index 1ef1e40b9f..43226f302a 100644
+--- a/gson/src/main/java/com/google/gson/internal/bind/TreeTypeAdapter.java
++++ b/gson/src/main/java/com/google/gson/internal/bind/TreeTypeAdapter.java
+@@ -113,9 +113,10 @@ private TypeAdapter<T> delegate() {
+     // A race might lead to `delegate` being assigned by multiple threads but the last assignment
+     // will stick
+     TypeAdapter<T> d = delegate;
+-    return d != null
+-        ? d
+-        : (delegate = gson.getDelegateAdapter(skipPastForGetDelegateAdapter, typeToken));
++    if (d == null) {
++      d = delegate = gson.getDelegateAdapter(skipPastForGetDelegateAdapter, typeToken);
++    }
++    return d;
+   }
+ 
+   /**
+diff --git a/gson/src/main/java/com/google/gson/stream/JsonReader.java b/gson/src/main/java/com/google/gson/stream/JsonReader.java
+index 3dcf73729a..a76f1563ec 100644
+--- a/gson/src/main/java/com/google/gson/stream/JsonReader.java
++++ b/gson/src/main/java/com/google/gson/stream/JsonReader.java
+@@ -590,7 +590,8 @@ int doPeek() throws IOException {
+       int c = nextNonWhitespace(true);
+       switch (c) {
+         case ']':
+-          return peeked = PEEKED_END_ARRAY;
++          peeked = PEEKED_END_ARRAY;
++          return peeked;
+         case ';':
+           checkLenient(); // fall-through
+         case ',':
+@@ -605,7 +606,8 @@ int doPeek() throws IOException {
+         int c = nextNonWhitespace(true);
+         switch (c) {
+           case '}':
+-            return peeked = PEEKED_END_OBJECT;
++            peeked = PEEKED_END_OBJECT;
++            return peeked;
+           case ';':
+             checkLenient(); // fall-through
+           case ',':
+@@ -617,13 +619,16 @@ int doPeek() throws IOException {
+       int c = nextNonWhitespace(true);
+       switch (c) {
+         case '"':
+-          return peeked = PEEKED_DOUBLE_QUOTED_NAME;
++          peeked = PEEKED_DOUBLE_QUOTED_NAME;
++          return peeked;
+         case '\'':
+           checkLenient();
+-          return peeked = PEEKED_SINGLE_QUOTED_NAME;
++          peeked = PEEKED_SINGLE_QUOTED_NAME;
++          return peeked;
+         case '}':
+           if (peekStack != JsonScope.NONEMPTY_OBJECT) {
+-            return peeked = PEEKED_END_OBJECT;
++            peeked = PEEKED_END_OBJECT;
++            return peeked;
+           } else {
+             throw syntaxError("Expected name");
+           }
+@@ -631,7 +636,8 @@ int doPeek() throws IOException {
+           checkLenient();
+           pos--; // Don't consume the first character in an unquoted string.
+           if (isLiteral((char) c)) {
+-            return peeked = PEEKED_UNQUOTED_NAME;
++            peeked = PEEKED_UNQUOTED_NAME;
++            return peeked;
+           } else {
+             throw syntaxError("Expected name");
+           }
+@@ -660,7 +666,8 @@ int doPeek() throws IOException {
+     } else if (peekStack == JsonScope.NONEMPTY_DOCUMENT) {
+       int c = nextNonWhitespace(false);
+       if (c == -1) {
+-        return peeked = PEEKED_EOF;
++        peeked = PEEKED_EOF;
++        return peeked;
+       } else {
+         checkLenient();
+         pos--;
+@@ -673,7 +680,8 @@ int doPeek() throws IOException {
+     switch (c) {
+       case ']':
+         if (peekStack == JsonScope.EMPTY_ARRAY) {
+-          return peeked = PEEKED_END_ARRAY;
++          peeked = PEEKED_END_ARRAY;
++          return peeked;
+         }
+       // fall-through to handle ",]"
+       case ';':
+@@ -682,19 +690,24 @@ int doPeek() throws IOException {
+         if (peekStack == JsonScope.EMPTY_ARRAY || peekStack == JsonScope.NONEMPTY_ARRAY) {
+           checkLenient();
+           pos--;
+-          return peeked = PEEKED_NULL;
++          peeked = PEEKED_NULL;
++          return peeked;
+         } else {
+           throw syntaxError("Unexpected value");
+         }
+       case '\'':
+         checkLenient();
+-        return peeked = PEEKED_SINGLE_QUOTED;
++        peeked = PEEKED_SINGLE_QUOTED;
++        return peeked;
+       case '"':
+-        return peeked = PEEKED_DOUBLE_QUOTED;
++        peeked = PEEKED_DOUBLE_QUOTED;
++        return peeked;
+       case '[':
+-        return peeked = PEEKED_BEGIN_ARRAY;
++        peeked = PEEKED_BEGIN_ARRAY;
++        return peeked;
+       case '{':
+-        return peeked = PEEKED_BEGIN_OBJECT;
++        peeked = PEEKED_BEGIN_OBJECT;
++        return peeked;
+       default:
+         pos--; // Don't consume the first character in a literal value.
+     }
+@@ -714,7 +727,8 @@ int doPeek() throws IOException {
+     }
+ 
+     checkLenient();
+-    return peeked = PEEKED_UNQUOTED;
++    peeked = PEEKED_UNQUOTED;
++    return peeked;
+   }
+ 
+   private int peekKeyword() throws IOException {
+@@ -763,7 +777,8 @@ private int peekKeyword() throws IOException {
+ 
+     // We've found the keyword followed either by EOF or by a non-literal character.
+     pos += length;
+-    return peeked = peeking;
++    peeked = peeking;
++    return peeked;
+   }
+ 
+   private int peekNumber() throws IOException {
+@@ -865,12 +880,14 @@ private int peekNumber() throws IOException {
+         && (value != 0 || !negative)) {
+       peekedLong = negative ? value : -value;
+       pos += i;
+-      return peeked = PEEKED_LONG;
++      peeked = PEEKED_LONG;
++      return peeked;
+     } else if (last == NUMBER_CHAR_DIGIT
+         || last == NUMBER_CHAR_FRACTION_DIGIT
+         || last == NUMBER_CHAR_EXP_DIGIT) {
+       peekedNumberLength = i;
+-      return peeked = PEEKED_NUMBER;
++      peeked = PEEKED_NUMBER;
++      return peeked;
+     } else {
+       return PEEKED_NONE;
+     }
+diff --git a/pom.xml b/pom.xml
+index c054249d2f..300c4b6ea4 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -265,11 +265,13 @@
+                 -Xep:NonCanonicalStaticMemberImport
+                 -Xep:NonFinalStaticField
+                 -Xep:PackageLocation:WARN
++                -Xep:PatternMatchingInstanceof:OFF <!-- disabled: requires Java 16 -->
+                 -Xep:PrimitiveArrayPassedToVarargsMethod
+                 -Xep:PrivateConstructorForUtilityClass:WARN
+                 -Xep:RemoveUnusedImports:WARN
+                 -Xep:StatementSwitchToExpressionSwitch:OFF <!-- disabled: requires Java 14 -->
+                 -Xep:StaticQualifiedUsingExpression <!-- required by style guide -->
++                -Xep:StringConcatToTextBlock:OFF <!-- disabled: requires Java 15 -->
+                 -Xep:SwitchDefault:WARN
+                 -Xep:SystemExitOutsideMain
+                 -Xep:SystemOut
+@@ -300,7 +302,7 @@
+               <path>
+                 <groupId>com.google.errorprone</groupId>
+                 <artifactId>error_prone_core</artifactId>
+-                <version>2.36.0</version>
++                <version>2.37.0</version>
+               </path>
+             </annotationProcessorPaths>
+           </configuration>

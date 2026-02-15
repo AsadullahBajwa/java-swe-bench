@@ -1,0 +1,85 @@
+diff --git a/src/main/java/org/apache/commons/lang3/ArrayUtils.java b/src/main/java/org/apache/commons/lang3/ArrayUtils.java
+index b6039adcfd2..7a7c34d3d62 100644
+--- a/src/main/java/org/apache/commons/lang3/ArrayUtils.java
++++ b/src/main/java/org/apache/commons/lang3/ArrayUtils.java
+@@ -8088,7 +8088,7 @@ public static boolean[] subarray(final boolean[] array, int startIndexInclusive,
+             return null;
+         }
+         startIndexInclusive = max0(startIndexInclusive);
+-        endIndexExclusive = Math.min(endIndexExclusive, array.length);
++        endIndexExclusive = max0(Math.min(endIndexExclusive, array.length));
+         final int newSize = endIndexExclusive - startIndexInclusive;
+         if (newSize <= 0) {
+             return EMPTY_BOOLEAN_ARRAY;
+@@ -8115,7 +8115,7 @@ public static byte[] subarray(final byte[] array, int startIndexInclusive, int e
+             return null;
+         }
+         startIndexInclusive = max0(startIndexInclusive);
+-        endIndexExclusive = Math.min(endIndexExclusive, array.length);
++        endIndexExclusive = max0(Math.min(endIndexExclusive, array.length));
+         final int newSize = endIndexExclusive - startIndexInclusive;
+         if (newSize <= 0) {
+             return EMPTY_BYTE_ARRAY;
+@@ -8142,7 +8142,7 @@ public static char[] subarray(final char[] array, int startIndexInclusive, int e
+             return null;
+         }
+         startIndexInclusive = max0(startIndexInclusive);
+-        endIndexExclusive = Math.min(endIndexExclusive, array.length);
++        endIndexExclusive = max0(Math.min(endIndexExclusive, array.length));
+         final int newSize = endIndexExclusive - startIndexInclusive;
+         if (newSize <= 0) {
+             return EMPTY_CHAR_ARRAY;
+@@ -8169,7 +8169,7 @@ public static double[] subarray(final double[] array, int startIndexInclusive, i
+             return null;
+         }
+         startIndexInclusive = max0(startIndexInclusive);
+-        endIndexExclusive = Math.min(endIndexExclusive, array.length);
++        endIndexExclusive = max0(Math.min(endIndexExclusive, array.length));
+         final int newSize = endIndexExclusive - startIndexInclusive;
+         if (newSize <= 0) {
+             return EMPTY_DOUBLE_ARRAY;
+@@ -8196,7 +8196,7 @@ public static float[] subarray(final float[] array, int startIndexInclusive, int
+             return null;
+         }
+         startIndexInclusive = max0(startIndexInclusive);
+-        endIndexExclusive = Math.min(endIndexExclusive, array.length);
++        endIndexExclusive = max0(Math.min(endIndexExclusive, array.length));
+         final int newSize = endIndexExclusive - startIndexInclusive;
+         if (newSize <= 0) {
+             return EMPTY_FLOAT_ARRAY;
+@@ -8223,7 +8223,7 @@ public static int[] subarray(final int[] array, int startIndexInclusive, int end
+             return null;
+         }
+         startIndexInclusive = max0(startIndexInclusive);
+-        endIndexExclusive = Math.min(endIndexExclusive, array.length);
++        endIndexExclusive = max0(Math.min(endIndexExclusive, array.length));
+         final int newSize = endIndexExclusive - startIndexInclusive;
+         if (newSize <= 0) {
+             return EMPTY_INT_ARRAY;
+@@ -8250,7 +8250,7 @@ public static long[] subarray(final long[] array, int startIndexInclusive, int e
+             return null;
+         }
+         startIndexInclusive = max0(startIndexInclusive);
+-        endIndexExclusive = Math.min(endIndexExclusive, array.length);
++        endIndexExclusive = max0(Math.min(endIndexExclusive, array.length));
+         final int newSize = endIndexExclusive - startIndexInclusive;
+         if (newSize <= 0) {
+             return EMPTY_LONG_ARRAY;
+@@ -8277,7 +8277,7 @@ public static short[] subarray(final short[] array, int startIndexInclusive, int
+             return null;
+         }
+         startIndexInclusive = max0(startIndexInclusive);
+-        endIndexExclusive = Math.min(endIndexExclusive, array.length);
++        endIndexExclusive = max0(Math.min(endIndexExclusive, array.length));
+         final int newSize = endIndexExclusive - startIndexInclusive;
+         if (newSize <= 0) {
+             return EMPTY_SHORT_ARRAY;
+@@ -8314,7 +8314,7 @@ public static <T> T[] subarray(final T[] array, int startIndexInclusive, int end
+             return null;
+         }
+         startIndexInclusive = max0(startIndexInclusive);
+-        endIndexExclusive = Math.min(endIndexExclusive, array.length);
++        endIndexExclusive = max0(Math.min(endIndexExclusive, array.length));
+         final int newSize = endIndexExclusive - startIndexInclusive;
+         final Class<T> type = getComponentType(array);
+         if (newSize <= 0) {

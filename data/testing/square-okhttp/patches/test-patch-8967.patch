@@ -1,0 +1,201 @@
+diff --git a/android-test/src/androidTest/java/okhttp/android/test/OkHttpTest.kt b/android-test/src/androidTest/java/okhttp/android/test/OkHttpTest.kt
+index 28702a41faaa..079532c93c90 100644
+--- a/android-test/src/androidTest/java/okhttp/android/test/OkHttpTest.kt
++++ b/android-test/src/androidTest/java/okhttp/android/test/OkHttpTest.kt
+@@ -48,6 +48,8 @@ import mockwebserver3.junit5.StartStop
+ import okhttp3.Cache
+ import okhttp3.Call
+ import okhttp3.CertificatePinner
++import okhttp3.CompressionInterceptor
++import okhttp3.CompressionInterceptor.Companion.Gzip
+ import okhttp3.Connection
+ import okhttp3.DelegatingSSLSocket
+ import okhttp3.DelegatingSSLSocketFactory
+@@ -60,6 +62,7 @@ import okhttp3.Protocol
+ import okhttp3.RecordingEventListener
+ import okhttp3.Request
+ import okhttp3.TlsVersion
++import okhttp3.brotli.Brotli
+ import okhttp3.dnsoverhttps.DnsOverHttps
+ import okhttp3.internal.concurrent.TaskRunner
+ import okhttp3.internal.http2.Http2
+@@ -71,6 +74,7 @@ import okhttp3.logging.LoggingEventListener
+ import okhttp3.testing.PlatformRule
+ import okhttp3.tls.HandshakeCertificates
+ import okhttp3.tls.internal.TlsUtil.localhost
++import okhttp3.zstd.Zstd
+ import okio.ByteString.Companion.toByteString
+ import org.bouncycastle.jce.provider.BouncyCastleProvider
+ import org.bouncycastle.jsse.provider.BouncyCastleJsseProvider
+@@ -108,7 +112,11 @@ class OkHttpTest {
+       logger = Logger.getLogger(OkHttpTest::class.java.name)
+     }
+ 
+-  private var client: OkHttpClient = clientTestRule.newClient()
++  private var client: OkHttpClient =
++    clientTestRule
++      .newClientBuilder()
++      .addInterceptor(CompressionInterceptor(Zstd, Brotli, Gzip))
++      .build()
+ 
+   private val moshi =
+     Moshi
+diff --git a/okhttp-brotli/src/test/java/okhttp3/brotli/BrotliInterceptorTest.kt b/okhttp-brotli/src/test/java/okhttp3/brotli/BrotliInterceptorTest.kt
+index b0338ed7303c..e3bc79086c32 100644
+--- a/okhttp-brotli/src/test/java/okhttp3/brotli/BrotliInterceptorTest.kt
++++ b/okhttp-brotli/src/test/java/okhttp3/brotli/BrotliInterceptorTest.kt
+@@ -27,7 +27,6 @@ import okhttp3.Protocol
+ import okhttp3.Request
+ import okhttp3.Response
+ import okhttp3.ResponseBody.Companion.toResponseBody
+-import okhttp3.brotli.internal.uncompress
+ import okio.ByteString
+ import okio.ByteString.Companion.EMPTY
+ import okio.ByteString.Companion.decodeHex
+@@ -48,7 +47,7 @@ class BrotliInterceptorTest {
+         header("Content-Encoding", "br")
+       }
+ 
+-    val uncompressed = uncompress(response)
++    val uncompressed = BrotliInterceptor.decompress(response)
+ 
+     val responseString = uncompressed.body.string()
+     assertThat(responseString).contains("\"brotli\": true,")
+@@ -69,7 +68,7 @@ class BrotliInterceptorTest {
+         header("Content-Encoding", "gzip")
+       }
+ 
+-    val uncompressed = uncompress(response)
++    val uncompressed = BrotliInterceptor.decompress(response)
+ 
+     val responseString = uncompressed.body.string()
+     assertThat(responseString).contains("\"gzipped\": true,")
+@@ -80,7 +79,7 @@ class BrotliInterceptorTest {
+   fun testNoUncompress() {
+     val response = response("https://httpbin.org/brotli", "XXXX".encodeUtf8())
+ 
+-    val same = uncompress(response)
++    val same = BrotliInterceptor.decompress(response)
+ 
+     val responseString = same.body.string()
+     assertThat(responseString).isEqualTo("XXXX")
+@@ -94,7 +93,7 @@ class BrotliInterceptorTest {
+       }
+ 
+     assertFailsWith<IOException> {
+-      val failingResponse = uncompress(response)
++      val failingResponse = BrotliInterceptor.decompress(response)
+       failingResponse.body.string()
+     }.also { ioe ->
+       assertThat(ioe).hasMessage("Brotli stream decoding failed")
+@@ -111,7 +110,7 @@ class BrotliInterceptorTest {
+         message("NO CONTENT")
+       }
+ 
+-    val same = uncompress(response)
++    val same = BrotliInterceptor.decompress(response)
+ 
+     val responseString = same.body.string()
+     assertThat(responseString).isEmpty()
+diff --git a/okhttp-zstd/src/test/java/okhttp3/zstd/ZstdInterceptorTest.kt b/okhttp-zstd/src/test/java/okhttp3/zstd/ZstdInterceptorTest.kt
+index 52092bc1c6d4..8da4ab79148d 100644
+--- a/okhttp-zstd/src/test/java/okhttp3/zstd/ZstdInterceptorTest.kt
++++ b/okhttp-zstd/src/test/java/okhttp3/zstd/ZstdInterceptorTest.kt
+@@ -23,12 +23,12 @@ import assertk.assertions.isNull
+ import com.squareup.zstd.okio.zstdCompress
+ import java.io.IOException
+ import kotlin.test.assertFailsWith
++import okhttp3.CompressionInterceptor
+ import okhttp3.MediaType.Companion.toMediaType
+ import okhttp3.Protocol
+ import okhttp3.Request
+ import okhttp3.Response
+ import okhttp3.ResponseBody.Companion.toResponseBody
+-import okhttp3.zstd.ZstdInterceptor.decompress
+ import okio.Buffer
+ import okio.ByteString
+ import okio.ByteString.Companion.EMPTY
+@@ -39,6 +39,8 @@ import okio.gzip
+ import org.junit.jupiter.api.Test
+ 
+ class ZstdInterceptorTest {
++  val zstdInterceptor = CompressionInterceptor(Zstd, CompressionInterceptor.Gzip)
++
+   @Test
+   fun testDecompressZstd() {
+     val s = "hello zstd world".encodeUtf8().zstdCompress()
+@@ -48,7 +50,7 @@ class ZstdInterceptorTest {
+         header("Content-Encoding", "zstd")
+       }
+ 
+-    val decompressed = decompress(response)
++    val decompressed = zstdInterceptor.decompress(response)
+     assertThat(decompressed.header("Content-Encoding")).isNull()
+ 
+     val responseString = decompressed.body.string()
+@@ -64,7 +66,7 @@ class ZstdInterceptorTest {
+         header("Content-Encoding", "gzip")
+       }
+ 
+-    val decompressed = decompress(response)
++    val decompressed = zstdInterceptor.decompress(response)
+     assertThat(decompressed.header("Content-Encoding")).isNull()
+ 
+     val responseString = decompressed.body.string()
+@@ -77,7 +79,7 @@ class ZstdInterceptorTest {
+ 
+     val response = response("https://example.com/", s)
+ 
+-    val decompressed = decompress(response)
++    val decompressed = zstdInterceptor.decompress(response)
+     assertThat(decompressed.header("Content-Encoding")).isNull()
+ 
+     val responseString = decompressed.body.string()
+@@ -93,7 +95,7 @@ class ZstdInterceptorTest {
+         header("Content-Encoding", "deflate")
+       }
+ 
+-    val decompressed = decompress(response)
++    val decompressed = zstdInterceptor.decompress(response)
+     assertThat(decompressed.header("Content-Encoding")).isEqualTo("deflate")
+ 
+     val responseString = decompressed.body.string()
+@@ -109,7 +111,7 @@ class ZstdInterceptorTest {
+         header("Content-Encoding", "zstd")
+       }
+ 
+-    val decompressed = decompress(response)
++    val decompressed = zstdInterceptor.decompress(response)
+     assertThat(decompressed.header("Content-Encoding")).isNull()
+ 
+     assertFailsWith<IOException> {
+@@ -128,7 +130,7 @@ class ZstdInterceptorTest {
+         message("NO CONTENT")
+       }
+ 
+-    val same = decompress(response)
++    val same = zstdInterceptor.decompress(response)
+ 
+     val responseString = same.body.string()
+     assertThat(responseString).isEmpty()
+diff --git a/okhttp-zstd/src/test/java/okhttp3/zstd/ZstdTestMain.kt b/okhttp-zstd/src/test/java/okhttp3/zstd/ZstdTestMain.kt
+index 4d7388f0c85e..c8c3a351ecf3 100644
+--- a/okhttp-zstd/src/test/java/okhttp3/zstd/ZstdTestMain.kt
++++ b/okhttp-zstd/src/test/java/okhttp3/zstd/ZstdTestMain.kt
+@@ -15,6 +15,7 @@
+  */
+ package okhttp3.zstd
+ 
++import okhttp3.CompressionInterceptor
+ import okhttp3.OkHttpClient
+ import okhttp3.Request
+ 
+@@ -22,7 +23,7 @@ fun main() {
+   val client =
+     OkHttpClient
+       .Builder()
+-      .addInterceptor(ZstdInterceptor)
++      .addInterceptor(CompressionInterceptor(Zstd))
+       .build()
+ 
+   sendRequest("https://developers.facebook.com/docs/", client)

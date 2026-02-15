@@ -1,0 +1,44 @@
+diff --git a/android/guava-tests/test/com/google/common/collect/ContiguousSetTest.java b/android/guava-tests/test/com/google/common/collect/ContiguousSetTest.java
+index 9d226a3ee076..33886ca858e3 100644
+--- a/android/guava-tests/test/com/google/common/collect/ContiguousSetTest.java
++++ b/android/guava-tests/test/com/google/common/collect/ContiguousSetTest.java
+@@ -282,7 +282,7 @@ public void testContains() {
+     assertFalse(set.contains(4));
+   }
+ 
+-  // TODO: https://youtrack.jetbrains.com/issue/KT-71001/ - Enable when Kotlin throws expected CCE.
++  // TODO: user - Enable when Kotlin throws expected CCE.
+   @J2ktIncompatible
+   public void testContains_typeMismatch() {
+     ImmutableSortedSet<Integer> set = ContiguousSet.create(Range.open(0, 4), integers());
+@@ -299,7 +299,7 @@ public void testContainsAll() {
+     }
+   }
+ 
+-  // TODO: https://youtrack.jetbrains.com/issue/KT-71001/ - Enable when Kotlin throws expected CCE.
++  // TODO: user - Enable when Kotlin throws expected CCE.
+   @J2ktIncompatible
+   public void testContainsAll_typeMismatch() {
+     ImmutableSortedSet<Integer> set = ContiguousSet.create(Range.closed(1, 3), integers());
+diff --git a/guava-tests/test/com/google/common/collect/ContiguousSetTest.java b/guava-tests/test/com/google/common/collect/ContiguousSetTest.java
+index 9d226a3ee076..33886ca858e3 100644
+--- a/guava-tests/test/com/google/common/collect/ContiguousSetTest.java
++++ b/guava-tests/test/com/google/common/collect/ContiguousSetTest.java
+@@ -282,7 +282,7 @@ public void testContains() {
+     assertFalse(set.contains(4));
+   }
+ 
+-  // TODO: https://youtrack.jetbrains.com/issue/KT-71001/ - Enable when Kotlin throws expected CCE.
++  // TODO: user - Enable when Kotlin throws expected CCE.
+   @J2ktIncompatible
+   public void testContains_typeMismatch() {
+     ImmutableSortedSet<Integer> set = ContiguousSet.create(Range.open(0, 4), integers());
+@@ -299,7 +299,7 @@ public void testContainsAll() {
+     }
+   }
+ 
+-  // TODO: https://youtrack.jetbrains.com/issue/KT-71001/ - Enable when Kotlin throws expected CCE.
++  // TODO: user - Enable when Kotlin throws expected CCE.
+   @J2ktIncompatible
+   public void testContainsAll_typeMismatch() {
+     ImmutableSortedSet<Integer> set = ContiguousSet.create(Range.closed(1, 3), integers());

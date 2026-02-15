@@ -1,0 +1,20 @@
+diff --git a/src/main/java/tools/jackson/databind/deser/std/FunctionalScalarDeserializer.java b/src/main/java/tools/jackson/databind/deser/std/FunctionalScalarDeserializer.java
+index 9f47c6bd1d..1cc22d6b3c 100644
+--- a/src/main/java/tools/jackson/databind/deser/std/FunctionalScalarDeserializer.java
++++ b/src/main/java/tools/jackson/databind/deser/std/FunctionalScalarDeserializer.java
+@@ -22,6 +22,15 @@
+  * supports other JSON scalar types via {@code getValueAsString()} coercion.
+  * Non-scalar JSON values (arrays, objects, embedded objects) are rejected.
+  * <p>
++ * <b>Error handling:</b>
++ * <ul>
++ *   <li>{@link JacksonException} thrown by user code is propagated as-is.</li>
++ *   <li>Other exceptions are wrapped in
++ *       {@link tools.jackson.databind.exc.InvalidFormatException}.</li>
++ *   <li>If {@link tools.jackson.databind.DeserializationFeature#WRAP_EXCEPTIONS}
++ *       is disabled, {@link RuntimeException} is thrown as-is without wrapping.</li>
++ * </ul>
++ * <p>
+  * Usage examples:
+  * <pre>
+  * // Simple case - method reference

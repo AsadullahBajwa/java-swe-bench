@@ -1,0 +1,101 @@
+diff --git a/src/changes/changes.xml b/src/changes/changes.xml
+index 1f59bf07eb..e90b8015ed 100644
+--- a/src/changes/changes.xml
++++ b/src/changes/changes.xml
+@@ -32,6 +32,7 @@
+     <action type="fix" dev="ggregory" due-to="Sebastian Götz, Gary Gregory" issue="COLLECTIONS-874">MapUtils.getLongValue(Map, K, Function) returns a byte instead of a long.</action>
+     <action type="fix" dev="ggregory" due-to="Gary Gregory">Fix exception message in org.apache.commons.collections4.functors.FunctorUtils.validate(Consumer...)</action>
+     <action type="fix" dev="ggregory" due-to="Gary Gregory">Fix exception message in org.apache.commons.collections4.iterators.UnmodifiableIterator.remove() to match java.util.Iterator.remove().</action>
++    <action type="fix" dev="pkarwasz" due-to="Piotr P. Karwasz, Joerg Budischewski" issue="COLLECTIONS-838">Calling SetUtils.union on multiple instances of SetView causes JVM to hang</action>
+     <!-- ADD -->
+     <action type="add" dev="ggregory" due-to="Gary Gregory">Add generics to UnmodifiableIterator for the wrapped type.</action>
+     <!-- UPDATE -->
+diff --git a/src/main/java/org/apache/commons/collections4/iterators/IteratorChain.java b/src/main/java/org/apache/commons/collections4/iterators/IteratorChain.java
+index 7c69f3f749..97373b13cd 100644
+--- a/src/main/java/org/apache/commons/collections4/iterators/IteratorChain.java
++++ b/src/main/java/org/apache/commons/collections4/iterators/IteratorChain.java
+@@ -63,7 +63,7 @@ public class IteratorChain<E> implements Iterator<E> {
+     private Iterator<? extends E> currentIterator;
+ 
+     /**
+-     * The "last used" Iterator is the Iterator upon which next() or hasNext()
++     * The "last used" Iterator is the Iterator upon which next()
+      * was most recently called used for the remove() operation only
+      */
+     private Iterator<? extends E> lastUsedIterator;
+@@ -74,6 +74,11 @@ public class IteratorChain<E> implements Iterator<E> {
+      */
+     private boolean isLocked;
+ 
++    /**
++     * Contains the result of the last hasNext() call until next() is invoked
++     */
++    private Boolean cachedHasNextValue;
++
+     /**
+      * Constructs an IteratorChain with no Iterators.
+      * <p>
+@@ -183,9 +188,10 @@ private void checkLocked() {
+     @Override
+     public boolean hasNext() {
+         lockChain();
+-        updateCurrentIterator();
+-        lastUsedIterator = currentIterator;
+-        return currentIterator.hasNext();
++        if (cachedHasNextValue == null) {
++            updateCurrentIterator();
++        }
++        return cachedHasNextValue;
+     }
+ 
+     /**
+@@ -219,9 +225,11 @@ private void lockChain() {
+     @Override
+     public E next() {
+         lockChain();
+-        updateCurrentIterator();
++        if (cachedHasNextValue == null) {
++            updateCurrentIterator();
++        }
+         lastUsedIterator = currentIterator;
+-
++        cachedHasNextValue = null;
+         return currentIterator.next();
+     }
+ 
+@@ -241,10 +249,11 @@ public E next() {
+     @Override
+     public void remove() {
+         lockChain();
+-        if (currentIterator == null) {
+-            updateCurrentIterator();
++        if (lastUsedIterator == null)  {
++            throw new IllegalStateException("remove() has been invoked without next()");
+         }
+         lastUsedIterator.remove();
++        lastUsedIterator = null;  // must never be used twice without next() being invoked
+     }
+ 
+     /**
+@@ -267,13 +276,16 @@ protected void updateCurrentIterator() {
+             } else {
+                 currentIterator = iteratorQueue.remove();
+             }
+-            // set last used iterator here, in case the user calls remove
+-            // before calling hasNext() or next() (although they shouldn't)
+-            lastUsedIterator = currentIterator;
+         }
+-        while (!currentIterator.hasNext() && !iteratorQueue.isEmpty()) {
++        while (true) {
++            cachedHasNextValue = currentIterator.hasNext();
++            if (cachedHasNextValue) {
++                break;
++            }
++            if (iteratorQueue.isEmpty()) {
++                break;
++            }
+             currentIterator = iteratorQueue.remove();
+         }
+     }
+-
+ }

@@ -1,0 +1,13 @@
+diff --git a/codec-classes-quic/src/main/java/io/netty/handler/codec/quic/QuicheQuicCodec.java b/codec-classes-quic/src/main/java/io/netty/handler/codec/quic/QuicheQuicCodec.java
+index 1184f4fc676..37eb341cf7d 100644
+--- a/codec-classes-quic/src/main/java/io/netty/handler/codec/quic/QuicheQuicCodec.java
++++ b/codec-classes-quic/src/main/java/io/netty/handler/codec/quic/QuicheQuicCodec.java
+@@ -81,7 +81,7 @@ protected final QuicheQuicChannel getChannel(ByteBuffer key) {
+ 
+     private void addMapping(QuicheQuicChannel channel, ByteBuffer id) {
+         QuicheQuicChannel ch = connectionIdToChannel.put(id, channel);
+-        assert ch == null;
++        assert ch == null || ch == channel;
+     }
+ 
+     private void removeMapping(QuicheQuicChannel channel, ByteBuffer id) {

@@ -1,0 +1,726 @@
+diff --git a/src/test/java/org/apache/commons/io/IOUtilsTest.java b/src/test/java/org/apache/commons/io/IOUtilsTest.java
+index bae8f59e374..02574946bf8 100644
+--- a/src/test/java/org/apache/commons/io/IOUtilsTest.java
++++ b/src/test/java/org/apache/commons/io/IOUtilsTest.java
+@@ -50,6 +50,7 @@
+ import java.io.SequenceInputStream;
+ import java.io.StringReader;
+ import java.io.Writer;
++import java.lang.reflect.InvocationTargetException;
+ import java.net.ServerSocket;
+ import java.net.Socket;
+ import java.net.URI;
+@@ -65,6 +66,7 @@
+ import java.util.Arrays;
+ import java.util.Collections;
+ import java.util.List;
++import java.util.Objects;
+ import java.util.concurrent.atomic.AtomicBoolean;
+ import java.util.function.Consumer;
+ import java.util.function.Supplier;
+@@ -85,7 +87,9 @@
+ import org.apache.commons.io.output.UnsynchronizedByteArrayOutputStream;
+ import org.apache.commons.io.test.TestUtils;
+ import org.apache.commons.io.test.ThrowOnCloseReader;
++import org.apache.commons.lang3.JavaVersion;
+ import org.apache.commons.lang3.StringUtils;
++import org.apache.commons.lang3.SystemUtils;
+ import org.apache.commons.lang3.exception.ExceptionUtils;
+ import org.junit.jupiter.api.AfterAll;
+ import org.junit.jupiter.api.BeforeAll;
+@@ -348,6 +352,104 @@ void testByteArrayWithNegativeSize() {
+         assertThrows(NegativeArraySizeException.class, () -> IOUtils.byteArray(-1));
+     }
+ 
++    static Stream<Arguments> testCheckFromIndexSizeValidCases() {
++        return Stream.of(
++                // Valid cases
++                Arguments.of(0, 0, 42),
++                Arguments.of(0, 1, 42),
++                Arguments.of(0, 42, 42),
++                Arguments.of(41, 1, 42),
++                Arguments.of(42, 0, 42)
++        );
++    }
++
++    @ParameterizedTest
++    @MethodSource
++    void testCheckFromIndexSizeValidCases(int off, int len, int arrayLength) {
++        assertDoesNotThrow(() -> IOUtils.checkFromIndexSize(off, len, arrayLength));
++    }
++
++    static Stream<Arguments> testCheckFromIndexSizeInvalidCases() {
++        return Stream.of(
++                Arguments.of(-1, 0, 42),
++                Arguments.of(0, -1, 42),
++                Arguments.of(0, 0, -1),
++                // off + len > arrayLength
++                Arguments.of(1, 42, 42),
++                Arguments.of(Integer.MAX_VALUE, 1, Integer.MAX_VALUE)
++        );
++    }
++
++    @ParameterizedTest
++    @MethodSource
++    void testCheckFromIndexSizeInvalidCases(int off, int len, int arrayLength) {
++        final IndexOutOfBoundsException ex = assertThrows(IndexOutOfBoundsException.class, () -> IOUtils.checkFromIndexSize(off, len, arrayLength));
++        assertTrue(ex.getMessage().contains(String.valueOf(off)));
++        assertTrue(ex.getMessage().contains(String.valueOf(len)));
++        assertTrue(ex.getMessage().contains(String.valueOf(arrayLength)));
++        // Optional requirement: compare the exception message for Java 8 and Java 9+
++        if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)) {
++            final IndexOutOfBoundsException jreEx = assertThrows(IndexOutOfBoundsException.class, () -> {
++                try {
++                    Objects.class.getDeclaredMethod("checkFromIndexSize", int.class, int.class, int.class).invoke(null, off, len, arrayLength);
++                } catch (InvocationTargetException ite) {
++                    throw ite.getTargetException();
++                }
++            });
++            assertEquals(jreEx.getMessage(), ex.getMessage());
++        }
++    }
++
++    static Stream<Arguments> testCheckFromToIndexValidCases() {
++        return Stream.of(
++                // Valid cases
++                Arguments.of(0, 0, 42),
++                Arguments.of(0, 1, 42),
++                Arguments.of(0, 42, 42),
++                Arguments.of(41, 42, 42),
++                Arguments.of(42, 42, 42)
++        );
++    }
++
++    @ParameterizedTest
++    @MethodSource
++    void testCheckFromToIndexValidCases(int from, int to, int arrayLength) {
++        assertDoesNotThrow(() -> IOUtils.checkFromToIndex(from, to, arrayLength));
++    }
++
++    static Stream<Arguments> testCheckFromToIndexInvalidCases() {
++        return Stream.of(
++                Arguments.of(-1, 0, 42),
++                Arguments.of(0, -1, 42),
++                Arguments.of(0, 0, -1),
++                // from > to
++                Arguments.of(1, 0, 42),
++                // to > arrayLength
++                Arguments.of(0, 43, 42),
++                Arguments.of(1, 43, 42)
++        );
++    }
++
++    @ParameterizedTest
++    @MethodSource
++    void testCheckFromToIndexInvalidCases(int from, int to, int arrayLength) {
++        final IndexOutOfBoundsException ex = assertThrows(IndexOutOfBoundsException.class, () -> IOUtils.checkFromToIndex(from, to, arrayLength));
++        assertTrue(ex.getMessage().contains(String.valueOf(from)));
++        assertTrue(ex.getMessage().contains(String.valueOf(to)));
++        assertTrue(ex.getMessage().contains(String.valueOf(arrayLength)));
++        // Optional requirement: compare the exception message for Java 8 and Java 9+
++        if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)) {
++            final IndexOutOfBoundsException jreEx = assertThrows(IndexOutOfBoundsException.class, () -> {
++                try {
++                    Objects.class.getDeclaredMethod("checkFromToIndex", int.class, int.class, int.class).invoke(null, from, to, arrayLength);
++                } catch (InvocationTargetException ite) {
++                    throw ite.getTargetException();
++                }
++            });
++            assertEquals(jreEx.getMessage(), ex.getMessage());
++        }
++    }
++
+     @Test
+     void testClose() {
+         assertDoesNotThrow(() -> IOUtils.close((Closeable) null));
+diff --git a/src/test/java/org/apache/commons/io/input/BrokenReaderTest.java b/src/test/java/org/apache/commons/io/input/BrokenReaderTest.java
+index aca91077e6b..a47687abf3d 100644
+--- a/src/test/java/org/apache/commons/io/input/BrokenReaderTest.java
++++ b/src/test/java/org/apache/commons/io/input/BrokenReaderTest.java
+@@ -22,6 +22,7 @@
+ 
+ import java.io.IOException;
+ import java.io.Reader;
++import java.nio.CharBuffer;
+ 
+ import org.junit.jupiter.api.Test;
+ import org.junit.jupiter.params.ParameterizedTest;
+@@ -45,7 +46,7 @@ void testClose(final Class<Exception> clazz) throws Exception {
+         final Throwable exception = clazz.newInstance();
+         @SuppressWarnings("resource")
+         final BrokenReader brokenReader = createBrokenReader(exception);
+-        assertEquals(exception, assertThrows(clazz, () -> brokenReader.close()));
++        assertEquals(exception, assertThrows(clazz, brokenReader::close));
+     }
+ 
+     @Test
+@@ -68,7 +69,7 @@ void testRead(final Class<Throwable> clazz) throws Exception {
+         final Throwable exception = clazz.newInstance();
+         @SuppressWarnings("resource")
+         final BrokenReader brokenReader = createBrokenReader(exception);
+-        assertEquals(exception, assertThrows(clazz, () -> brokenReader.read()));
++        assertEquals(exception, assertThrows(clazz, brokenReader::read));
+     }
+ 
+     @ParameterizedTest
+@@ -86,7 +87,24 @@ void testReadCharArrayIndexed(final Class<Throwable> clazz) throws Exception {
+         final Throwable exception = clazz.newInstance();
+         @SuppressWarnings("resource")
+         final BrokenReader brokenReader = createBrokenReader(exception);
+-        assertEquals(exception, assertThrows(clazz, () -> brokenReader.read(new char[1], 0, 1)));
++        final char[] cbuf = new char[1];
++        assertEquals(exception, assertThrows(clazz, () -> brokenReader.read(cbuf, 0, 1)));
++        // Also throws the exception before checking arguments
++        assertEquals(exception, assertThrows(clazz, () -> brokenReader.read(cbuf, -1, 1)));
++        assertEquals(exception, assertThrows(clazz, () -> brokenReader.read(cbuf, 0, -1)));
++        assertEquals(exception, assertThrows(clazz, () -> brokenReader.read(cbuf, 1, 1)));
++        assertEquals(exception, assertThrows(clazz, () -> brokenReader.read(null, 0, 0)));
++
++    }
++
++    @ParameterizedTest
++    @MethodSource("org.apache.commons.io.BrokenTestFactories#parameters")
++    void testReadCharBuffer(final Class<Throwable> clazz) throws Exception {
++        final Throwable exception = clazz.newInstance();
++        @SuppressWarnings("resource")
++        final BrokenReader brokenReader = createBrokenReader(exception);
++        final CharBuffer charBuffer = CharBuffer.allocate(1);
++        assertEquals(exception, assertThrows(clazz, () -> brokenReader.read(charBuffer)));
+     }
+ 
+     @ParameterizedTest
+@@ -95,7 +113,7 @@ void testReady(final Class<Throwable> clazz) throws Exception {
+         final Throwable exception = clazz.newInstance();
+         @SuppressWarnings("resource")
+         final BrokenReader brokenReader = createBrokenReader(exception);
+-        assertEquals(exception, assertThrows(clazz, () -> brokenReader.ready()));
++        assertEquals(exception, assertThrows(clazz, brokenReader::ready));
+     }
+ 
+     @ParameterizedTest
+@@ -104,7 +122,7 @@ void testReset(final Class<Throwable> clazz) throws Exception {
+         final Throwable exception = clazz.newInstance();
+         @SuppressWarnings("resource")
+         final BrokenReader brokenReader = createBrokenReader(exception);
+-        assertEquals(exception, assertThrows(clazz, () -> brokenReader.reset()));
++        assertEquals(exception, assertThrows(clazz, brokenReader::reset));
+     }
+ 
+     @ParameterizedTest
+diff --git a/src/test/java/org/apache/commons/io/input/ClosedInputStreamTest.java b/src/test/java/org/apache/commons/io/input/ClosedInputStreamTest.java
+index b19364d8a17..2586806b3a5 100644
+--- a/src/test/java/org/apache/commons/io/input/ClosedInputStreamTest.java
++++ b/src/test/java/org/apache/commons/io/input/ClosedInputStreamTest.java
+@@ -22,6 +22,7 @@
+ 
+ import java.io.InputStream;
+ 
++import org.apache.commons.io.IOUtils;
+ import org.junit.jupiter.api.Test;
+ 
+ /**
+@@ -86,7 +87,7 @@ void testReadArray() throws Exception {
+         try (ClosedInputStream cis = new ClosedInputStream()) {
+             assertEquals(EOF, cis.read(new byte[4096]));
+             assertEquals(EOF, cis.read(new byte[1]));
+-            assertEquals(EOF, cis.read(new byte[0]));
++            assertEquals(0, cis.read(IOUtils.EMPTY_BYTE_ARRAY));
+         }
+     }
+ 
+@@ -95,7 +96,7 @@ void testReadArrayIndex() throws Exception {
+         try (ClosedInputStream cis = new ClosedInputStream()) {
+             assertEquals(EOF, cis.read(new byte[4096], 0, 1));
+             assertEquals(EOF, cis.read(new byte[1], 0, 1));
+-            assertEquals(EOF, cis.read(new byte[0], 0, 0));
++            assertEquals(0, cis.read(IOUtils.EMPTY_BYTE_ARRAY, 0, 0));
+         }
+     }
+ 
+diff --git a/src/test/java/org/apache/commons/io/input/ClosedReaderTest.java b/src/test/java/org/apache/commons/io/input/ClosedReaderTest.java
+index cb57f9e6f91..57b87ddfb09 100644
+--- a/src/test/java/org/apache/commons/io/input/ClosedReaderTest.java
++++ b/src/test/java/org/apache/commons/io/input/ClosedReaderTest.java
+@@ -18,6 +18,7 @@
+ 
+ import static org.apache.commons.io.IOUtils.EOF;
+ import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertThrows;
+ 
+ import java.io.IOException;
+ import java.io.Reader;
+@@ -46,25 +47,39 @@ void testReadArray() throws Exception {
+         try (Reader reader = new ClosedReader()) {
+             assertEquals(EOF, reader.read(new char[4096]));
+             assertEquals(EOF, reader.read(new char[1]));
+-            assertEquals(EOF, reader.read(new char[0]));
++            assertEquals(0, reader.read(new char[0]));
++            assertThrows(NullPointerException.class, () -> reader.read((char[]) null));
+         }
+     }
+ 
+     @Test
+     void testReadArrayIndex() throws Exception {
+         try (Reader reader = new ClosedReader()) {
+-            assertEquals(EOF, reader.read(CharBuffer.wrap(new char[4096])));
+-            assertEquals(EOF, reader.read(CharBuffer.wrap(new char[1])));
+-            assertEquals(EOF, reader.read(CharBuffer.wrap(new char[0])));
++            final char[] cbuf = new char[4096];
++            assertEquals(EOF, reader.read(cbuf, 0, 2048));
++            assertEquals(EOF, reader.read(cbuf, 2048, 2048));
++            assertEquals(0, reader.read(cbuf, 4096, 0));
++            assertThrows(IndexOutOfBoundsException.class, () -> reader.read(cbuf, -1, 1));
++            assertThrows(IndexOutOfBoundsException.class, () -> reader.read(cbuf, 0, 4097));
++            assertThrows(IndexOutOfBoundsException.class, () -> reader.read(cbuf, 1, -1));
++
++            assertEquals(EOF, reader.read(new char[1]));
++            assertEquals(0, reader.read(new char[0]));
++            assertThrows(NullPointerException.class, () -> reader.read(null, 0, 0));
+         }
+     }
+ 
+     @Test
+     void testReadCharBuffer() throws Exception {
+         try (Reader reader = new ClosedReader()) {
+-            assertEquals(EOF, reader.read(new char[4096]));
+-            assertEquals(EOF, reader.read(new char[1]));
+-            assertEquals(EOF, reader.read(new char[0]));
++            final CharBuffer charBuffer = CharBuffer.wrap(new char[4096]);
++            assertEquals(EOF, reader.read(charBuffer));
++            charBuffer.position(4096);
++            assertEquals(0, reader.read(charBuffer));
++
++            assertEquals(EOF, reader.read(CharBuffer.wrap(new char[1])));
++            assertEquals(0, reader.read(CharBuffer.wrap(new char[0])));
++            assertThrows(NullPointerException.class, () -> reader.read((CharBuffer) null));
+         }
+     }
+ 
+diff --git a/src/test/java/org/apache/commons/io/input/MarkShieldInputStreamTest.java b/src/test/java/org/apache/commons/io/input/MarkShieldInputStreamTest.java
+index a1e4d17f457..2566f8b51e6 100644
+--- a/src/test/java/org/apache/commons/io/input/MarkShieldInputStreamTest.java
++++ b/src/test/java/org/apache/commons/io/input/MarkShieldInputStreamTest.java
+@@ -152,7 +152,7 @@ void testReadByteArrayIntIntAfterClose(final int len) throws Exception {
+                 MarkShieldInputStream msis = new MarkShieldInputStream(in)) {
+             assertEquals(len, in.available());
+             in.close();
+-            assertEquals(0, in.read(new byte[0], 0, 1));
++            assertThrows(IndexOutOfBoundsException.class, () -> in.read(new byte[0], 0, 1));
+             assertEquals(0, in.read(new byte[1], 0, 0));
+             assertThrows(IOException.class, () -> in.read(new byte[2], 0, 1));
+         }
+diff --git a/src/test/java/org/apache/commons/io/input/NullInputStreamTest.java b/src/test/java/org/apache/commons/io/input/NullInputStreamTest.java
+index b79555d8c02..9b59ac90c0e 100644
+--- a/src/test/java/org/apache/commons/io/input/NullInputStreamTest.java
++++ b/src/test/java/org/apache/commons/io/input/NullInputStreamTest.java
+@@ -249,7 +249,7 @@ void testReadByteArrayIntIntAfterClose() throws Exception {
+         try (InputStream in = new NullInputStream()) {
+             assertEquals(0, in.available());
+             in.close();
+-            assertEquals(0, in.read(new byte[0], 0, 1));
++            assertThrows(IndexOutOfBoundsException.class, () -> in.read(new byte[0], 0, 1));
+             assertEquals(0, in.read(new byte[1], 0, 0));
+             assertThrows(IOException.class, () -> in.read(new byte[2], 0, 1));
+         }
+diff --git a/src/test/java/org/apache/commons/io/input/ProxyReaderTest.java b/src/test/java/org/apache/commons/io/input/ProxyReaderTest.java
+index f33979ce1b8..681ab90eae0 100644
+--- a/src/test/java/org/apache/commons/io/input/ProxyReaderTest.java
++++ b/src/test/java/org/apache/commons/io/input/ProxyReaderTest.java
+@@ -38,6 +38,11 @@ public int read(final char[] chars) throws IOException {
+             return chars == null ? 0 : super.read(chars);
+         }
+ 
++        @Override
++        public int read(final char[] chars, final int offset, final int length) throws IOException {
++            return chars == null ? 0 : super.read(chars, offset, length);
++        }
++
+         @Override
+         public int read(final CharBuffer target) throws IOException {
+             return target == null ? 0 : super.read(target);
+diff --git a/src/test/java/org/apache/commons/io/input/UnsynchronizedBufferedReaderTest.java b/src/test/java/org/apache/commons/io/input/UnsynchronizedBufferedReaderTest.java
+index 9c7dbf6fd81..a144bc418d0 100644
+--- a/src/test/java/org/apache/commons/io/input/UnsynchronizedBufferedReaderTest.java
++++ b/src/test/java/org/apache/commons/io/input/UnsynchronizedBufferedReaderTest.java
+@@ -353,35 +353,46 @@ void testRead() throws IOException {
+      * @throws IOException test failure.
+      */
+     @Test
+-    void testReadArray() throws IOException {
++    void testReadArray1() throws IOException {
+         final char[] ca = new char[2];
+         try (UnsynchronizedBufferedReader toRet = new UnsynchronizedBufferedReader(new InputStreamReader(new ByteArrayInputStream(new byte[0])))) {
+-            /* Null buffer should throw NPE even when len == 0 */
++            /* Validate parameters, before returning 0 */
+             assertThrows(NullPointerException.class, () -> toRet.read(null, 1, 0));
++            assertThrows(IndexOutOfBoundsException.class, () -> toRet.read(ca, 1, 5));
++            /* Read zero bytes should return 0 */
++            assertEquals(0, toRet.read(ca, 0, 0));
+             toRet.close();
+-            assertThrows(IOException.class, () -> toRet.read(null, 1, 0));
+-            /* Closed reader should throw IOException reading zero bytes */
+-            assertThrows(IOException.class, () -> toRet.read(ca, 0, 0));
+             /*
+-             * Closed reader should throw IOException in preference to index out of bounds
++             * After close, readers in java.io consistently throw IOException before checking parameters or returning 0.
+              */
+-            // Read should throw IOException before
+-            // ArrayIndexOutOfBoundException
++            assertThrows(IOException.class, () -> toRet.read(null, 1, 0));
+             assertThrows(IOException.class, () -> toRet.read(ca, 1, 5));
++            assertThrows(IOException.class, () -> toRet.read(ca, 0, 0));
+         }
++    }
++
++    @Test
++    void testReadArray2() throws IOException {
++        final char[] ca = new char[2];
+         // Test to ensure that a drained stream returns 0 at EOF
+         try (UnsynchronizedBufferedReader toRet2 = new UnsynchronizedBufferedReader(new InputStreamReader(new ByteArrayInputStream(new byte[2])))) {
+             assertEquals(2, toRet2.read(ca, 0, 2));
+             assertEquals(-1, toRet2.read(ca, 0, 2));
+             assertEquals(0, toRet2.read(ca, 0, 0));
+         }
++    }
+ 
++    @Test
++    void testReadArray3() throws IOException {
+         // Test for method int UnsynchronizedBufferedReader.read(char [], int, int)
+         final char[] buf = new char[testString.length()];
+         br = new UnsynchronizedBufferedReader(new StringReader(testString));
+         br.read(buf, 50, 500);
+         assertTrue(new String(buf, 50, 500).equals(testString.substring(0, 500)));
++    }
+ 
++    @Test
++    void testReadArray4() throws IOException {
+         try (UnsynchronizedBufferedReader bufin = new UnsynchronizedBufferedReader(new Reader() {
+             int size = 2;
+             int pos;
+@@ -424,11 +435,18 @@ public boolean ready() throws IOException {
+             final int result = bufin.read(new char[2], 0, 2);
+             assertEquals(result, 1);
+         }
++    }
++
++    @Test
++    void testReadArray_HARMONY_831() throws IOException {
+         // regression for HARMONY-831
+         try (Reader reader = new UnsynchronizedBufferedReader(new PipedReader(), 9)) {
+             assertThrows(IndexOutOfBoundsException.class, () -> reader.read(new char[] {}, 7, 0));
+         }
++    }
+ 
++    @Test
++    void testReadArray_HARMONY_54() throws IOException {
+         // Regression for HARMONY-54
+         final char[] ch = {};
+         @SuppressWarnings("resource")
+@@ -456,13 +474,12 @@ void testReadArrayException() throws IOException {
+         br = new UnsynchronizedBufferedReader(new StringReader(testString));
+         final char[] nullCharArray = null;
+         final char[] charArray = testString.toCharArray();
+-        assertThrows(IndexOutOfBoundsException.class, () -> br.read(nullCharArray, -1, -1));
+-        assertThrows(IndexOutOfBoundsException.class, () -> br.read(nullCharArray, -1, 0));
++        assertThrows(NullPointerException.class, () -> br.read(nullCharArray, -1, 0));
+         assertThrows(NullPointerException.class, () -> br.read(nullCharArray, 0, -1));
+-        assertThrows(NullPointerException.class, () -> br.read(nullCharArray, 0, 0));
+-        assertThrows(NullPointerException.class, () -> br.read(nullCharArray, 0, 1));
+-        assertThrows(IndexOutOfBoundsException.class, () -> br.read(charArray, -1, -1));
++        assertThrows(NullPointerException.class, () -> br.read(nullCharArray, 1, 1));
+         assertThrows(IndexOutOfBoundsException.class, () -> br.read(charArray, -1, 0));
++        assertThrows(IndexOutOfBoundsException.class, () -> br.read(charArray, 0, -1));
++        assertThrows(IndexOutOfBoundsException.class, () -> br.read(charArray, charArray.length, 1));
+ 
+         br.read(charArray, 0, 0);
+         br.read(charArray, 0, charArray.length);
+diff --git a/src/test/java/org/apache/commons/io/output/BrokenWriterTest.java b/src/test/java/org/apache/commons/io/output/BrokenWriterTest.java
+index f8db50a6729..dffeb7907ae 100644
+--- a/src/test/java/org/apache/commons/io/output/BrokenWriterTest.java
++++ b/src/test/java/org/apache/commons/io/output/BrokenWriterTest.java
+@@ -55,6 +55,7 @@ void testAppendCharSequence(final Class<Throwable> clazz) throws Exception {
+         @SuppressWarnings("resource")
+         final BrokenWriter brokenWriter = createBrokenWriter(exception);
+         assertEquals(exception, assertThrows(clazz, () -> brokenWriter.append("01")));
++        assertEquals(exception, assertThrows(clazz, () -> brokenWriter.append(null)));
+     }
+ 
+     @ParameterizedTest
+@@ -64,6 +65,7 @@ void testAppendCharSequenceIndexed(final Class<Throwable> clazz) throws Exceptio
+         @SuppressWarnings("resource")
+         final BrokenWriter brokenWriter = createBrokenWriter(exception);
+         assertEquals(exception, assertThrows(clazz, () -> brokenWriter.append("01", 0, 1)));
++        assertEquals(exception, assertThrows(clazz, () -> brokenWriter.append(null, 0, 4)));
+     }
+ 
+     @ParameterizedTest
+@@ -72,7 +74,7 @@ void testClose(final Class<Throwable> clazz) throws Exception {
+         final Throwable exception = clazz.newInstance();
+         @SuppressWarnings("resource")
+         final BrokenWriter brokenWriter = createBrokenWriter(exception);
+-        assertEquals(exception, assertThrows(clazz, () -> brokenWriter.close()));
++        assertEquals(exception, assertThrows(clazz, brokenWriter::close));
+     }
+ 
+     @ParameterizedTest
+@@ -81,7 +83,7 @@ void testFlush(final Class<Throwable> clazz) throws Exception {
+         final Throwable exception = clazz.newInstance();
+         @SuppressWarnings("resource")
+         final BrokenWriter brokenWriter = createBrokenWriter(exception);
+-        assertEquals(exception, assertThrows(clazz, () -> brokenWriter.flush()));
++        assertEquals(exception, assertThrows(clazz, brokenWriter::flush));
+     }
+ 
+     @Test
+@@ -119,7 +121,13 @@ void testWriteCharArrayIndexed(final Class<Throwable> clazz) throws Exception {
+         final Throwable exception = clazz.newInstance();
+         @SuppressWarnings("resource")
+         final BrokenWriter brokenWriter = createBrokenWriter(exception);
+-        assertEquals(exception, assertThrows(clazz, () -> brokenWriter.write(new char[1], 0, 1)));
++        final char[] cbuf = new char[1];
++        assertEquals(exception, assertThrows(clazz, () -> brokenWriter.write(cbuf, 0, 1)));
++        // Verify that the exception is thrown before checking the parameters.
++        assertEquals(exception, assertThrows(clazz, () -> brokenWriter.write(cbuf, -1, 0)));
++        assertEquals(exception, assertThrows(clazz, () -> brokenWriter.write(cbuf, 0, -1)));
++        assertEquals(exception, assertThrows(clazz, () -> brokenWriter.write(cbuf, 0, 2)));
++        assertEquals(exception, assertThrows(clazz, () -> brokenWriter.write((char[]) null, 0, 0)));
+     }
+ 
+     @ParameterizedTest
+diff --git a/src/test/java/org/apache/commons/io/output/ByteArrayOutputStreamTest.java b/src/test/java/org/apache/commons/io/output/ByteArrayOutputStreamTest.java
+index fa19ba2a41a..9bae1cb5f62 100644
+--- a/src/test/java/org/apache/commons/io/output/ByteArrayOutputStreamTest.java
++++ b/src/test/java/org/apache/commons/io/output/ByteArrayOutputStreamTest.java
+@@ -177,7 +177,7 @@ void testInvalidWriteOffsetOver(final String baosName, final BAOSFactory<?> baos
+     @MethodSource("baosFactories")
+     void testInvalidWriteOffsetUnder(final String baosName, final BAOSFactory<?> baosFactory) throws IOException {
+         try (AbstractByteArrayOutputStream<?> baout = baosFactory.newInstance()) {
+-            assertThrows(IndexOutOfBoundsException.class, () -> baout.write(null, -1, 0));
++            assertThrows(IndexOutOfBoundsException.class, () -> baout.write(IOUtils.EMPTY_BYTE_ARRAY, -1, 0));
+         }
+     }
+ 
+diff --git a/src/test/java/org/apache/commons/io/output/ClosedWriterTest.java b/src/test/java/org/apache/commons/io/output/ClosedWriterTest.java
+index 4f57957a885..b9758729f1b 100644
+--- a/src/test/java/org/apache/commons/io/output/ClosedWriterTest.java
++++ b/src/test/java/org/apache/commons/io/output/ClosedWriterTest.java
+@@ -43,7 +43,13 @@ void testFlush() throws IOException {
+     @Test
+     void testWrite() throws IOException {
+         try (ClosedWriter cw = new ClosedWriter()) {
+-            assertThrows(IOException.class, () -> cw.write(new char[0], 0, 0));
++            final char[] cbuf = new char[1];
++            assertThrows(IOException.class, () -> cw.write(new char[0], 0, 1));
++            // In writers, testing for closed always comes before argument validation
++            assertThrows(IOException.class, () -> cw.write(cbuf, -1, 0));
++            assertThrows(IOException.class, () -> cw.write(cbuf, 0, -1));
++            assertThrows(IOException.class, () -> cw.write(cbuf, 0, 2));
++            assertThrows(IOException.class, () -> cw.write((char[]) null, 0, 0));
+         }
+     }
+ 
+diff --git a/src/test/java/org/apache/commons/io/output/NullAppendableTest.java b/src/test/java/org/apache/commons/io/output/NullAppendableTest.java
+index 6caa15023d9..aa5ef7137ed 100644
+--- a/src/test/java/org/apache/commons/io/output/NullAppendableTest.java
++++ b/src/test/java/org/apache/commons/io/output/NullAppendableTest.java
+@@ -16,6 +16,8 @@
+  */
+ package org.apache.commons.io.output;
+ 
++import static org.junit.jupiter.api.Assertions.assertThrows;
++
+ import java.io.IOException;
+ 
+ import org.junit.jupiter.api.Test;
+@@ -32,7 +34,12 @@ void testNull() throws IOException {
+         appendable.append("A");
+         appendable.append("A", 0, 1);
+         appendable.append(null, 0, 1);
+-        appendable.append(null, -1, -1);
++        // Check argument validation
++        final CharSequence csq = "ABCDE";
++        assertThrows(IndexOutOfBoundsException.class, () -> appendable.append(csq, -1, 0));
++        assertThrows(IndexOutOfBoundsException.class, () -> appendable.append(csq, 0, -1));
++        assertThrows(IndexOutOfBoundsException.class, () -> appendable.append(csq, 1, 0));
++        assertThrows(IndexOutOfBoundsException.class, () -> appendable.append(csq, 0, 6));
+     }
+ 
+ }
+diff --git a/src/test/java/org/apache/commons/io/output/NullOutputStreamTest.java b/src/test/java/org/apache/commons/io/output/NullOutputStreamTest.java
+index bdecc0e0a68..097566fc6e2 100644
+--- a/src/test/java/org/apache/commons/io/output/NullOutputStreamTest.java
++++ b/src/test/java/org/apache/commons/io/output/NullOutputStreamTest.java
+@@ -16,6 +16,8 @@
+  */
+ package org.apache.commons.io.output;
+ 
++import static org.junit.jupiter.api.Assertions.assertThrows;
++
+ import java.io.IOException;
+ 
+ import org.junit.jupiter.api.Test;
+@@ -34,11 +36,18 @@ private void process(final NullOutputStream nos) throws IOException {
+         nos.close();
+         nos.write("allowed".getBytes());
+         nos.write(255);
++        // Test arguments validation
++        final byte[] b = new byte[1];
++        assertThrows(IndexOutOfBoundsException.class, () -> nos.write(b, -1, 0));
++        assertThrows(IndexOutOfBoundsException.class, () -> nos.write(b, 0, -1));
++        assertThrows(IndexOutOfBoundsException.class, () -> nos.write(b, 0, 2));
++        assertThrows(NullPointerException.class, () -> nos.write(null, 0, 0));
+     }
+ 
+     @Test
++    @SuppressWarnings("deprecation")
+     void testNewInstance() throws IOException {
+-        try (NullOutputStream nos = NullOutputStream.INSTANCE) {
++        try (NullOutputStream nos = new NullOutputStream()) {
+             process(nos);
+         }
+     }
+diff --git a/src/test/java/org/apache/commons/io/output/NullWriterTest.java b/src/test/java/org/apache/commons/io/output/NullWriterTest.java
+index f1b603a3776..424d076ee21 100644
+--- a/src/test/java/org/apache/commons/io/output/NullWriterTest.java
++++ b/src/test/java/org/apache/commons/io/output/NullWriterTest.java
+@@ -16,6 +16,9 @@
+  */
+ package org.apache.commons.io.output;
+ 
++import static org.junit.jupiter.api.Assertions.assertSame;
++import static org.junit.jupiter.api.Assertions.assertThrows;
++
+ import org.junit.jupiter.api.Test;
+ 
+ /**
+@@ -24,17 +27,96 @@
+  */
+ class NullWriterTest {
+ 
++    private static final String TEST_STRING = "ABC";
++    private static final char[] TEST_CHARS = TEST_STRING.toCharArray();
++
++    @Test
++    void testAppendChar() {
++        try (NullWriter writer = NullWriter.INSTANCE) {
++            assertSame(writer, writer.append('X'));
++        }
++    }
++
++    @Test
++    void testAppendCharSequence() {
++        try (NullWriter writer = NullWriter.INSTANCE) {
++            assertSame(writer, writer.append(TEST_STRING));
++            assertSame(writer, writer.append(null));
++        }
++    }
++
+     @Test
+-    void testNull() {
+-        final char[] chars = { 'A', 'B', 'C' };
++    void testAppendCharSequenceWithRange() {
++        try (NullWriter writer = NullWriter.INSTANCE) {
++            assertSame(writer, writer.append(TEST_STRING, 1, 2));
++            assertSame(writer, writer.append(null, 0, 4));
++            // Test argument validation
++            assertThrows(IndexOutOfBoundsException.class, () -> writer.append(TEST_STRING, -1, 2));
++            assertThrows(IndexOutOfBoundsException.class, () -> writer.append(TEST_STRING, 1, 5));
++            assertThrows(IndexOutOfBoundsException.class, () -> writer.append(TEST_STRING, 2, 1));
++        }
++    }
++
++    @Test
++    void testCloseNoOp() {
++        final NullWriter writer = NullWriter.INSTANCE;
++        writer.close();
++        writer.write(TEST_CHARS);
++    }
++
++    @Test
++    void testFlush() {
+         try (NullWriter writer = NullWriter.INSTANCE) {
+-            writer.write(1);
+-            writer.write(chars);
+-            writer.write(chars, 1, 1);
+-            writer.write("some string");
+-            writer.write("some string", 2, 2);
+             writer.flush();
+         }
+     }
+ 
++    @Test
++    void testWriteCharArray() {
++        try (NullWriter writer = NullWriter.INSTANCE) {
++            writer.write(TEST_CHARS);
++            // Test argument validation
++            assertThrows(NullPointerException.class, () -> writer.write((char[]) null));
++        }
++    }
++
++    @Test
++    void testWriteCharArrayWithOffset() {
++        try (NullWriter writer = NullWriter.INSTANCE) {
++            writer.write(TEST_CHARS, 1, 2);
++            // Test argument validation
++            assertThrows(IndexOutOfBoundsException.class, () -> writer.write(TEST_CHARS, -1, 0));
++            assertThrows(IndexOutOfBoundsException.class, () -> writer.write(TEST_CHARS, 0, -1));
++            assertThrows(IndexOutOfBoundsException.class, () -> writer.write(TEST_CHARS, 0, 4));
++            assertThrows(NullPointerException.class, () -> writer.write((char[]) null, 0, 0));
++        }
++    }
++
++    @Test
++    void testWriteInt() {
++        try (NullWriter writer = NullWriter.INSTANCE) {
++            writer.write(42);
++        }
++    }
++
++    @Test
++    void testWriteString() {
++        try (NullWriter writer = NullWriter.INSTANCE) {
++            writer.write(TEST_STRING);
++            // Test argument validation
++            assertThrows(NullPointerException.class, () -> writer.write((String) null));
++        }
++    }
++
++    @Test
++    void testWriteStringWithOffset() {
++        try (NullWriter writer = NullWriter.INSTANCE) {
++            writer.write(TEST_STRING, 1, 1);
++            // Test argument validation
++            assertThrows(IndexOutOfBoundsException.class, () -> writer.write(TEST_STRING, -1, 0));
++            assertThrows(IndexOutOfBoundsException.class, () -> writer.write(TEST_STRING, 0, -1));
++            assertThrows(IndexOutOfBoundsException.class, () -> writer.write(TEST_STRING, 0, 4));
++            assertThrows(NullPointerException.class, () -> writer.write((String) null, 0, 0));
++        }
++    }
+ }
+diff --git a/src/test/java/org/apache/commons/io/output/ProxyWriterTest.java b/src/test/java/org/apache/commons/io/output/ProxyWriterTest.java
+index 9954ca06803..e810d39d726 100644
+--- a/src/test/java/org/apache/commons/io/output/ProxyWriterTest.java
++++ b/src/test/java/org/apache/commons/io/output/ProxyWriterTest.java
+@@ -205,8 +205,8 @@ public void write(final String str, final int off, final int len) throws IOExcep
+     @Test
+     void testNullCharArray() throws Exception {
+         try (ProxyWriter proxy = new ProxyWriter(NullWriter.INSTANCE)) {
+-            proxy.write((char[]) null);
+-            proxy.write((char[]) null, 0, 0);
++            assertThrows(NullPointerException.class, () -> proxy.write((char[]) null));
++            assertThrows(NullPointerException.class, () -> proxy.write((char[]) null, 0, 0));
+         }
+     }
+ 
+@@ -220,8 +220,9 @@ void testNullCharSequence() throws Exception {
+     @Test
+     void testNullString() throws Exception {
+         try (ProxyWriter proxy = new ProxyWriter(NullWriter.INSTANCE)) {
+-            proxy.write((String) null);
+-            proxy.write((String) null, 0, 0);
++            // Default implementation delegates to write(char[], int, int)
++            assertThrows(NullPointerException.class, () -> proxy.write((String) null));
++            assertThrows(NullPointerException.class, () -> proxy.write((String) null, 0, 0));
+         }
+     }
+ 

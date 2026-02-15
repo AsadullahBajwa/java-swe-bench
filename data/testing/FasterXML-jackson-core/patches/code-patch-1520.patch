@@ -1,0 +1,44 @@
+diff --git a/release-notes/VERSION b/release-notes/VERSION
+index 59da1c3f89..8ef2842504 100644
+--- a/release-notes/VERSION
++++ b/release-notes/VERSION
+@@ -19,6 +19,12 @@ JSON library.
+ 
+ -
+ 
++3.0.4 (not yet released)
++
++#1516: `UTF8StreamJsonParser` sometimes may cause `ArrayIndexOutOfBoundsException`
++ (reported by @haihai514)
++ (fix by @cowtowncoder, w/ Claude code)
++
+ 3.0.3 (28-Nov-2025)
+ 
+ #1418: `TokenFilter#includeEmptyArray()` causes an error in some cases where
+diff --git a/src/main/java/tools/jackson/core/json/UTF8StreamJsonParser.java b/src/main/java/tools/jackson/core/json/UTF8StreamJsonParser.java
+index 0c4073a20c..967c746e98 100644
+--- a/src/main/java/tools/jackson/core/json/UTF8StreamJsonParser.java
++++ b/src/main/java/tools/jackson/core/json/UTF8StreamJsonParser.java
+@@ -1568,6 +1568,10 @@ protected final int _matchLongName(PropertyNameMatcher matcher, int qptr,
+         int qlen = 3;
+ 
+         while ((qptr + 4) <= _inputEnd) {
++            // [core#1516]: Need to check buffer space BEFORE any writes in this iteration
++            if (qlen >= _quadBuffer.length) {
++                _quadBuffer = growArrayBy(_quadBuffer, qlen);
++            }
+             int i = input[qptr++] & 0xFF;
+             if (codes[i] != 0) {
+                 if (i != INT_QUOTE) {
+@@ -1611,10 +1615,7 @@ protected final int _matchLongName(PropertyNameMatcher matcher, int qptr,
+                 _quadPtr = qptr;
+                 return matcher.matchByQuad(_quadBuffer, qlen);
+             }
+-            // Nope, no end in sight. Need to grow quad array etc
+-            if (qlen >= _quadBuffer.length) {
+-                _quadBuffer = growArrayBy(_quadBuffer, qlen);
+-            }
++            // Nope, no end in sight.
+             _quadBuffer[qlen++] = q;
+             q = i;
+         }

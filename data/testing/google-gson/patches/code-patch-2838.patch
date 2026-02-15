@@ -1,0 +1,387 @@
+diff --git a/gson/src/main/java/com/google/gson/GsonBuilder.java b/gson/src/main/java/com/google/gson/GsonBuilder.java
+index c387bc2d52..f0ea0ae4c8 100644
+--- a/gson/src/main/java/com/google/gson/GsonBuilder.java
++++ b/gson/src/main/java/com/google/gson/GsonBuilder.java
+@@ -32,8 +32,8 @@
+ import com.google.errorprone.annotations.InlineMe;
+ import com.google.gson.annotations.Since;
+ import com.google.gson.annotations.Until;
+-import com.google.gson.internal.$Gson$Preconditions;
+ import com.google.gson.internal.Excluder;
++import com.google.gson.internal.GsonPreconditions;
+ import com.google.gson.internal.bind.DefaultDateTypeAdapter;
+ import com.google.gson.internal.bind.TreeTypeAdapter;
+ import com.google.gson.internal.bind.TypeAdapters;
+@@ -704,7 +704,7 @@ private static int checkDateFormatStyle(int style) {
+   @CanIgnoreReturnValue
+   public GsonBuilder registerTypeAdapter(Type type, Object typeAdapter) {
+     Objects.requireNonNull(type);
+-    $Gson$Preconditions.checkArgument(
++    GsonPreconditions.checkArgument(
+         typeAdapter instanceof JsonSerializer<?>
+             || typeAdapter instanceof JsonDeserializer<?>
+             || typeAdapter instanceof InstanceCreator<?>
+@@ -778,7 +778,7 @@ public GsonBuilder registerTypeAdapterFactory(TypeAdapterFactory factory) {
+   @CanIgnoreReturnValue
+   public GsonBuilder registerTypeHierarchyAdapter(Class<?> baseType, Object typeAdapter) {
+     Objects.requireNonNull(baseType);
+-    $Gson$Preconditions.checkArgument(
++    GsonPreconditions.checkArgument(
+         typeAdapter instanceof JsonSerializer<?>
+             || typeAdapter instanceof JsonDeserializer<?>
+             || typeAdapter instanceof TypeAdapter<?>);
+diff --git a/gson/src/main/java/com/google/gson/internal/ConstructorConstructor.java b/gson/src/main/java/com/google/gson/internal/ConstructorConstructor.java
+index 9db6c504ae..5588367366 100644
+--- a/gson/src/main/java/com/google/gson/internal/ConstructorConstructor.java
++++ b/gson/src/main/java/com/google/gson/internal/ConstructorConstructor.java
+@@ -367,7 +367,7 @@ private static boolean hasStringKeyType(Type mapType) {
+     if (typeArguments.length == 0) {
+       return false;
+     }
+-    return $Gson$Types.getRawType(typeArguments[0]) == String.class;
++    return GsonTypes.getRawType(typeArguments[0]) == String.class;
+   }
+ 
+   private static ObjectConstructor<? extends Map<? extends Object, Object>> newMapConstructor(
+diff --git a/gson/src/main/java/com/google/gson/internal/$Gson$Preconditions.java b/gson/src/main/java/com/google/gson/internal/GsonPreconditions.java
+similarity index 95%
+rename from gson/src/main/java/com/google/gson/internal/$Gson$Preconditions.java
+rename to gson/src/main/java/com/google/gson/internal/GsonPreconditions.java
+index 2398eff3ae..cb2c92480d 100644
+--- a/gson/src/main/java/com/google/gson/internal/$Gson$Preconditions.java
++++ b/gson/src/main/java/com/google/gson/internal/GsonPreconditions.java
+@@ -32,8 +32,8 @@
+  * @author Joel Leitch
+  */
+ @SuppressWarnings("MemberName") // legacy class name
+-public final class $Gson$Preconditions {
+-  private $Gson$Preconditions() {
++public final class GsonPreconditions {
++  private GsonPreconditions() {
+     throw new UnsupportedOperationException();
+   }
+ 
+diff --git a/gson/src/main/java/com/google/gson/internal/$Gson$Types.java b/gson/src/main/java/com/google/gson/internal/GsonTypes.java
+similarity index 97%
+rename from gson/src/main/java/com/google/gson/internal/$Gson$Types.java
+rename to gson/src/main/java/com/google/gson/internal/GsonTypes.java
+index ab024b4bfa..a29d142cbb 100644
+--- a/gson/src/main/java/com/google/gson/internal/$Gson$Types.java
++++ b/gson/src/main/java/com/google/gson/internal/GsonTypes.java
+@@ -16,7 +16,7 @@
+ 
+ package com.google.gson.internal;
+ 
+-import static com.google.gson.internal.$Gson$Preconditions.checkArgument;
++import static com.google.gson.internal.GsonPreconditions.checkArgument;
+ import static java.util.Objects.requireNonNull;
+ 
+ import java.io.Serializable;
+@@ -43,10 +43,10 @@
+  * @author Jesse Wilson
+  */
+ @SuppressWarnings("MemberName") // legacy class name
+-public final class $Gson$Types {
++public final class GsonTypes {
+   static final Type[] EMPTY_TYPE_ARRAY = new Type[] {};
+ 
+-  private $Gson$Types() {
++  private GsonTypes() {
+     throw new UnsupportedOperationException();
+   }
+ 
+@@ -288,9 +288,7 @@ private static Type getSupertype(Type context, Class<?> contextRawType, Class<?>
+     }
+     checkArgument(supertype.isAssignableFrom(contextRawType));
+     return resolve(
+-        context,
+-        contextRawType,
+-        $Gson$Types.getGenericSupertype(context, contextRawType, supertype));
++        context, contextRawType, GsonTypes.getGenericSupertype(context, contextRawType, supertype));
+   }
+ 
+   /**
+@@ -555,7 +553,7 @@ public Type getOwnerType() {
+     @Override
+     public boolean equals(Object other) {
+       return other instanceof ParameterizedType
+-          && $Gson$Types.equals(this, (ParameterizedType) other);
++          && GsonTypes.equals(this, (ParameterizedType) other);
+     }
+ 
+     private static int hashCodeOrZero(Object o) {
+@@ -604,7 +602,7 @@ public Type getGenericComponentType() {
+ 
+     @Override
+     public boolean equals(Object o) {
+-      return o instanceof GenericArrayType && $Gson$Types.equals(this, (GenericArrayType) o);
++      return o instanceof GenericArrayType && GsonTypes.equals(this, (GenericArrayType) o);
+     }
+ 
+     @Override
+@@ -664,7 +662,7 @@ public Type[] getLowerBounds() {
+ 
+     @Override
+     public boolean equals(Object other) {
+-      return other instanceof WildcardType && $Gson$Types.equals(this, (WildcardType) other);
++      return other instanceof WildcardType && GsonTypes.equals(this, (WildcardType) other);
+     }
+ 
+     @Override
+diff --git a/gson/src/main/java/com/google/gson/internal/bind/ArrayTypeAdapter.java b/gson/src/main/java/com/google/gson/internal/bind/ArrayTypeAdapter.java
+index a18cbf9262..50efa418c0 100644
+--- a/gson/src/main/java/com/google/gson/internal/bind/ArrayTypeAdapter.java
++++ b/gson/src/main/java/com/google/gson/internal/bind/ArrayTypeAdapter.java
+@@ -19,7 +19,7 @@
+ import com.google.gson.Gson;
+ import com.google.gson.TypeAdapter;
+ import com.google.gson.TypeAdapterFactory;
+-import com.google.gson.internal.$Gson$Types;
++import com.google.gson.internal.GsonTypes;
+ import com.google.gson.reflect.TypeToken;
+ import com.google.gson.stream.JsonReader;
+ import com.google.gson.stream.JsonToken;
+@@ -42,13 +42,12 @@ public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> typeToken) {
+             return null;
+           }
+ 
+-          Type componentType = $Gson$Types.getArrayComponentType(type);
++          Type componentType = GsonTypes.getArrayComponentType(type);
+           TypeAdapter<?> componentTypeAdapter = gson.getAdapter(TypeToken.get(componentType));
+ 
+           @SuppressWarnings({"unchecked", "rawtypes"})
+           TypeAdapter<T> arrayAdapter =
+-              new ArrayTypeAdapter(
+-                  gson, componentTypeAdapter, $Gson$Types.getRawType(componentType));
++              new ArrayTypeAdapter(gson, componentTypeAdapter, GsonTypes.getRawType(componentType));
+           return arrayAdapter;
+         }
+       };
+diff --git a/gson/src/main/java/com/google/gson/internal/bind/CollectionTypeAdapterFactory.java b/gson/src/main/java/com/google/gson/internal/bind/CollectionTypeAdapterFactory.java
+index 7741edba33..f1f91f7380 100644
+--- a/gson/src/main/java/com/google/gson/internal/bind/CollectionTypeAdapterFactory.java
++++ b/gson/src/main/java/com/google/gson/internal/bind/CollectionTypeAdapterFactory.java
+@@ -19,8 +19,8 @@
+ import com.google.gson.Gson;
+ import com.google.gson.TypeAdapter;
+ import com.google.gson.TypeAdapterFactory;
+-import com.google.gson.internal.$Gson$Types;
+ import com.google.gson.internal.ConstructorConstructor;
++import com.google.gson.internal.GsonTypes;
+ import com.google.gson.internal.ObjectConstructor;
+ import com.google.gson.reflect.TypeToken;
+ import com.google.gson.stream.JsonReader;
+@@ -47,7 +47,7 @@ public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> typeToken) {
+       return null;
+     }
+ 
+-    Type elementType = $Gson$Types.getCollectionElementType(type, rawType);
++    Type elementType = GsonTypes.getCollectionElementType(type, rawType);
+     TypeAdapter<?> elementTypeAdapter = gson.getAdapter(TypeToken.get(elementType));
+     TypeAdapter<?> wrappedTypeAdapter =
+         new TypeAdapterRuntimeTypeWrapper<>(gson, elementTypeAdapter, elementType);
+diff --git a/gson/src/main/java/com/google/gson/internal/bind/MapTypeAdapterFactory.java b/gson/src/main/java/com/google/gson/internal/bind/MapTypeAdapterFactory.java
+index e8569557cb..25c73efee8 100644
+--- a/gson/src/main/java/com/google/gson/internal/bind/MapTypeAdapterFactory.java
++++ b/gson/src/main/java/com/google/gson/internal/bind/MapTypeAdapterFactory.java
+@@ -22,8 +22,8 @@
+ import com.google.gson.JsonSyntaxException;
+ import com.google.gson.TypeAdapter;
+ import com.google.gson.TypeAdapterFactory;
+-import com.google.gson.internal.$Gson$Types;
+ import com.google.gson.internal.ConstructorConstructor;
++import com.google.gson.internal.GsonTypes;
+ import com.google.gson.internal.JsonReaderInternalAccess;
+ import com.google.gson.internal.ObjectConstructor;
+ import com.google.gson.internal.Streams;
+@@ -131,7 +131,7 @@ public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> typeToken) {
+       return null;
+     }
+ 
+-    Type[] keyAndValueTypes = $Gson$Types.getMapKeyAndValueTypes(type, rawType);
++    Type[] keyAndValueTypes = GsonTypes.getMapKeyAndValueTypes(type, rawType);
+     Type keyType = keyAndValueTypes[0];
+     Type valueType = keyAndValueTypes[1];
+     TypeAdapter<?> keyAdapter = getKeyAdapter(gson, keyType);
+diff --git a/gson/src/main/java/com/google/gson/internal/bind/ReflectiveTypeAdapterFactory.java b/gson/src/main/java/com/google/gson/internal/bind/ReflectiveTypeAdapterFactory.java
+index 993a6828f9..827c0b5a48 100644
+--- a/gson/src/main/java/com/google/gson/internal/bind/ReflectiveTypeAdapterFactory.java
++++ b/gson/src/main/java/com/google/gson/internal/bind/ReflectiveTypeAdapterFactory.java
+@@ -27,9 +27,9 @@
+ import com.google.gson.TypeAdapterFactory;
+ import com.google.gson.annotations.JsonAdapter;
+ import com.google.gson.annotations.SerializedName;
+-import com.google.gson.internal.$Gson$Types;
+ import com.google.gson.internal.ConstructorConstructor;
+ import com.google.gson.internal.Excluder;
++import com.google.gson.internal.GsonTypes;
+ import com.google.gson.internal.ObjectConstructor;
+ import com.google.gson.internal.Primitives;
+ import com.google.gson.internal.ReflectionAccessFilterHelper;
+@@ -387,7 +387,7 @@ private FieldsData getBoundFields(
+           ReflectionHelper.makeAccessible(field);
+         }
+ 
+-        Type fieldType = $Gson$Types.resolve(type.getType(), raw, field.getGenericType());
++        Type fieldType = GsonTypes.resolve(type.getType(), raw, field.getGenericType());
+         List<String> fieldNames = getFieldNames(field);
+         String serializedName = fieldNames.get(0);
+         BoundField boundField =
+@@ -417,7 +417,7 @@ private FieldsData getBoundFields(
+           }
+         }
+       }
+-      type = TypeToken.get($Gson$Types.resolve(type.getType(), raw, raw.getGenericSuperclass()));
++      type = TypeToken.get(GsonTypes.resolve(type.getType(), raw, raw.getGenericSuperclass()));
+       raw = type.getRawType();
+     }
+     return new FieldsData(deserializedFields, new ArrayList<>(serializedFields.values()));
+diff --git a/gson/src/main/java/com/google/gson/internal/bind/TreeTypeAdapter.java b/gson/src/main/java/com/google/gson/internal/bind/TreeTypeAdapter.java
+index 43226f302a..9ef79ef7d2 100644
+--- a/gson/src/main/java/com/google/gson/internal/bind/TreeTypeAdapter.java
++++ b/gson/src/main/java/com/google/gson/internal/bind/TreeTypeAdapter.java
+@@ -25,7 +25,7 @@
+ import com.google.gson.JsonSerializer;
+ import com.google.gson.TypeAdapter;
+ import com.google.gson.TypeAdapterFactory;
+-import com.google.gson.internal.$Gson$Preconditions;
++import com.google.gson.internal.GsonPreconditions;
+ import com.google.gson.internal.Streams;
+ import com.google.gson.reflect.TypeToken;
+ import com.google.gson.stream.JsonReader;
+@@ -162,7 +162,7 @@ private static final class SingleTypeFactory implements TypeAdapterFactory {
+       serializer = typeAdapter instanceof JsonSerializer ? (JsonSerializer<?>) typeAdapter : null;
+       deserializer =
+           typeAdapter instanceof JsonDeserializer ? (JsonDeserializer<?>) typeAdapter : null;
+-      $Gson$Preconditions.checkArgument(serializer != null || deserializer != null);
++      GsonPreconditions.checkArgument(serializer != null || deserializer != null);
+       this.exactType = exactType;
+       this.matchRawType = matchRawType;
+       this.hierarchyType = hierarchyType;
+diff --git a/gson/src/main/java/com/google/gson/reflect/TypeToken.java b/gson/src/main/java/com/google/gson/reflect/TypeToken.java
+index 6298ae7f44..7e228de716 100644
+--- a/gson/src/main/java/com/google/gson/reflect/TypeToken.java
++++ b/gson/src/main/java/com/google/gson/reflect/TypeToken.java
+@@ -16,7 +16,7 @@
+ 
+ package com.google.gson.reflect;
+ 
+-import com.google.gson.internal.$Gson$Types;
++import com.google.gson.internal.GsonTypes;
+ import com.google.gson.internal.TroubleshootingGuide;
+ import java.lang.reflect.GenericArrayType;
+ import java.lang.reflect.ParameterizedType;
+@@ -72,15 +72,15 @@ public class TypeToken<T> {
+   @SuppressWarnings("unchecked")
+   protected TypeToken() {
+     this.type = getTypeTokenTypeArgument();
+-    this.rawType = (Class<? super T>) $Gson$Types.getRawType(type);
++    this.rawType = (Class<? super T>) GsonTypes.getRawType(type);
+     this.hashCode = type.hashCode();
+   }
+ 
+   /** Unsafe. Constructs a type literal manually. */
+   @SuppressWarnings("unchecked")
+   private TypeToken(Type type) {
+-    this.type = $Gson$Types.canonicalize(Objects.requireNonNull(type));
+-    this.rawType = (Class<? super T>) $Gson$Types.getRawType(this.type);
++    this.type = GsonTypes.canonicalize(Objects.requireNonNull(type));
++    this.rawType = (Class<? super T>) GsonTypes.getRawType(this.type);
+     this.hashCode = this.type.hashCode();
+   }
+ 
+@@ -90,14 +90,14 @@ private static boolean isCapturingTypeVariablesForbidden() {
+ 
+   /**
+    * Verifies that {@code this} is an instance of a direct subclass of TypeToken and returns the
+-   * type argument for {@code T} in {@link $Gson$Types#canonicalize canonical form}.
++   * type argument for {@code T} in {@link GsonTypes#canonicalize canonical form}.
+    */
+   private Type getTypeTokenTypeArgument() {
+     Type superclass = getClass().getGenericSuperclass();
+     if (superclass instanceof ParameterizedType) {
+       ParameterizedType parameterized = (ParameterizedType) superclass;
+       if (parameterized.getRawType() == TypeToken.class) {
+-        Type typeArgument = $Gson$Types.canonicalize(parameterized.getActualTypeArguments()[0]);
++        Type typeArgument = GsonTypes.canonicalize(parameterized.getActualTypeArguments()[0]);
+ 
+         if (isCapturingTypeVariablesForbidden()) {
+           verifyNoTypeVariable(typeArgument);
+@@ -193,11 +193,11 @@ public boolean isAssignableFrom(Type from) {
+     }
+ 
+     if (type instanceof Class<?>) {
+-      return rawType.isAssignableFrom($Gson$Types.getRawType(from));
++      return rawType.isAssignableFrom(GsonTypes.getRawType(from));
+     } else if (type instanceof ParameterizedType) {
+       return isAssignableFrom(from, (ParameterizedType) type, new HashMap<String, Type>());
+     } else if (type instanceof GenericArrayType) {
+-      return rawType.isAssignableFrom($Gson$Types.getRawType(from))
++      return rawType.isAssignableFrom(GsonTypes.getRawType(from))
+           && isAssignableFrom(from, (GenericArrayType) type);
+     } else {
+       throw buildUnsupportedTypeException(
+@@ -253,7 +253,7 @@ private static boolean isAssignableFrom(
+     }
+ 
+     // First figure out the class and any type information.
+-    Class<?> clazz = $Gson$Types.getRawType(from);
++    Class<?> clazz = GsonTypes.getRawType(from);
+     ParameterizedType ptype = null;
+     if (from instanceof ParameterizedType) {
+       ptype = (ParameterizedType) from;
+@@ -343,12 +343,12 @@ public final int hashCode() {
+ 
+   @Override
+   public final boolean equals(Object o) {
+-    return o instanceof TypeToken<?> && $Gson$Types.equals(type, ((TypeToken<?>) o).type);
++    return o instanceof TypeToken<?> && GsonTypes.equals(type, ((TypeToken<?>) o).type);
+   }
+ 
+   @Override
+   public final String toString() {
+-    return $Gson$Types.typeToString(type);
++    return GsonTypes.typeToString(type);
+   }
+ 
+   /** Gets type literal for the given {@code Type} instance. */
+@@ -412,7 +412,7 @@ public static TypeToken<?> getParameterized(Type rawType, Type... typeArguments)
+     }
+ 
+     // Check for this here to avoid misleading exception thrown by ParameterizedTypeImpl
+-    if ($Gson$Types.requiresOwnerType(rawType)) {
++    if (GsonTypes.requiresOwnerType(rawType)) {
+       throw new IllegalArgumentException(
+           "Raw type "
+               + rawClass.getName()
+@@ -422,11 +422,11 @@ public static TypeToken<?> getParameterized(Type rawType, Type... typeArguments)
+     for (int i = 0; i < expectedArgsCount; i++) {
+       Type typeArgument =
+           Objects.requireNonNull(typeArguments[i], "Type argument must not be null");
+-      Class<?> rawTypeArgument = $Gson$Types.getRawType(typeArgument);
++      Class<?> rawTypeArgument = GsonTypes.getRawType(typeArgument);
+       TypeVariable<?> typeVariable = typeVariables[i];
+ 
+       for (Type bound : typeVariable.getBounds()) {
+-        Class<?> rawBound = $Gson$Types.getRawType(bound);
++        Class<?> rawBound = GsonTypes.getRawType(bound);
+ 
+         if (!rawBound.isAssignableFrom(rawTypeArgument)) {
+           throw new IllegalArgumentException(
+@@ -440,14 +440,13 @@ public static TypeToken<?> getParameterized(Type rawType, Type... typeArguments)
+       }
+     }
+ 
+-    return new TypeToken<>(
+-        $Gson$Types.newParameterizedTypeWithOwner(null, rawClass, typeArguments));
++    return new TypeToken<>(GsonTypes.newParameterizedTypeWithOwner(null, rawClass, typeArguments));
+   }
+ 
+   /**
+    * Gets type literal for the array type whose elements are all instances of {@code componentType}.
+    */
+   public static TypeToken<?> getArray(Type componentType) {
+-    return new TypeToken<>($Gson$Types.arrayOf(componentType));
++    return new TypeToken<>(GsonTypes.arrayOf(componentType));
+   }
+ }

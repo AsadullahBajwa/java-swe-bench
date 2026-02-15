@@ -1,0 +1,12 @@
+diff --git a/gradle/libs.versions.toml b/gradle/libs.versions.toml
+index 9f2eb12e22..a46d84192e 100644
+--- a/gradle/libs.versions.toml
++++ b/gradle/libs.versions.toml
+@@ -1,6 +1,6 @@
+ [versions]
+ bytebuddy = "1.17.6"
+-errorprone = "2.39.0"
++errorprone = "2.41.0"
+ jacoco = "0.8.13"
+ junit4 = "4.13.2"
+ junit-jupiter = "5.13.4"

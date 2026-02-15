@@ -1,0 +1,74 @@
+diff --git a/release-notes/VERSION-2.x b/release-notes/VERSION-2.x
+index a09df6ffdd..5494b07f44 100644
+--- a/release-notes/VERSION-2.x
++++ b/release-notes/VERSION-2.x
+@@ -17,6 +17,7 @@ a pure JSON library.
+ 2.20.0 (not yet released)
+ 
+ #1438: `ParserBase.close()` does not clear `_currToken`
++#1441: Add `StreamReadFeature.CLEAR_CURRENT_TOKEN_ON_CLOSE` (default: true)
+ - Generate SBOMs [JSTEP-14]
+ 
+ 2.19.1 (not yet released)
+diff --git a/src/main/java/com/fasterxml/jackson/core/JsonParser.java b/src/main/java/com/fasterxml/jackson/core/JsonParser.java
+index 9870a76265..0a77096488 100644
+--- a/src/main/java/com/fasterxml/jackson/core/JsonParser.java
++++ b/src/main/java/com/fasterxml/jackson/core/JsonParser.java
+@@ -405,9 +405,15 @@ public enum Feature {
+           *
+           * @since 2.15
+           */
+-          USE_FAST_BIG_NUMBER_PARSER(false)
++         USE_FAST_BIG_NUMBER_PARSER(false),
+ 
+-         ;
++         /**
++          * See {@link StreamReadFeature#CLEAR_CURRENT_TOKEN_ON_CLOSE}.
++          *
++          * @since 2.20
++          */
++         CLEAR_CURRENT_TOKEN_ON_CLOSE(true)
++        ;
+ 
+         /**
+          * Whether feature is enabled or disabled by default.
+diff --git a/src/main/java/com/fasterxml/jackson/core/StreamReadFeature.java b/src/main/java/com/fasterxml/jackson/core/StreamReadFeature.java
+index 354c3634d2..65e63d4fa6 100644
+--- a/src/main/java/com/fasterxml/jackson/core/StreamReadFeature.java
++++ b/src/main/java/com/fasterxml/jackson/core/StreamReadFeature.java
+@@ -111,8 +111,19 @@ public enum StreamReadFeature
+      *
+      * @since 2.15
+      */
+-    USE_FAST_BIG_NUMBER_PARSER(JsonParser.Feature.USE_FAST_BIG_NUMBER_PARSER)
++    USE_FAST_BIG_NUMBER_PARSER(JsonParser.Feature.USE_FAST_BIG_NUMBER_PARSER),
+ 
++    /**
++     * Feature that determines whether parser will clear "current token"
++     * (accessible via JsonParser#currentToken()) when it is closed (via
++     * {@link JsonParser#close()}).
++     *<p>
++     * Feature is enabled by default.
++     *
++     * @since 2.20
++     */
++    CLEAR_CURRENT_TOKEN_ON_CLOSE(JsonParser.Feature.CLEAR_CURRENT_TOKEN_ON_CLOSE),
++    
+     ;
+ 
+     /**
+diff --git a/src/main/java/com/fasterxml/jackson/core/base/ParserBase.java b/src/main/java/com/fasterxml/jackson/core/base/ParserBase.java
+index 3d12d36ff0..4b31a35f77 100644
+--- a/src/main/java/com/fasterxml/jackson/core/base/ParserBase.java
++++ b/src/main/java/com/fasterxml/jackson/core/base/ParserBase.java
+@@ -404,7 +404,9 @@ public void overrideCurrentName(String name) {
+             _inputPtr = Math.max(_inputPtr, _inputEnd);
+             _closed = true;
+             // 30-May-2025, tatu: was missing before 2.20
+-            _currToken = null;
++            if (JsonParser.Feature.CLEAR_CURRENT_TOKEN_ON_CLOSE.enabledIn(_features)) {
++                _currToken = null;
++            }
+             try {
+                 _closeInput();
+             } finally {

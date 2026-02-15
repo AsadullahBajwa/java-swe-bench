@@ -1,0 +1,271 @@
+diff --git a/android-test/src/androidTest/java/okhttp/android/test/OkHttpTest.kt b/android-test/src/androidTest/java/okhttp/android/test/OkHttpTest.kt
+index 734d38d17bd6..af26b57ad61e 100644
+--- a/android-test/src/androidTest/java/okhttp/android/test/OkHttpTest.kt
++++ b/android-test/src/androidTest/java/okhttp/android/test/OkHttpTest.kt
+@@ -47,6 +47,25 @@ import mockwebserver3.MockWebServer
+ import mockwebserver3.junit5.StartStop
+ import okhttp3.Cache
+ import okhttp3.Call
++import okhttp3.CallEvent.CallEnd
++import okhttp3.CallEvent.CallStart
++import okhttp3.CallEvent.ConnectEnd
++import okhttp3.CallEvent.ConnectStart
++import okhttp3.CallEvent.ConnectionAcquired
++import okhttp3.CallEvent.ConnectionReleased
++import okhttp3.CallEvent.DnsEnd
++import okhttp3.CallEvent.DnsStart
++import okhttp3.CallEvent.FollowUpDecision
++import okhttp3.CallEvent.ProxySelectEnd
++import okhttp3.CallEvent.ProxySelectStart
++import okhttp3.CallEvent.RequestHeadersEnd
++import okhttp3.CallEvent.RequestHeadersStart
++import okhttp3.CallEvent.ResponseBodyEnd
++import okhttp3.CallEvent.ResponseBodyStart
++import okhttp3.CallEvent.ResponseHeadersEnd
++import okhttp3.CallEvent.ResponseHeadersStart
++import okhttp3.CallEvent.SecureConnectEnd
++import okhttp3.CallEvent.SecureConnectStart
+ import okhttp3.CertificatePinner
+ import okhttp3.CompressionInterceptor
+ import okhttp3.Connection
+@@ -572,25 +591,25 @@ class OkHttpTest {
+ 
+     assertEquals(
+       listOf(
+-        "CallStart",
+-        "ProxySelectStart",
+-        "ProxySelectEnd",
+-        "DnsStart",
+-        "DnsEnd",
+-        "ConnectStart",
+-        "SecureConnectStart",
+-        "SecureConnectEnd",
+-        "ConnectEnd",
+-        "ConnectionAcquired",
+-        "RequestHeadersStart",
+-        "RequestHeadersEnd",
+-        "ResponseHeadersStart",
+-        "ResponseHeadersEnd",
+-        "FollowUpDecision",
+-        "ResponseBodyStart",
+-        "ResponseBodyEnd",
+-        "ConnectionReleased",
+-        "CallEnd",
++        CallStart::class,
++        ProxySelectStart::class,
++        ProxySelectEnd::class,
++        DnsStart::class,
++        DnsEnd::class,
++        ConnectStart::class,
++        SecureConnectStart::class,
++        SecureConnectEnd::class,
++        ConnectEnd::class,
++        ConnectionAcquired::class,
++        RequestHeadersStart::class,
++        RequestHeadersEnd::class,
++        ResponseHeadersStart::class,
++        ResponseHeadersEnd::class,
++        FollowUpDecision::class,
++        ResponseBodyStart::class,
++        ResponseBodyEnd::class,
++        ConnectionReleased::class,
++        CallEnd::class,
+       ),
+       eventListener.recordedEventTypes(),
+     )
+@@ -603,17 +622,17 @@ class OkHttpTest {
+ 
+     assertEquals(
+       listOf(
+-        "CallStart",
+-        "ConnectionAcquired",
+-        "RequestHeadersStart",
+-        "RequestHeadersEnd",
+-        "ResponseHeadersStart",
+-        "ResponseHeadersEnd",
+-        "FollowUpDecision",
+-        "ResponseBodyStart",
+-        "ResponseBodyEnd",
+-        "ConnectionReleased",
+-        "CallEnd",
++        CallStart::class,
++        ConnectionAcquired::class,
++        RequestHeadersStart::class,
++        RequestHeadersEnd::class,
++        ResponseHeadersStart::class,
++        ResponseHeadersEnd::class,
++        FollowUpDecision::class,
++        ResponseBodyStart::class,
++        ResponseBodyEnd::class,
++        ConnectionReleased::class,
++        CallEnd::class,
+       ),
+       eventListener.recordedEventTypes(),
+     )
+diff --git a/okhttp-dnsoverhttps/src/test/java/okhttp3/dnsoverhttps/DnsOverHttpsTest.kt b/okhttp-dnsoverhttps/src/test/java/okhttp3/dnsoverhttps/DnsOverHttpsTest.kt
+index 65104d77fe99..501b0962a1b9 100644
+--- a/okhttp-dnsoverhttps/src/test/java/okhttp3/dnsoverhttps/DnsOverHttpsTest.kt
++++ b/okhttp-dnsoverhttps/src/test/java/okhttp3/dnsoverhttps/DnsOverHttpsTest.kt
+@@ -29,10 +29,14 @@ import java.io.IOException
+ import java.net.InetAddress
+ import java.net.UnknownHostException
+ import java.util.concurrent.TimeUnit
++import kotlin.reflect.KClass
+ import mockwebserver3.MockResponse
+ import mockwebserver3.MockWebServer
+ import mockwebserver3.junit5.StartStop
+ import okhttp3.Cache
++import okhttp3.CallEvent
++import okhttp3.CallEvent.CacheHit
++import okhttp3.CallEvent.CacheMiss
+ import okhttp3.Dns
+ import okhttp3.OkHttpClient
+ import okhttp3.Protocol
+@@ -200,13 +204,13 @@ class DnsOverHttpsTest {
+     assertThat(recordedRequest.url.encodedQuery)
+       .isEqualTo("ct&dns=AAABAAABAAAAAAAABmdvb2dsZQNjb20AAAEAAQ")
+ 
+-    assertThat(cacheEvents()).containsExactly("CacheMiss")
++    assertThat(cacheEvents()).containsExactly(CacheMiss::class)
+ 
+     result = cachedDns.lookup("google.com")
+     assertThat(server.takeRequest(1, TimeUnit.MILLISECONDS)).isNull()
+     assertThat(result).isEqualTo(listOf(address("157.240.1.18")))
+ 
+-    assertThat(cacheEvents()).containsExactly("CacheHit")
++    assertThat(cacheEvents()).containsExactly(CacheHit::class)
+ 
+     result = cachedDns.lookup("www.google.com")
+     assertThat(result).containsExactly(address("157.240.1.18"))
+@@ -215,7 +219,7 @@ class DnsOverHttpsTest {
+     assertThat(recordedRequest.url.encodedQuery)
+       .isEqualTo("ct&dns=AAABAAABAAAAAAAAA3d3dwZnb29nbGUDY29tAAABAAE")
+ 
+-    assertThat(cacheEvents()).containsExactly("CacheMiss")
++    assertThat(cacheEvents()).containsExactly(CacheMiss::class)
+   }
+ 
+   @Test
+@@ -242,13 +246,13 @@ class DnsOverHttpsTest {
+     assertThat(recordedRequest.url.encodedQuery)
+       .isEqualTo("ct")
+ 
+-    assertThat(cacheEvents()).containsExactly("CacheMiss")
++    assertThat(cacheEvents()).containsExactly(CacheMiss::class)
+ 
+     result = cachedDns.lookup("google.com")
+     assertThat(server.takeRequest(0, TimeUnit.MILLISECONDS)).isNull()
+     assertThat(result).isEqualTo(listOf(address("157.240.1.18")))
+ 
+-    assertThat(cacheEvents()).containsExactly("CacheHit")
++    assertThat(cacheEvents()).containsExactly(CacheHit::class)
+ 
+     result = cachedDns.lookup("www.google.com")
+     assertThat(result).containsExactly(address("157.240.1.18"))
+@@ -257,7 +261,7 @@ class DnsOverHttpsTest {
+     assertThat(recordedRequest.url.encodedQuery)
+       .isEqualTo("ct")
+ 
+-    assertThat(cacheEvents()).containsExactly("CacheMiss")
++    assertThat(cacheEvents()).containsExactly(CacheMiss::class)
+   }
+ 
+   @Test
+@@ -282,7 +286,7 @@ class DnsOverHttpsTest {
+       "ct&dns=AAABAAABAAAAAAAABmdvb2dsZQNjb20AAAEAAQ",
+     )
+ 
+-    assertThat(cacheEvents()).containsExactly("CacheMiss")
++    assertThat(cacheEvents()).containsExactly(CacheMiss::class)
+ 
+     Thread.sleep(2000)
+     server.enqueue(
+@@ -301,13 +305,14 @@ class DnsOverHttpsTest {
+     assertThat(recordedRequest.url.encodedQuery)
+       .isEqualTo("ct&dns=AAABAAABAAAAAAAABmdvb2dsZQNjb20AAAEAAQ")
+ 
+-    assertThat(cacheEvents()).containsExactly("CacheMiss")
++    assertThat(cacheEvents()).containsExactly(CacheMiss::class)
+   }
+ 
+-  private fun cacheEvents(): List<String> =
+-    eventListener.recordedEventTypes().filter { it.contains("Cache") }.also {
+-      eventListener.clearAllEvents()
+-    }
++  private fun cacheEvents(): List<KClass<out CallEvent>> =
++    eventListener
++      .recordedEventTypes()
++      .filter { "Cache" in it.simpleName!! }
++      .also { eventListener.clearAllEvents() }
+ 
+   private fun dnsResponse(s: String): MockResponse =
+     MockResponse
+diff --git a/okhttp-sse/src/test/java/okhttp3/sse/internal/EventSourceHttpTest.kt b/okhttp-sse/src/test/java/okhttp3/sse/internal/EventSourceHttpTest.kt
+index 4e714dae0968..d39c9eb9e64d 100644
+--- a/okhttp-sse/src/test/java/okhttp3/sse/internal/EventSourceHttpTest.kt
++++ b/okhttp-sse/src/test/java/okhttp3/sse/internal/EventSourceHttpTest.kt
+@@ -22,6 +22,23 @@ import java.util.concurrent.TimeUnit
+ import mockwebserver3.MockResponse
+ import mockwebserver3.MockWebServer
+ import mockwebserver3.junit5.StartStop
++import okhttp3.CallEvent.CallEnd
++import okhttp3.CallEvent.CallStart
++import okhttp3.CallEvent.ConnectEnd
++import okhttp3.CallEvent.ConnectStart
++import okhttp3.CallEvent.ConnectionAcquired
++import okhttp3.CallEvent.ConnectionReleased
++import okhttp3.CallEvent.DnsEnd
++import okhttp3.CallEvent.DnsStart
++import okhttp3.CallEvent.FollowUpDecision
++import okhttp3.CallEvent.ProxySelectEnd
++import okhttp3.CallEvent.ProxySelectStart
++import okhttp3.CallEvent.RequestHeadersEnd
++import okhttp3.CallEvent.RequestHeadersStart
++import okhttp3.CallEvent.ResponseBodyEnd
++import okhttp3.CallEvent.ResponseBodyStart
++import okhttp3.CallEvent.ResponseHeadersEnd
++import okhttp3.CallEvent.ResponseHeadersStart
+ import okhttp3.Headers
+ import okhttp3.OkHttpClientTestRule
+ import okhttp3.RecordingEventListener
+@@ -240,23 +257,23 @@ class EventSourceHttpTest {
+     listener.assertEvent(null, null, "hey")
+     listener.assertClose()
+     assertThat(eventListener.recordedEventTypes()).containsExactly(
+-      "CallStart",
+-      "ProxySelectStart",
+-      "ProxySelectEnd",
+-      "DnsStart",
+-      "DnsEnd",
+-      "ConnectStart",
+-      "ConnectEnd",
+-      "ConnectionAcquired",
+-      "RequestHeadersStart",
+-      "RequestHeadersEnd",
+-      "ResponseHeadersStart",
+-      "ResponseHeadersEnd",
+-      "FollowUpDecision",
+-      "ResponseBodyStart",
+-      "ResponseBodyEnd",
+-      "ConnectionReleased",
+-      "CallEnd",
++      CallStart::class,
++      ProxySelectStart::class,
++      ProxySelectEnd::class,
++      DnsStart::class,
++      DnsEnd::class,
++      ConnectStart::class,
++      ConnectEnd::class,
++      ConnectionAcquired::class,
++      RequestHeadersStart::class,
++      RequestHeadersEnd::class,
++      ResponseHeadersStart::class,
++      ResponseHeadersEnd::class,
++      FollowUpDecision::class,
++      ResponseBodyStart::class,
++      ResponseBodyEnd::class,
++      ConnectionReleased::class,
++      CallEnd::class,
+     )
+   }
+ 

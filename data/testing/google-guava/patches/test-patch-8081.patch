@@ -1,0 +1,34 @@
+diff --git a/android/guava-tests/test/com/google/common/net/InternetDomainNameTest.java b/android/guava-tests/test/com/google/common/net/InternetDomainNameTest.java
+index 572308015487..5dff792b2da6 100644
+--- a/android/guava-tests/test/com/google/common/net/InternetDomainNameTest.java
++++ b/android/guava-tests/test/com/google/common/net/InternetDomainNameTest.java
+@@ -117,10 +117,10 @@ public final class InternetDomainNameTest extends TestCase {
+           "co.uk.", // Trailing dot
+           "co\uFF61uk", // Alternate dot character
+           "com",
+-          "foo.bd",
++          "gov.ck",
++          "org.ck",
+           "org.mK",
+           "us",
+-          "xxxxxx.bd",
+           // keep-sorted end
+           "j\u00f8rpeland.no", // "jorpeland.no" (first o slashed)
+           "xn--jrpeland-54a.no" // IDNA (punycode) encoding of above
+diff --git a/guava-tests/test/com/google/common/net/InternetDomainNameTest.java b/guava-tests/test/com/google/common/net/InternetDomainNameTest.java
+index 572308015487..5dff792b2da6 100644
+--- a/guava-tests/test/com/google/common/net/InternetDomainNameTest.java
++++ b/guava-tests/test/com/google/common/net/InternetDomainNameTest.java
+@@ -117,10 +117,10 @@ public final class InternetDomainNameTest extends TestCase {
+           "co.uk.", // Trailing dot
+           "co\uFF61uk", // Alternate dot character
+           "com",
+-          "foo.bd",
++          "gov.ck",
++          "org.ck",
+           "org.mK",
+           "us",
+-          "xxxxxx.bd",
+           // keep-sorted end
+           "j\u00f8rpeland.no", // "jorpeland.no" (first o slashed)
+           "xn--jrpeland-54a.no" // IDNA (punycode) encoding of above

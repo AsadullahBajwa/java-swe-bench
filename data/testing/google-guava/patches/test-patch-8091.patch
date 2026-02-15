@@ -1,0 +1,126 @@
+diff --git a/guava-tests/test/com/google/common/collect/CollectSpliteratorsTest.java b/guava-tests/test/com/google/common/collect/CollectSpliteratorsTest.java
+index 0dc9ac8dea2a..7e49123e11bc 100644
+--- a/guava-tests/test/com/google/common/collect/CollectSpliteratorsTest.java
++++ b/guava-tests/test/com/google/common/collect/CollectSpliteratorsTest.java
+@@ -18,6 +18,7 @@
+ import static com.google.common.truth.Truth.assertThat;
+ 
+ import com.google.common.annotations.GwtCompatible;
++import com.google.common.annotations.GwtIncompatible;
+ import com.google.common.base.Ascii;
+ import com.google.common.collect.testing.SpliteratorTester;
+ import java.util.ArrayList;
+@@ -34,11 +35,14 @@
+ @GwtCompatible
+ @NullMarked
+ public class CollectSpliteratorsTest extends TestCase {
++  @GwtIncompatible
+   public void testMap() {
+     SpliteratorTester.of(
+             () ->
+                 CollectSpliterators.map(
+-                    Arrays.spliterator(new String[] {"a", "b", "c", "d", "e"}), Ascii::toUpperCase))
++                    Arrays.spliterator(new String[] {"a", "b", "c", "d", "e"}),
++                    0,
++                    Ascii::toUpperCase))
+         .expect("A", "B", "C", "D", "E");
+   }
+ 
+diff --git a/guava-tests/test/com/google/common/collect/ImmutableEnumMapTest.java b/guava-tests/test/com/google/common/collect/ImmutableEnumMapTest.java
+index d7210e32057d..8da9da06c3f3 100644
+--- a/guava-tests/test/com/google/common/collect/ImmutableEnumMapTest.java
++++ b/guava-tests/test/com/google/common/collect/ImmutableEnumMapTest.java
+@@ -34,9 +34,11 @@
+ import com.google.common.collect.testing.TestEnumMapGenerator;
+ import com.google.common.collect.testing.features.CollectionSize;
+ import com.google.common.testing.CollectorTester;
++import com.google.common.truth.Truth;
+ import java.util.HashMap;
+ import java.util.Map;
+ import java.util.Map.Entry;
++import java.util.Spliterator;
+ import java.util.stream.Collector;
+ import java.util.stream.Stream;
+ import junit.framework.Test;
+@@ -145,4 +147,31 @@ public void testToImmutableMapMerging() {
+             mapEntry(AnEnum.C, 3),
+             mapEntry(AnEnum.B, 2));
+   }
++
++  @GwtIncompatible
++  @J2ktIncompatible
++  public void testEntrySetSpliteratorCharacteristics() {
++    int expectedCharacteristics =
++        Spliterator.DISTINCT | Spliterator.ORDERED | Spliterator.NONNULL | Spliterator.IMMUTABLE;
++    Spliterator<Entry<AnEnum, String>> spliterator =
++        Maps.immutableEnumMap(ImmutableMap.of(AnEnum.A, "a", AnEnum.B, "b"))
++            .entrySet()
++            .spliterator();
++    Truth.assertWithMessage(spliterator.getClass().toString())
++        .that(spliterator.characteristics() & expectedCharacteristics)
++        .isEqualTo(expectedCharacteristics);
++  }
++
++  @GwtIncompatible
++  @J2ktIncompatible
++  public void testKeySetCharacteristics() {
++    int expectedCharacteristics = Spliterator.ORDERED | Spliterator.NONNULL;
++    assertThat(
++            Maps.immutableEnumMap(ImmutableMap.of(AnEnum.A, "a"))
++                    .keySet()
++                    .spliterator()
++                    .characteristics()
++                & expectedCharacteristics)
++        .isEqualTo(expectedCharacteristics);
++  }
+ }
+diff --git a/guava-tests/test/com/google/common/collect/ImmutableListMultimapTest.java b/guava-tests/test/com/google/common/collect/ImmutableListMultimapTest.java
+index 9e7c3fb5d897..d9f561db9e93 100644
+--- a/guava-tests/test/com/google/common/collect/ImmutableListMultimapTest.java
++++ b/guava-tests/test/com/google/common/collect/ImmutableListMultimapTest.java
+@@ -45,6 +45,7 @@
+ import java.util.Collection;
+ import java.util.Collections;
+ import java.util.Map.Entry;
++import java.util.Spliterator;
+ import java.util.function.BiPredicate;
+ import java.util.stream.Collector;
+ import junit.framework.Test;
+@@ -572,6 +573,13 @@ public void testInverse() {
+         ImmutableListMultimap.of("foo", 'f', "foo", 'o', "foo", 'o').inverse());
+   }
+ 
++  public void testNotDistinctEntrySpliterator() {
++    ImmutableListMultimap<String, String> multimap =
++        ImmutableListMultimap.of("foo", "bar", "foo", "bar");
++    assertThat(multimap.entries().spliterator().characteristics() & Spliterator.DISTINCT)
++        .isEqualTo(0);
++  }
++
+   public void testInverseMinimizesWork() {
+     ImmutableListMultimap<String, Character> multimap =
+         ImmutableListMultimap.<String, Character>builder()
+diff --git a/guava-tests/test/com/google/common/collect/ImmutableMapTest.java b/guava-tests/test/com/google/common/collect/ImmutableMapTest.java
+index 20860edf538e..9c5a367619ad 100644
+--- a/guava-tests/test/com/google/common/collect/ImmutableMapTest.java
++++ b/guava-tests/test/com/google/common/collect/ImmutableMapTest.java
+@@ -64,6 +64,7 @@
+ import java.util.Map;
+ import java.util.Map.Entry;
+ import java.util.Set;
++import java.util.Spliterator;
+ import java.util.regex.Matcher;
+ import java.util.regex.Pattern;
+ import java.util.stream.Collector;
+@@ -1169,4 +1170,11 @@ public void testBuilderPutAllEntryListJdkBacked() {
+     entryList.get(0).setValue("3");
+     assertThat(map).containsExactly("a", "1", "b", "2").inOrder();
+   }
++
++  @GwtIncompatible
++  public void testEntrySetSpliteratorDistinct() {
++    ImmutableMap<String, String> map = ImmutableMap.of("foo", "bar", "baz", "quux");
++    assertThat(map.entrySet().spliterator().characteristics() & Spliterator.DISTINCT)
++        .isNotEqualTo(0);
++  }
+ }

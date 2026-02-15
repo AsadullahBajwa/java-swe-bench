@@ -1,0 +1,15 @@
+diff --git a/gson/src/test/java/com/google/gson/functional/Java17RecordTest.java b/gson/src/test/java/com/google/gson/functional/Java17RecordTest.java
+index dc83ad59ff..807ef05d50 100644
+--- a/gson/src/test/java/com/google/gson/functional/Java17RecordTest.java
++++ b/gson/src/test/java/com/google/gson/functional/Java17RecordTest.java
+@@ -157,7 +157,9 @@ record LocalRecord(String s) {
+     }
+ 
+     // TODO: Adjust this once Gson throws more specific exception type
+-    var e = assertThrows(RuntimeException.class, () -> gson.fromJson("{\"s\":\"value\"}", LocalRecord.class));
++    var e =
++        assertThrows(
++            RuntimeException.class, () -> gson.fromJson("{\"s\":\"value\"}", LocalRecord.class));
+     assertThat(e)
+         .hasMessageThat()
+         .isEqualTo(

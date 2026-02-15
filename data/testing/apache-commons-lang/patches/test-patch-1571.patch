@@ -1,0 +1,26 @@
+diff --git a/src/test/java/org/apache/commons/lang3/StringUtilsAbbreviateTest.java b/src/test/java/org/apache/commons/lang3/StringUtilsAbbreviateTest.java
+index 49a188d06de..8ef0cfc855c 100644
+--- a/src/test/java/org/apache/commons/lang3/StringUtilsAbbreviateTest.java
++++ b/src/test/java/org/apache/commons/lang3/StringUtilsAbbreviateTest.java
+@@ -107,7 +107,7 @@ void testAbbreviate_StringIntInt() {
+     void testAbbreviate_StringStringInt() {
+         assertNull(StringUtils.abbreviate(null, null, 10));
+         assertNull(StringUtils.abbreviate(null, "...", 10));
+-        assertEquals("paranaguacu", StringUtils.abbreviate("paranaguacu", null, 10));
++        assertEquals("paranaguac", StringUtils.abbreviate("paranaguacu", null, 10));
+         assertEquals("", StringUtils.abbreviate("", "...", 2));
+         assertEquals("wai**", StringUtils.abbreviate("waiheke", "**", 5));
+         assertEquals("And af,,,,", StringUtils.abbreviate("And after a long time, he finally met his son.", ",,,,", 10));
+@@ -130,6 +130,12 @@ void testAbbreviate_StringStringIntInt() {
+         assertNull(StringUtils.abbreviate(null, "...", 10, 12));
+         assertEquals("", StringUtils.abbreviate("", null, 0, 10));
+         assertEquals("", StringUtils.abbreviate("", "...", 2, 10));
++        assertEquals("abcdefg", StringUtils.abbreviate("abcdefg", null, 2, 10));
++        assertEquals("abcdefg", StringUtils.abbreviate("abcdefg", "", 2, 10));
++        assertEquals("abc", StringUtils.abbreviate("abcdefg", null, 0, 3));
++        assertEquals("cde", StringUtils.abbreviate("abcdefg", null, 2, 3));
++        assertEquals("abc", StringUtils.abbreviate("abcdefg", "", 0, 3));
++        assertEquals("cde", StringUtils.abbreviate("abcdefg", "", 2, 3));
+         assertIllegalArgumentException(() -> StringUtils.abbreviate("abcdefghij", "::", 0, 2),
+                 "StringUtils.abbreviate expecting IllegalArgumentException");
+         assertIllegalArgumentException(() -> StringUtils.abbreviate("abcdefghij", "!!!", 5, 6),

@@ -1,0 +1,27 @@
+diff --git a/mockito-core/src/main/java/org/mockito/internal/stubbing/defaultanswers/ReturnsEmptyValues.java b/mockito-core/src/main/java/org/mockito/internal/stubbing/defaultanswers/ReturnsEmptyValues.java
+index 5b9625e03f..8410555d7a 100644
+--- a/mockito-core/src/main/java/org/mockito/internal/stubbing/defaultanswers/ReturnsEmptyValues.java
++++ b/mockito-core/src/main/java/org/mockito/internal/stubbing/defaultanswers/ReturnsEmptyValues.java
+@@ -29,6 +29,9 @@
+ import java.util.SortedSet;
+ import java.util.TreeMap;
+ import java.util.TreeSet;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.CompletionStage;
++import java.util.concurrent.Future;
+ import java.util.stream.DoubleStream;
+ import java.util.stream.IntStream;
+ import java.util.stream.LongStream;
+@@ -161,7 +164,12 @@ Object returnValueFor(Class<?> type) {
+             return Duration.ZERO;
+         } else if (type == Period.class) {
+             return Period.ZERO;
++        } else if (type == CompletableFuture.class
++                || type == CompletionStage.class
++                || type == Future.class) {
++            return CompletableFuture.completedFuture(null);
+         }
++
+         // Let's not care about the rest of collections.
+ 
+         return returnCommonEmptyValueFor(type);

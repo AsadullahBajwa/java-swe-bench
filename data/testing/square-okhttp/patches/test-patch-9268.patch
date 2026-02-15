@@ -1,0 +1,55 @@
+diff --git a/android-test/src/androidDeviceTest/java/okhttp/android/test/OkHttpTest.kt b/android-test/src/androidDeviceTest/java/okhttp/android/test/OkHttpTest.kt
+index b960cf3be026..8eaf809ef98c 100644
+--- a/android-test/src/androidDeviceTest/java/okhttp/android/test/OkHttpTest.kt
++++ b/android-test/src/androidDeviceTest/java/okhttp/android/test/OkHttpTest.kt
+@@ -248,9 +248,11 @@ class OkHttpTest {
+             // Conscrypt 2.5+ defaults to SSLEngine-based SSLSocket
+             assertEquals("org.conscrypt.Java8EngineSocket", socketClass)
+           }
++
+           Build.VERSION.SDK_INT < 22 -> {
+             assertEquals("org.conscrypt.KitKatPlatformOpenSSLSocketImplAdapter", socketClass)
+           }
++
+           else -> {
+             assertEquals("org.conscrypt.ConscryptFileDescriptorSocket", socketClass)
+           }
+@@ -856,6 +858,7 @@ class OkHttpTest {
+         is IllegalArgumentException -> {
+           assertEquals("Android internal error", ioe.message)
+         }
++
+         is CertificateException -> {
+           assertTrue(ioe.cause?.cause is IllegalArgumentException)
+           assertEquals(
+@@ -866,7 +869,10 @@ class OkHttpTest {
+               ?.startsWith("Invalid input to toASCII"),
+           )
+         }
+-        else -> throw ioe
++
++        else -> {
++          throw ioe
++        }
+       }
+     }
+   }
+diff --git a/samples/guide/src/test/kotlin/okhttp3/AllMainsTest.kt b/samples/guide/src/test/kotlin/okhttp3/AllMainsTest.kt
+index a4da8ae695a9..2340118f6508 100644
+--- a/samples/guide/src/test/kotlin/okhttp3/AllMainsTest.kt
++++ b/samples/guide/src/test/kotlin/okhttp3/AllMainsTest.kt
+@@ -91,8 +91,12 @@ class AllMainsTest {
+     cause: Throwable,
+   ): Boolean =
+     when (className) {
+-      "okhttp3.recipes.CheckHandshake" -> true // by design
+-      "okhttp3.recipes.RequestBodyCompression" -> true // expired token
++      "okhttp3.recipes.CheckHandshake" -> true
++
++      // by design
++      "okhttp3.recipes.RequestBodyCompression" -> true
++
++      // expired token
+       else -> false
+     }
+ }

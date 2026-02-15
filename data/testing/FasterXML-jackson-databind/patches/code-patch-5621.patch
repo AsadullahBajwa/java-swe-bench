@@ -1,0 +1,100 @@
+diff --git a/release-notes/CREDITS b/release-notes/CREDITS
+index c599ed6595..28e5d60305 100644
+--- a/release-notes/CREDITS
++++ b/release-notes/CREDITS
+@@ -187,6 +187,8 @@ Lee Jiwon (@dlwldnjs1009)
+  * Implemented #3284: Backward compatibility for timezone formats of UTC Date
+    serialization
+   [3.1.0]
++ * Implemented #5621: Fix typo: MissingInjectableValueExcepion → MissingInjectableValueException
++  [3.1.0]
+ 
+ Garret Wilson (@garretwilson)
+  * Suggested #4157: Add `MapperFeature.INFER_RECORD_GETTERS_FROM_COMPONENTS_ONLY` to ignore
+diff --git a/release-notes/VERSION b/release-notes/VERSION
+index 5c01e21b63..b064002e4f 100644
+--- a/release-notes/VERSION
++++ b/release-notes/VERSION
+@@ -157,6 +157,8 @@ Versions: 3.x (for earlier see VERSION-2.x)
+ #5616: `ObjectWriter` serializes `Optional`s with subtypes incompletely
+  (reported by Brandon S)
+  (implemented by @cowtowncoder, w/ Claude code)
++#5621: Fix typo: MissingInjectableValueExcepion → MissingInjectableValueException
++ (implemented by Lee Jiwon)
+ 
+ 3.0.4 (not yet released)
+ 
+diff --git a/src/main/java/tools/jackson/databind/DeserializationContext.java b/src/main/java/tools/jackson/databind/DeserializationContext.java
+index 2d7a5853ba..3ffbf11862 100644
+--- a/src/main/java/tools/jackson/databind/DeserializationContext.java
++++ b/src/main/java/tools/jackson/databind/DeserializationContext.java
+@@ -2153,7 +2153,7 @@ public DatabindException missingTypeIdException(JavaType baseType,
+     public DatabindException missingInjectableValueException(String msg,
+             Object valueId,
+             BeanProperty forProperty, Object beanInstance) {
+-        return MissingInjectableValueExcepion.from(_parser, msg,
++        return MissingInjectableValueException.from(_parser, msg,
+                 valueId, forProperty, beanInstance);
+     }
+ 
+diff --git a/src/main/java/tools/jackson/databind/exc/MissingInjectableValueExcepion.java b/src/main/java/tools/jackson/databind/exc/MissingInjectableValueExcepion.java
+index 5f171753f3..64c352bf8d 100644
+--- a/src/main/java/tools/jackson/databind/exc/MissingInjectableValueExcepion.java
++++ b/src/main/java/tools/jackson/databind/exc/MissingInjectableValueExcepion.java
+@@ -5,6 +5,10 @@
+ import tools.jackson.databind.BeanProperty;
+ import tools.jackson.databind.DatabindException;
+ 
++/**
++ * @deprecated Use {@link MissingInjectableValueException} instead.
++ */
++@Deprecated
+ public class MissingInjectableValueExcepion
+     extends DatabindException
+ {
+@@ -23,10 +27,14 @@ protected MissingInjectableValueExcepion(JsonParser p, String msg,
+         _beanInstance = beanInstance;
+     }
+ 
++    /**
++     * @deprecated Use {@link MissingInjectableValueException#from} instead.
++     */
++    @Deprecated
+     public static MissingInjectableValueExcepion from(JsonParser p, String msg,
+             Object valueId, BeanProperty forProperty, Object beanInstance)
+     {
+-        return new MissingInjectableValueExcepion(p, msg, valueId, forProperty, beanInstance);
++        return MissingInjectableValueException.from(p, msg, valueId, forProperty, beanInstance);
+     }
+ 
+     public Object getValueId() { return _valueId; }
+diff --git a/src/main/java/tools/jackson/databind/exc/MissingInjectableValueException.java b/src/main/java/tools/jackson/databind/exc/MissingInjectableValueException.java
+new file mode 100644
+index 0000000000..23da604850
+--- /dev/null
++++ b/src/main/java/tools/jackson/databind/exc/MissingInjectableValueException.java
+@@ -0,0 +1,24 @@
++package tools.jackson.databind.exc;
++
++import tools.jackson.core.JsonParser;
++
++import tools.jackson.databind.BeanProperty;
++
++@SuppressWarnings("deprecation") // extends deprecated MissingInjectableValueExcepion for backward compatibility
++public class MissingInjectableValueException
++    extends MissingInjectableValueExcepion
++{
++    private static final long serialVersionUID = 1L;
++
++    protected MissingInjectableValueException(JsonParser p, String msg,
++            Object valueId, BeanProperty forProperty, Object beanInstance)
++    {
++        super(p, msg, valueId, forProperty, beanInstance);
++    }
++
++    public static MissingInjectableValueException from(JsonParser p, String msg,
++            Object valueId, BeanProperty forProperty, Object beanInstance)
++    {
++        return new MissingInjectableValueException(p, msg, valueId, forProperty, beanInstance);
++    }
++}

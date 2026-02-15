@@ -1,0 +1,47 @@
+diff --git a/src/test/java/org/apache/commons/io/FileUtilsTest.java b/src/test/java/org/apache/commons/io/FileUtilsTest.java
+index 6d4c2444802..4c6413756a1 100644
+--- a/src/test/java/org/apache/commons/io/FileUtilsTest.java
++++ b/src/test/java/org/apache/commons/io/FileUtilsTest.java
+@@ -1761,6 +1761,42 @@ void testForceDeleteUnwritableFile() throws Exception {
+         }
+     }
+ 
++    @Test
++    public void testForceDeleteBrokenSymlink() throws Exception {
++        final ImmutablePair<Path, Path> pair = createTempSymbolicLinkedRelativeDir();
++        final Path symlinkedDir = pair.getLeft();
++        final Path targetDir = pair.getRight();
++
++        Files.delete(targetDir);
++        assertFalse(Files.exists(symlinkedDir));
++        assertTrue(Files.isSymbolicLink(symlinkedDir));
++
++        FileUtils.forceDelete(symlinkedDir.toFile());
++
++        // check targeted symlink is gone
++        assertFalse(Files.exists(symlinkedDir));
++        assertFalse(Files.isSymbolicLink(symlinkedDir));
++    }
++
++    @Test
++    public void testForceDeleteSymlink() throws Exception {
++        final ImmutablePair<Path, Path> pair = createTempSymbolicLinkedRelativeDir();
++        final Path symlinkedDir = pair.getLeft();
++        final Path targetDir = pair.getRight();
++
++        assertTrue(Files.exists(symlinkedDir));
++        assertTrue(Files.isSymbolicLink(symlinkedDir));
++        assertTrue(Files.exists(targetDir));
++
++        FileUtils.forceDelete(symlinkedDir.toFile());
++
++        // check targeted symlink is gone
++        assertFalse(Files.exists(symlinkedDir));
++        assertFalse(Files.isSymbolicLink(symlinkedDir));
++        // dir targeted by symlink is not deleted
++        assertTrue(Files.exists(targetDir));
++    }
++
+     @Test
+     void testForceMkdir() throws Exception {
+         // Tests with existing directory

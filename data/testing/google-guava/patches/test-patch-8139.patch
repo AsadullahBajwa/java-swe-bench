@@ -1,0 +1,158 @@
+diff --git a/android/guava-tests/test/com/google/common/collect/FauxveridesTest.java b/android/guava-tests/test/com/google/common/collect/FauxveridesTest.java
+index e779e6864434..1cbadaa5eda5 100644
+--- a/android/guava-tests/test/com/google/common/collect/FauxveridesTest.java
++++ b/android/guava-tests/test/com/google/common/collect/FauxveridesTest.java
+@@ -25,6 +25,7 @@
+ 
+ import com.google.common.base.Function;
+ import com.google.common.base.Joiner;
++import com.google.errorprone.annotations.FormatMethod;
+ import java.lang.reflect.Method;
+ import java.lang.reflect.Type;
+ import java.lang.reflect.TypeVariable;
+@@ -289,6 +290,7 @@ public String apply(Type from) {
+         }
+       };
+ 
++  @FormatMethod
+   private static String rootLocaleFormat(String format, Object... args) {
+     return String.format(Locale.ROOT, format, args);
+   }
+diff --git a/android/guava-tests/test/com/google/common/math/DoubleUtilsTest.java b/android/guava-tests/test/com/google/common/math/DoubleUtilsTest.java
+index 94c6c5a625a5..03a538995037 100644
+--- a/android/guava-tests/test/com/google/common/math/DoubleUtilsTest.java
++++ b/android/guava-tests/test/com/google/common/math/DoubleUtilsTest.java
+@@ -22,6 +22,7 @@
+ import static com.google.common.truth.Truth.assertThat;
+ import static org.junit.Assert.assertThrows;
+ 
++import com.google.errorprone.annotations.FormatMethod;
+ import java.lang.reflect.Method;
+ import java.math.BigInteger;
+ import junit.framework.TestCase;
+@@ -76,6 +77,7 @@ public void testOneBits() {
+     assertEquals(DoubleUtils.ONE_BITS, Double.doubleToRawLongBits(1.0));
+   }
+ 
++  @FormatMethod
+   private static void failFormat(String template, Object... args) {
+     fail(String.format(template, args));
+   }
+diff --git a/android/guava-tests/test/com/google/common/util/concurrent/ThreadFactoryBuilderTest.java b/android/guava-tests/test/com/google/common/util/concurrent/ThreadFactoryBuilderTest.java
+index c495089e9be0..6e31f1123fd3 100644
+--- a/android/guava-tests/test/com/google/common/util/concurrent/ThreadFactoryBuilderTest.java
++++ b/android/guava-tests/test/com/google/common/util/concurrent/ThreadFactoryBuilderTest.java
+@@ -21,6 +21,7 @@
+ import static org.junit.Assert.assertThrows;
+ 
+ import com.google.common.testing.NullPointerTester;
++import com.google.errorprone.annotations.FormatMethod;
+ import java.lang.Thread.UncaughtExceptionHandler;
+ import java.util.Locale;
+ import java.util.concurrent.ThreadFactory;
+@@ -180,6 +181,8 @@ public void testThreadFactory() throws InterruptedException {
+     boolean THREAD_DAEMON = false;
+     ThreadFactory backingThreadFactory =
+         new ThreadFactory() {
++          // We need to test that we don't override the value set by the factory.
++          @SuppressWarnings("ThreadPriorityCheck")
+           @Override
+           public Thread newThread(Runnable r) {
+             Thread thread = new Thread(r);
+@@ -213,6 +216,7 @@ public void testNulls() {
+     npTester.testAllPublicInstanceMethods(builder);
+   }
+ 
++  @FormatMethod
+   private static String rootLocaleFormat(String format, Object... args) {
+     return String.format(Locale.ROOT, format, args);
+   }
+diff --git a/guava-testlib/test/com/google/common/testing/NullPointerTesterTest.java b/guava-testlib/test/com/google/common/testing/NullPointerTesterTest.java
+index 4b7fe529f028..194c6a3dced6 100644
+--- a/guava-testlib/test/com/google/common/testing/NullPointerTesterTest.java
++++ b/guava-testlib/test/com/google/common/testing/NullPointerTesterTest.java
+@@ -39,6 +39,7 @@
+ import com.google.common.testing.NullPointerTester.Visibility;
+ import com.google.common.testing.anotherpackage.SomeClassThatDoesNotUseNullable;
+ import com.google.errorprone.annotations.CanIgnoreReturnValue;
++import com.google.errorprone.annotations.FormatMethod;
+ import com.google.errorprone.annotations.Keep;
+ import java.lang.reflect.Constructor;
+ import java.lang.reflect.Method;
+@@ -1477,6 +1478,7 @@ public void testNonStaticInnerClass() {
+     assertThat(expected).hasMessageThat().contains("inner class");
+   }
+ 
++  @FormatMethod
+   private static String rootLocaleFormat(String format, Object... args) {
+     return String.format(Locale.ROOT, format, args);
+   }
+diff --git a/guava-tests/test/com/google/common/collect/FauxveridesTest.java b/guava-tests/test/com/google/common/collect/FauxveridesTest.java
+index e779e6864434..1cbadaa5eda5 100644
+--- a/guava-tests/test/com/google/common/collect/FauxveridesTest.java
++++ b/guava-tests/test/com/google/common/collect/FauxveridesTest.java
+@@ -25,6 +25,7 @@
+ 
+ import com.google.common.base.Function;
+ import com.google.common.base.Joiner;
++import com.google.errorprone.annotations.FormatMethod;
+ import java.lang.reflect.Method;
+ import java.lang.reflect.Type;
+ import java.lang.reflect.TypeVariable;
+@@ -289,6 +290,7 @@ public String apply(Type from) {
+         }
+       };
+ 
++  @FormatMethod
+   private static String rootLocaleFormat(String format, Object... args) {
+     return String.format(Locale.ROOT, format, args);
+   }
+diff --git a/guava-tests/test/com/google/common/math/DoubleUtilsTest.java b/guava-tests/test/com/google/common/math/DoubleUtilsTest.java
+index 94c6c5a625a5..03a538995037 100644
+--- a/guava-tests/test/com/google/common/math/DoubleUtilsTest.java
++++ b/guava-tests/test/com/google/common/math/DoubleUtilsTest.java
+@@ -22,6 +22,7 @@
+ import static com.google.common.truth.Truth.assertThat;
+ import static org.junit.Assert.assertThrows;
+ 
++import com.google.errorprone.annotations.FormatMethod;
+ import java.lang.reflect.Method;
+ import java.math.BigInteger;
+ import junit.framework.TestCase;
+@@ -76,6 +77,7 @@ public void testOneBits() {
+     assertEquals(DoubleUtils.ONE_BITS, Double.doubleToRawLongBits(1.0));
+   }
+ 
++  @FormatMethod
+   private static void failFormat(String template, Object... args) {
+     fail(String.format(template, args));
+   }
+diff --git a/guava-tests/test/com/google/common/util/concurrent/ThreadFactoryBuilderTest.java b/guava-tests/test/com/google/common/util/concurrent/ThreadFactoryBuilderTest.java
+index c495089e9be0..6e31f1123fd3 100644
+--- a/guava-tests/test/com/google/common/util/concurrent/ThreadFactoryBuilderTest.java
++++ b/guava-tests/test/com/google/common/util/concurrent/ThreadFactoryBuilderTest.java
+@@ -21,6 +21,7 @@
+ import static org.junit.Assert.assertThrows;
+ 
+ import com.google.common.testing.NullPointerTester;
++import com.google.errorprone.annotations.FormatMethod;
+ import java.lang.Thread.UncaughtExceptionHandler;
+ import java.util.Locale;
+ import java.util.concurrent.ThreadFactory;
+@@ -180,6 +181,8 @@ public void testThreadFactory() throws InterruptedException {
+     boolean THREAD_DAEMON = false;
+     ThreadFactory backingThreadFactory =
+         new ThreadFactory() {
++          // We need to test that we don't override the value set by the factory.
++          @SuppressWarnings("ThreadPriorityCheck")
+           @Override
+           public Thread newThread(Runnable r) {
+             Thread thread = new Thread(r);
+@@ -213,6 +216,7 @@ public void testNulls() {
+     npTester.testAllPublicInstanceMethods(builder);
+   }
+ 
++  @FormatMethod
+   private static String rootLocaleFormat(String format, Object... args) {
+     return String.format(Locale.ROOT, format, args);
+   }

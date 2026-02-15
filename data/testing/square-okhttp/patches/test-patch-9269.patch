@@ -1,0 +1,24 @@
+diff --git a/android-test/src/androidTest/java/okhttp/android/test/OkHttpTest.kt b/android-test/src/androidDeviceTest/java/okhttp/android/test/OkHttpTest.kt
+similarity index 100%
+rename from android-test/src/androidTest/java/okhttp/android/test/OkHttpTest.kt
+rename to android-test/src/androidDeviceTest/java/okhttp/android/test/OkHttpTest.kt
+diff --git a/android-test/src/androidTest/java/okhttp/android/test/SingleAndroidTest.kt b/android-test/src/androidDeviceTest/java/okhttp/android/test/SingleAndroidTest.kt
+similarity index 100%
+rename from android-test/src/androidTest/java/okhttp/android/test/SingleAndroidTest.kt
+rename to android-test/src/androidDeviceTest/java/okhttp/android/test/SingleAndroidTest.kt
+diff --git a/android-test/src/androidTest/java/okhttp/android/test/StrictModeTest.kt b/android-test/src/androidDeviceTest/java/okhttp/android/test/StrictModeTest.kt
+similarity index 100%
+rename from android-test/src/androidTest/java/okhttp/android/test/StrictModeTest.kt
+rename to android-test/src/androidDeviceTest/java/okhttp/android/test/StrictModeTest.kt
+diff --git a/android-test/src/androidTest/java/okhttp/android/test/alpn/AlpnOverrideTest.kt b/android-test/src/androidDeviceTest/java/okhttp/android/test/alpn/AlpnOverrideTest.kt
+similarity index 100%
+rename from android-test/src/androidTest/java/okhttp/android/test/alpn/AlpnOverrideTest.kt
+rename to android-test/src/androidDeviceTest/java/okhttp/android/test/alpn/AlpnOverrideTest.kt
+diff --git a/android-test/src/androidTest/java/okhttp/android/test/letsencrypt/LetsEncryptClientTest.kt b/android-test/src/androidDeviceTest/java/okhttp/android/test/letsencrypt/LetsEncryptClientTest.kt
+similarity index 100%
+rename from android-test/src/androidTest/java/okhttp/android/test/letsencrypt/LetsEncryptClientTest.kt
+rename to android-test/src/androidDeviceTest/java/okhttp/android/test/letsencrypt/LetsEncryptClientTest.kt
+diff --git a/android-test/src/androidTest/java/okhttp/android/test/sni/SniOverrideTest.kt b/android-test/src/androidDeviceTest/java/okhttp/android/test/sni/SniOverrideTest.kt
+similarity index 100%
+rename from android-test/src/androidTest/java/okhttp/android/test/sni/SniOverrideTest.kt
+rename to android-test/src/androidDeviceTest/java/okhttp/android/test/sni/SniOverrideTest.kt

@@ -1,0 +1,66 @@
+diff --git a/test-shrinker/src/main/java/com/example/InterfaceWithImplementation.java b/test-shrinker/src/main/java/com/example/InterfaceWithImplementation.java
+new file mode 100644
+index 0000000000..a86c5f4fd5
+--- /dev/null
++++ b/test-shrinker/src/main/java/com/example/InterfaceWithImplementation.java
+@@ -0,0 +1,21 @@
++package com.example;
++
++import com.google.gson.annotations.SerializedName;
++
++/** Interface whose implementation class is only referenced for deserialization */
++public interface InterfaceWithImplementation {
++  String getValue();
++
++  // Implementation class which is only referenced in `TypeToken`, but nowhere else
++  public static class Implementation implements InterfaceWithImplementation {
++    public Implementation() {}
++
++    @SerializedName("s")
++    public String s;
++
++    @Override
++    public String getValue() {
++      return s;
++    }
++  }
++}
+diff --git a/test-shrinker/src/main/java/com/example/Main.java b/test-shrinker/src/main/java/com/example/Main.java
+index 745200a026..ef6f0e646f 100644
+--- a/test-shrinker/src/main/java/com/example/Main.java
++++ b/test-shrinker/src/main/java/com/example/Main.java
+@@ -53,6 +53,8 @@ public static void runTests(BiConsumer<String, String> outputConsumer) {
+     testJsonAdapterAnnotation(outputConsumer);
+ 
+     testGenericClasses(outputConsumer);
++
++    testDeserializingInterfaceImpl(outputConsumer);
+   }
+ 
+   private static void testTypeTokenWriteRead(
+@@ -290,4 +292,25 @@ private static void testGenericClasses(BiConsumer<String, String> outputConsumer
+                     "{\"g\": {\"t\": 1}}", new TypeToken<GenericUsingGenericClass<DummyClass>>() {})
+                 .toString());
+   }
++
++  private static void testDeserializingInterfaceImpl(BiConsumer<String, String> outputConsumer) {
++    Gson gson = new Gson();
++    TestExecutor.run(
++        outputConsumer,
++        "Read: Interface implementation",
++        () -> {
++          try {
++            // Use the interface type here
++            List<? extends InterfaceWithImplementation> list =
++                gson.fromJson(
++                    "[{\"s\": \"value\"}]",
++                    // This is the only place where the implementation class is referenced
++                    new TypeToken<List<InterfaceWithImplementation.Implementation>>() {});
++            return list.get(0).getValue();
++          } catch (ClassCastException e) {
++            // TODO: R8 causes exception, see https://github.com/google/gson/issues/2658
++            return "ClassCastException";
++          }
++        });
++  }
+ }

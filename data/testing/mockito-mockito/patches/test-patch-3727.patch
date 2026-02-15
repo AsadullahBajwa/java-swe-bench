@@ -1,0 +1,62 @@
+diff --git a/mockito-core/src/test/java/org/mockito/internal/stubbing/defaultanswers/ReturnsEmptyValuesTest.java b/mockito-core/src/test/java/org/mockito/internal/stubbing/defaultanswers/ReturnsEmptyValuesTest.java
+index 9b7363ff58..3a18b5162c 100644
+--- a/mockito-core/src/test/java/org/mockito/internal/stubbing/defaultanswers/ReturnsEmptyValuesTest.java
++++ b/mockito-core/src/test/java/org/mockito/internal/stubbing/defaultanswers/ReturnsEmptyValuesTest.java
+@@ -7,9 +7,13 @@
+ import static org.hamcrest.Matchers.is;
+ import static org.junit.Assert.*;
+ import static org.junit.Assume.assumeThat;
++import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+ import static org.mockito.Mockito.mock;
+ 
+ import java.util.*;
++import java.util.concurrent.CompletableFuture;
++import java.util.concurrent.CompletionStage;
++import java.util.concurrent.Future;
+ 
+ import org.junit.Test;
+ import org.mockito.invocation.Invocation;
+@@ -227,4 +231,43 @@ private boolean isJavaVersionAtLeast(int majorVersion) {
+         int currentMajorVersion = Integer.parseInt(versionParts[0]);
+         return currentMajorVersion >= majorVersion;
+     }
++
++    interface ReturnFuture {
++        Future<String> f();
++    }
++
++    interface ReturnCompletableFuture {
++        CompletableFuture<Void> v();
++    }
++
++    interface ReturnCompletionStage {
++        CompletionStage<Integer> s();
++    }
++
++    @Test
++    public void returnsCompletedFuture_forFuture() throws Exception {
++        ReturnFuture m = mock(ReturnFuture.class);
++        Future<String> fut = m.f();
++        assertNotNull(fut);
++        assertTrue(fut.isDone());
++        assertNull(fut.get());
++    }
++
++    @Test
++    public void returnsCompletedFuture_forCompletableFuture() {
++        ReturnCompletableFuture m = mock(ReturnCompletableFuture.class);
++        CompletableFuture<Void> fut = m.v();
++        assertNotNull(fut);
++        assertTrue(fut.isDone());
++        assertDoesNotThrow(fut::join);
++    }
++
++    @Test
++    public void returnsCompletedFuture_forCompletionStage() {
++        ReturnCompletionStage m = mock(ReturnCompletionStage.class);
++        CompletionStage<Integer> st = m.s();
++        assertNotNull(st);
++        assertTrue(st.toCompletableFuture().isDone());
++        assertNull(st.toCompletableFuture().join());
++    }
+ }

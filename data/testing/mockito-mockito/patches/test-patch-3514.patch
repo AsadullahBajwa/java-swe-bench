@@ -1,0 +1,171 @@
+diff --git a/mockito-core/src/test/java/org/mockito/StateMaster.java b/mockito-core/src/testFixtures/java/org/mockito/StateMaster.java
+similarity index 100%
+rename from mockito-core/src/test/java/org/mockito/StateMaster.java
+rename to mockito-core/src/testFixtures/java/org/mockito/StateMaster.java
+diff --git a/mockito-core/src/test/java/org/mockito/configuration/MockitoConfiguration.java b/mockito-core/src/testFixtures/java/org/mockito/configuration/MockitoConfiguration.java
+similarity index 100%
+rename from mockito-core/src/test/java/org/mockito/configuration/MockitoConfiguration.java
+rename to mockito-core/src/testFixtures/java/org/mockito/configuration/MockitoConfiguration.java
+diff --git a/mockito-core/src/test/java/org/mockito/internal/configuration/ConfigurationAccess.java b/mockito-core/src/testFixtures/java/org/mockito/internal/configuration/ConfigurationAccess.java
+similarity index 100%
+rename from mockito-core/src/test/java/org/mockito/internal/configuration/ConfigurationAccess.java
+rename to mockito-core/src/testFixtures/java/org/mockito/internal/configuration/ConfigurationAccess.java
+diff --git a/mockito-core/src/test/java/org/mockito/internal/invocation/InvocationBuilder.java b/mockito-core/src/testFixtures/java/org/mockito/internal/invocation/InvocationBuilder.java
+similarity index 100%
+rename from mockito-core/src/test/java/org/mockito/internal/invocation/InvocationBuilder.java
+rename to mockito-core/src/testFixtures/java/org/mockito/internal/invocation/InvocationBuilder.java
+diff --git a/mockito-core/src/test/java/org/mockitousage/IMethods.java b/mockito-core/src/testFixtures/java/org/mockitousage/IMethods.java
+similarity index 100%
+rename from mockito-core/src/test/java/org/mockitousage/IMethods.java
+rename to mockito-core/src/testFixtures/java/org/mockitousage/IMethods.java
+diff --git a/mockito-core/src/test/java/org/mockitousage/MethodsImpl.java b/mockito-core/src/testFixtures/java/org/mockitousage/MethodsImpl.java
+similarity index 100%
+rename from mockito-core/src/test/java/org/mockitousage/MethodsImpl.java
+rename to mockito-core/src/testFixtures/java/org/mockitousage/MethodsImpl.java
+diff --git a/mockito-core/src/test/java/org/mockitoutil/ClassLoaders.java b/mockito-core/src/testFixtures/java/org/mockitoutil/ClassLoaders.java
+similarity index 98%
+rename from mockito-core/src/test/java/org/mockitoutil/ClassLoaders.java
+rename to mockito-core/src/testFixtures/java/org/mockitoutil/ClassLoaders.java
+index e86d40f0cb..dabaa779a5 100644
+--- a/mockito-core/src/test/java/org/mockitoutil/ClassLoaders.java
++++ b/mockito-core/src/testFixtures/java/org/mockitoutil/ClassLoaders.java
+@@ -11,6 +11,7 @@
+ import java.io.File;
+ import java.io.IOException;
+ import java.io.InputStream;
++import java.lang.StackWalker.Option;
+ import java.lang.reflect.Field;
+ import java.lang.reflect.Modifier;
+ import java.net.MalformedURLException;
+@@ -208,6 +209,10 @@ public IsolatedURLClassLoaderBuilder withCodeSourceUrlOf(Class<?>... classes) {
+         }
+ 
+         public IsolatedURLClassLoaderBuilder withCurrentCodeSourceUrls() {
++            Class<?> callerClass =
++                    StackWalker.getInstance(Option.RETAIN_CLASS_REFERENCE).getCallerClass();
++
++            codeSourceUrls.add(obtainCurrentClassPathOf(callerClass.getName()));
+             codeSourceUrls.add(obtainCurrentClassPathOf(ClassLoaders.class.getName()));
+             return this;
+         }
+diff --git a/mockito-core/src/test/java/org/mockitoutil/ClassLoadersTest.java b/mockito-core/src/testFixtures/java/org/mockitoutil/ClassLoadersTest.java
+similarity index 100%
+rename from mockito-core/src/test/java/org/mockitoutil/ClassLoadersTest.java
+rename to mockito-core/src/testFixtures/java/org/mockitoutil/ClassLoadersTest.java
+diff --git a/mockito-core/src/test/java/org/mockitoutil/ConcurrentTesting.java b/mockito-core/src/testFixtures/java/org/mockitoutil/ConcurrentTesting.java
+similarity index 100%
+rename from mockito-core/src/test/java/org/mockitoutil/ConcurrentTesting.java
+rename to mockito-core/src/testFixtures/java/org/mockitoutil/ConcurrentTesting.java
+diff --git a/mockito-core/src/test/java/org/mockitoutil/Conditions.java b/mockito-core/src/testFixtures/java/org/mockitoutil/Conditions.java
+similarity index 100%
+rename from mockito-core/src/test/java/org/mockitoutil/Conditions.java
+rename to mockito-core/src/testFixtures/java/org/mockitoutil/Conditions.java
+diff --git a/mockito-core/src/test/java/org/mockitoutil/JUnitResultAssert.java b/mockito-core/src/testFixtures/java/org/mockitoutil/JUnitResultAssert.java
+similarity index 100%
+rename from mockito-core/src/test/java/org/mockitoutil/JUnitResultAssert.java
+rename to mockito-core/src/testFixtures/java/org/mockitoutil/JUnitResultAssert.java
+diff --git a/mockito-core/src/test/java/org/mockitoutil/SafeJUnitRule.java b/mockito-core/src/testFixtures/java/org/mockitoutil/SafeJUnitRule.java
+similarity index 100%
+rename from mockito-core/src/test/java/org/mockitoutil/SafeJUnitRule.java
+rename to mockito-core/src/testFixtures/java/org/mockitoutil/SafeJUnitRule.java
+diff --git a/mockito-core/src/test/java/org/mockitoutil/SafeJUnitRuleTest.java b/mockito-core/src/testFixtures/java/org/mockitoutil/SafeJUnitRuleTest.java
+similarity index 100%
+rename from mockito-core/src/test/java/org/mockitoutil/SafeJUnitRuleTest.java
+rename to mockito-core/src/testFixtures/java/org/mockitoutil/SafeJUnitRuleTest.java
+diff --git a/mockito-core/src/test/java/org/mockitoutil/SimpleClassGenerator.java b/mockito-core/src/testFixtures/java/org/mockitoutil/SimpleClassGenerator.java
+similarity index 100%
+rename from mockito-core/src/test/java/org/mockitoutil/SimpleClassGenerator.java
+rename to mockito-core/src/testFixtures/java/org/mockitoutil/SimpleClassGenerator.java
+diff --git a/mockito-core/src/test/java/org/mockitoutil/SimplePerRealmReloadingClassLoader.java b/mockito-core/src/testFixtures/java/org/mockitoutil/SimplePerRealmReloadingClassLoader.java
+similarity index 84%
+rename from mockito-core/src/test/java/org/mockitoutil/SimplePerRealmReloadingClassLoader.java
+rename to mockito-core/src/testFixtures/java/org/mockitoutil/SimplePerRealmReloadingClassLoader.java
+index 5855d21fe5..7e3c25a2d3 100644
+--- a/mockito-core/src/test/java/org/mockitoutil/SimplePerRealmReloadingClassLoader.java
++++ b/mockito-core/src/testFixtures/java/org/mockitoutil/SimplePerRealmReloadingClassLoader.java
+@@ -4,6 +4,7 @@
+  */
+ package org.mockitoutil;
+ 
++import java.lang.StackWalker.StackFrame;
+ import java.net.MalformedURLException;
+ import java.net.URL;
+ import java.net.URLClassLoader;
+@@ -13,7 +14,7 @@
+ 
+ /**
+  * Custom classloader to load classes in hierarchic realm.
+- *
++ * <p>
+  * Each class can be reloaded in the realm if the LoadClassPredicate says so.
+  */
+ public class SimplePerRealmReloadingClassLoader extends URLClassLoader {
+@@ -34,17 +35,34 @@ public SimplePerRealmReloadingClassLoader(
+ 
+     private static URL[] getPossibleClassPathsUrls() {
+         return new URL[] {
+-            obtainClassPath(),
++            obtainThisClassPath(),
++            detectCallerClassPath(),
+             obtainClassPath("org.mockito.Mockito"),
+             obtainClassPath("net.bytebuddy.ByteBuddy")
+         };
+     }
+ 
+-    private static URL obtainClassPath() {
++    private static URL obtainThisClassPath() {
+         String className = SimplePerRealmReloadingClassLoader.class.getName();
+         return obtainClassPath(className);
+     }
+ 
++    private static URL detectCallerClassPath() {
++        StackWalker walker = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE);
++        // skip getPossibleClassPathsUrls, detectCallerClassPath and constructor
++        int skippedFrames = 3;
++        Class<?> aClass =
++                walker.walk(
++                                frames ->
++                                        frames.peek(System.out::println)
++                                                .skip(skippedFrames)
++                                                .findFirst())
++                        .map(StackFrame::getDeclaringClass)
++                        .orElseThrow(() -> new RuntimeException("Couldn't detect caller class"));
++
++        return obtainClassPath(aClass.getName());
++    }
++
+     private static URL obtainClassPath(String className) {
+         String path = className.replace('.', '/') + ".class";
+         String url =
+diff --git a/mockito-core/src/test/java/org/mockitoutil/SimpleSerializationUtil.java b/mockito-core/src/testFixtures/java/org/mockitoutil/SimpleSerializationUtil.java
+similarity index 100%
+rename from mockito-core/src/test/java/org/mockitoutil/SimpleSerializationUtil.java
+rename to mockito-core/src/testFixtures/java/org/mockitoutil/SimpleSerializationUtil.java
+diff --git a/mockito-core/src/test/java/org/mockitoutil/Stopwatch.java b/mockito-core/src/testFixtures/java/org/mockitoutil/Stopwatch.java
+similarity index 100%
+rename from mockito-core/src/test/java/org/mockitoutil/Stopwatch.java
+rename to mockito-core/src/testFixtures/java/org/mockitoutil/Stopwatch.java
+diff --git a/mockito-core/src/test/java/org/mockitoutil/TestBase.java b/mockito-core/src/testFixtures/java/org/mockitoutil/TestBase.java
+similarity index 100%
+rename from mockito-core/src/test/java/org/mockitoutil/TestBase.java
+rename to mockito-core/src/testFixtures/java/org/mockitoutil/TestBase.java
+diff --git a/mockito-core/src/test/java/org/mockitoutil/TestBaseTest.java b/mockito-core/src/testFixtures/java/org/mockitoutil/TestBaseTest.java
+similarity index 100%
+rename from mockito-core/src/test/java/org/mockitoutil/TestBaseTest.java
+rename to mockito-core/src/testFixtures/java/org/mockitoutil/TestBaseTest.java
+diff --git a/mockito-core/src/test/java/org/mockitoutil/ThrowableAssert.java b/mockito-core/src/testFixtures/java/org/mockitoutil/ThrowableAssert.java
+similarity index 100%
+rename from mockito-core/src/test/java/org/mockitoutil/ThrowableAssert.java
+rename to mockito-core/src/testFixtures/java/org/mockitoutil/ThrowableAssert.java
+diff --git a/mockito-core/src/test/java/org/mockitoutil/VmArgAssumptions.java b/mockito-core/src/testFixtures/java/org/mockitoutil/VmArgAssumptions.java
+similarity index 100%
+rename from mockito-core/src/test/java/org/mockitoutil/VmArgAssumptions.java
+rename to mockito-core/src/testFixtures/java/org/mockitoutil/VmArgAssumptions.java
+diff --git a/mockito-core/src/test/java/org/mockitoutil/async/AsyncTesting.java b/mockito-core/src/testFixtures/java/org/mockitoutil/async/AsyncTesting.java
+similarity index 100%
+rename from mockito-core/src/test/java/org/mockitoutil/async/AsyncTesting.java
+rename to mockito-core/src/testFixtures/java/org/mockitoutil/async/AsyncTesting.java
+diff --git a/mockito-core/src/test/java/org/mockitoutil/async/AsyncTestingTest.java b/mockito-core/src/testFixtures/java/org/mockitoutil/async/AsyncTestingTest.java
+similarity index 100%
+rename from mockito-core/src/test/java/org/mockitoutil/async/AsyncTestingTest.java
+rename to mockito-core/src/testFixtures/java/org/mockitoutil/async/AsyncTestingTest.java

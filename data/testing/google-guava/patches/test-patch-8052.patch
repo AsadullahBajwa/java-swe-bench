@@ -1,0 +1,43 @@
+diff --git a/android/guava-tests/test/com/google/common/collect/OrderingTest.java b/android/guava-tests/test/com/google/common/collect/OrderingTest.java
+index acefe3aef63f..367c64aa9955 100644
+--- a/android/guava-tests/test/com/google/common/collect/OrderingTest.java
++++ b/android/guava-tests/test/com/google/common/collect/OrderingTest.java
+@@ -86,8 +86,8 @@ public void testComplicatedOrderingExample() {
+     Ordering<@Nullable Iterable<@Nullable Integer>> example =
+         Ordering.<Integer>natural()
+             .<Integer>nullsFirst()
+-            .reverse()
+-            .lexicographical()
++            .<@Nullable Integer>reverse()
++            .<@Nullable Integer>lexicographical()
+             .reverse()
+             .<Iterable<@Nullable Integer>>nullsLast();
+     List<@Nullable Integer> list1 = new ArrayList<>();
+diff --git a/guava-tests/test/com/google/common/collect/LinkedHashMultimapTest.java b/guava-tests/test/com/google/common/collect/LinkedHashMultimapTest.java
+index a07a4f6eab5c..060d32966112 100644
+--- a/guava-tests/test/com/google/common/collect/LinkedHashMultimapTest.java
++++ b/guava-tests/test/com/google/common/collect/LinkedHashMultimapTest.java
+@@ -479,7 +479,7 @@ public void testEntriesSpliterator() {
+       multimap.put(entry.getKey(), entry.getValue());
+     }
+     List<Entry<String, Integer>> actualEntries = new ArrayList<>();
+-    multimap.entries().spliterator().forEachRemaining(actualEntries::add);
++    multimap.entries().spliterator().forEachRemaining(e -> actualEntries.add(e));
+     assertThat(actualEntries).containsExactlyElementsIn(expectedEntries).inOrder();
+   }
+ 
+diff --git a/guava-tests/test/com/google/common/collect/OrderingTest.java b/guava-tests/test/com/google/common/collect/OrderingTest.java
+index f3564d939eed..956c2cc62d3d 100644
+--- a/guava-tests/test/com/google/common/collect/OrderingTest.java
++++ b/guava-tests/test/com/google/common/collect/OrderingTest.java
+@@ -86,8 +86,8 @@ public void testComplicatedOrderingExample() {
+     Ordering<@Nullable Iterable<@Nullable Integer>> example =
+         Ordering.<Integer>natural()
+             .<Integer>nullsFirst()
+-            .reverse()
+-            .lexicographical()
++            .<@Nullable Integer>reverse()
++            .<@Nullable Integer>lexicographical()
+             .reverse()
+             .<Iterable<@Nullable Integer>>nullsLast();
+     List<@Nullable Integer> list1 = new ArrayList<>();

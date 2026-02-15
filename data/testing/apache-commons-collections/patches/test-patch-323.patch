@@ -1,0 +1,565 @@
+diff --git a/src/test/java/org/apache/commons/collections4/AbstractObjectTest.java b/src/test/java/org/apache/commons/collections4/AbstractObjectTest.java
+index 9c63cd9e74..eebd01345f 100644
+--- a/src/test/java/org/apache/commons/collections4/AbstractObjectTest.java
++++ b/src/test/java/org/apache/commons/collections4/AbstractObjectTest.java
+@@ -170,8 +170,8 @@ public void testSerializeDeserializeThenCompare() throws Exception {
+     public void testSimpleSerialization() throws Exception {
+         final Object o = makeObject();
+         if (o instanceof Serializable && isTestSerialization()) {
+-            final byte[] objekt = writeExternalFormToBytes((Serializable) o);
+-            readExternalFormFromBytes(objekt);
++            final byte[] object = writeExternalFormToBytes((Serializable) o);
++            readExternalFormFromBytes(object);
+         }
+     }
+ 
+diff --git a/src/test/java/org/apache/commons/collections4/BulkTest.java b/src/test/java/org/apache/commons/collections4/BulkTest.java
+index 34a747aa5b..bc3ddb44ed 100644
+--- a/src/test/java/org/apache/commons/collections4/BulkTest.java
++++ b/src/test/java/org/apache/commons/collections4/BulkTest.java
+@@ -31,8 +31,8 @@
+  * A {@link TestCase} that can define both simple and bulk test methods.
+  * <p>
+  * A <I>simple test method</I> is the type of test traditionally
+- * supplied by by {@link TestCase}.  To define a simple test, create a public
+- * no-argument method whose name starts with "test".  You can specify the
++ * supplied by {@link TestCase}.  To define a simple test, create a public
++ * no-argument method whose name starts with "test".  You can specify
+  * the name of simple test in the constructor of {@code BulkTest};
+  * a subsequent call to {@link TestCase#run} will run that simple test.
+  * <p>
+diff --git a/src/test/java/org/apache/commons/collections4/ListUtilsTest.java b/src/test/java/org/apache/commons/collections4/ListUtilsTest.java
+index 12d552584b..04b9a190ed 100644
+--- a/src/test/java/org/apache/commons/collections4/ListUtilsTest.java
++++ b/src/test/java/org/apache/commons/collections4/ListUtilsTest.java
+@@ -123,7 +123,7 @@ public void testHashCode() {
+     }
+ 
+     /**
+-     * Tests the {@code indexOf} method in {@code ListUtils} class..
++     * Tests the {@code indexOf} method in {@code ListUtils} class.
+      */
+     @Test
+     public void testIndexOf() {
+@@ -165,7 +165,7 @@ public void testIntersectionOrderInsensitivity() {
+     }
+ 
+     /**
+-     * Tests intersecting a non-empty list with an subset of itself.
++     * Tests intersecting a non-empty list with a subset of itself.
+      */
+     @Test
+     public void testIntersectListWithNoOverlapAndDifferentTypes() {
+@@ -183,7 +183,7 @@ public void testIntersectListWithSelf() {
+     }
+ 
+     /**
+-     * Tests intersecting a non-empty list with an subset of itself.
++     * Tests intersecting a non-empty list with a subset of itself.
+      */
+     @Test
+     public void testIntersectNonEmptySubset() {
+diff --git a/src/test/java/org/apache/commons/collections4/SplitMapUtilsTest.java b/src/test/java/org/apache/commons/collections4/SplitMapUtilsTest.java
+index d5d6e080ba..0085ae5c23 100644
+--- a/src/test/java/org/apache/commons/collections4/SplitMapUtilsTest.java
++++ b/src/test/java/org/apache/commons/collections4/SplitMapUtilsTest.java
+@@ -135,7 +135,7 @@ public void testWritableMap() {
+         map.put("new", "66");
+         assertEquals(++sz, backingMap.size());
+ 
+-        // putall
++        // putAll
+         final Map<String, String> more = new HashMap<>();
+         more.put("foo", "77");
+         more.put("bar", "88");
+diff --git a/src/test/java/org/apache/commons/collections4/bag/AbstractSortedBagTest.java b/src/test/java/org/apache/commons/collections4/bag/AbstractSortedBagTest.java
+index f1fa526f61..fc2040ed47 100644
+--- a/src/test/java/org/apache/commons/collections4/bag/AbstractSortedBagTest.java
++++ b/src/test/java/org/apache/commons/collections4/bag/AbstractSortedBagTest.java
+@@ -43,18 +43,18 @@ public void verify() {
+ 
+         // Check that iterator returns elements in order and first() and last()
+         // are consistent
+-        final Iterator<T> colliter = getCollection().iterator();
+-        final Iterator<T> confiter = getConfirmed().iterator();
++        final Iterator<T> collIter = getCollection().iterator();
++        final Iterator<T> confIter = getConfirmed().iterator();
+         T first = null;
+         T last = null;
+-        while (colliter.hasNext()) {
++        while (collIter.hasNext()) {
+             if (first == null) {
+-                first = colliter.next();
++                first = collIter.next();
+                 last = first;
+             } else {
+-                last = colliter.next();
++                last = collIter.next();
+             }
+-            assertEquals("Element appears to be out of order.", last, confiter.next());
++            assertEquals("Element appears to be out of order.", last, confIter.next());
+         }
+         if (!getCollection().isEmpty()) {
+             assertEquals("Incorrect element returned by first().", first,
+diff --git a/src/test/java/org/apache/commons/collections4/bag/PredicatedBagTest.java b/src/test/java/org/apache/commons/collections4/bag/PredicatedBagTest.java
+index 82a165720c..908bb42de6 100644
+--- a/src/test/java/org/apache/commons/collections4/bag/PredicatedBagTest.java
++++ b/src/test/java/org/apache/commons/collections4/bag/PredicatedBagTest.java
+@@ -68,7 +68,7 @@ protected int getIterationBehaviour() {
+ 
+     @Test
+     @SuppressWarnings("unchecked")
+-    public void testlegalAddRemove() {
++    public void testLegalAddRemove() {
+         final Bag<T> bag = makeTestBag();
+         assertEquals(0, bag.size());
+         final T[] els = (T[]) new Object[] { "1", "3", "5", "7", "2", "4", "1" };
+diff --git a/src/test/java/org/apache/commons/collections4/collection/AbstractCollectionTest.java b/src/test/java/org/apache/commons/collections4/collection/AbstractCollectionTest.java
+index 7add046530..9cb9172c9d 100644
+--- a/src/test/java/org/apache/commons/collections4/collection/AbstractCollectionTest.java
++++ b/src/test/java/org/apache/commons/collections4/collection/AbstractCollectionTest.java
+@@ -395,7 +395,7 @@ public Map.Entry<E, E> cloneMapEntry(final Map.Entry<E, E> entry) {
+      *  Returns an array of objects that are contained in a collection
+      *  produced by {@link #makeFullCollection()}.  Every element in the
+      *  returned array <I>must</I> be an element in a full collection.<P>
+-     *  The default implementation returns a heterogenous array of
++     *  The default implementation returns a heterogeneous array of
+      *  objects with some duplicates. null is added if allowed.
+      *  Override if you require specific testing elements.  Note that if you
+      *  override {@link #makeFullCollection()}, you <I>must</I> override
+@@ -415,7 +415,7 @@ public E[] getFullElements() {
+      *  Returns an array of elements that are <I>not</I> contained in a
+      *  full collection.  Every element in the returned array must
+      *  not exist in a collection returned by {@link #makeFullCollection()}.
+-     *  The default implementation returns a heterogenous array of elements
++     *  The default implementation returns a heterogeneous array of elements
+      *  without null.  Note that some of the tests add these elements
+      *  to an empty or full collection, so if your collection restricts
+      *  certain kinds of elements, you should override this method.
+@@ -480,7 +480,7 @@ public E[] getOtherNonNullElements() {
+      *  Returns a list of string elements suitable for return by
+      *  {@link #getFullElements()}.  Override getFullElements to return
+      *  the results of this method if your collection does not support
+-     *  heterogenous elements or the null element.
++     *  heterogeneous elements or the null element.
+      */
+     public Object[] getFullNonNullStringElements() {
+         return new Object[] {
+@@ -493,7 +493,7 @@ public Object[] getFullNonNullStringElements() {
+      *  Returns a list of string elements suitable for return by
+      *  {@link #getOtherElements()}.  Override getOtherElements to return
+      *  the results of this method if your collection does not support
+-     *  heterogenous elements or the null element.
++     *  heterogeneous elements or the null element.
+      */
+     public Object[] getOtherNonNullStringElements() {
+         return new Object[] {
+diff --git a/src/test/java/org/apache/commons/collections4/comparators/ComparatorChainTest.java b/src/test/java/org/apache/commons/collections4/comparators/ComparatorChainTest.java
+index 75988486d4..0b87e516b4 100644
+--- a/src/test/java/org/apache/commons/collections4/comparators/ComparatorChainTest.java
++++ b/src/test/java/org/apache/commons/collections4/comparators/ComparatorChainTest.java
+@@ -95,7 +95,7 @@ public void testBadListComparatorChain() {
+     }
+ 
+     @Test
+-    public void testComparatorChainOnMinvaluedCompatator() {
++    public void testComparatorChainOnMinValuedComparator() {
+         // -1 * Integer.MIN_VALUE is less than 0,
+         // test that ComparatorChain handles this edge case correctly
+         final ComparatorChain<Integer> chain = new ComparatorChain<>();
+diff --git a/src/test/java/org/apache/commons/collections4/comparators/ReverseComparatorTest.java b/src/test/java/org/apache/commons/collections4/comparators/ReverseComparatorTest.java
+index 8be79d2275..7c6a99bf9f 100644
+--- a/src/test/java/org/apache/commons/collections4/comparators/ReverseComparatorTest.java
++++ b/src/test/java/org/apache/commons/collections4/comparators/ReverseComparatorTest.java
+@@ -43,7 +43,7 @@ public ReverseComparatorTest() {
+      * Comparator.  The resulting comparator should
+      * sort according to natural Order.  (Note: we wrap
+      * a Comparator taken from the JDK so that we can
+-     * save a "canonical" form in SCM.
++     * save a "canonical" form in SCM).
+      *
+      * @return Comparator that returns "natural" order
+      */
+diff --git a/src/test/java/org/apache/commons/collections4/iterators/FilterIteratorTest.java b/src/test/java/org/apache/commons/collections4/iterators/FilterIteratorTest.java
+index b2c03ffa7a..b0172f2183 100644
+--- a/src/test/java/org/apache/commons/collections4/iterators/FilterIteratorTest.java
++++ b/src/test/java/org/apache/commons/collections4/iterators/FilterIteratorTest.java
+@@ -63,7 +63,7 @@ public void tearDown() throws Exception {
+     }
+ 
+     /**
+-     * Returns an full iterator wrapped in a
++     * Returns a full iterator wrapped in a
+      * FilterIterator that blocks all the elements
+      *
+      * @return "empty" FilterIterator
+diff --git a/src/test/java/org/apache/commons/collections4/iterators/ListIteratorWrapper2Test.java b/src/test/java/org/apache/commons/collections4/iterators/ListIteratorWrapper2Test.java
+index 610ae52d2e..191d34b569 100644
+--- a/src/test/java/org/apache/commons/collections4/iterators/ListIteratorWrapper2Test.java
++++ b/src/test/java/org/apache/commons/collections4/iterators/ListIteratorWrapper2Test.java
+@@ -28,7 +28,7 @@
+ import static org.junit.jupiter.api.Assertions.assertThrows;
+ 
+ /**
+- * Tests the ListIteratorWrapper to insure that it behaves as expected when wrapping a ListIterator.
++ * Tests the ListIteratorWrapper to ensure that it behaves as expected when wrapping a ListIterator.
+  */
+ public class ListIteratorWrapper2Test<E> extends AbstractIteratorTest<E> {
+ 
+@@ -190,7 +190,7 @@ public void testReset() {
+         assertEquals("First element should be the same", first, iter.next());
+         assertEquals("Second element should be the same", second, iter.next());
+ 
+-        // after passing the point, where we resetted, continuation should work as expected
++        // after passing the point, where we reset, continuation should work as expected
+         for (int i = 2; i < testArray.length; i++) {
+             final Object testValue = testArray[i];
+             final E iterValue = iter.next();
+diff --git a/src/test/java/org/apache/commons/collections4/iterators/ListIteratorWrapperTest.java b/src/test/java/org/apache/commons/collections4/iterators/ListIteratorWrapperTest.java
+index b986d22f05..20cbebe0a8 100644
+--- a/src/test/java/org/apache/commons/collections4/iterators/ListIteratorWrapperTest.java
++++ b/src/test/java/org/apache/commons/collections4/iterators/ListIteratorWrapperTest.java
+@@ -28,7 +28,7 @@
+ import org.junit.jupiter.api.Test;
+ 
+ /**
+- * Tests the ListIteratorWrapper to insure that it simulates
++ * Tests the ListIteratorWrapper to ensure that it simulates
+  * a ListIterator correctly.
+  */
+ public class ListIteratorWrapperTest<E> extends AbstractIteratorTest<E> {
+@@ -212,7 +212,7 @@ public void testReset() {
+         assertEquals("First element should be the same", first, iter.next());
+         assertEquals("Second element should be the same", second, iter.next());
+ 
+-        // after passing the point, where we resetted, continuation should work as expected
++        // after passing the point, where we reset, continuation should work as expected
+         for (int i = 2; i < testArray.length; i++) {
+             final Object testValue = testArray[i];
+             final E iterValue = iter.next();
+diff --git a/src/test/java/org/apache/commons/collections4/list/AbstractListTest.java b/src/test/java/org/apache/commons/collections4/list/AbstractListTest.java
+index 607dc10600..cfc85fe3e6 100644
+--- a/src/test/java/org/apache/commons/collections4/list/AbstractListTest.java
++++ b/src/test/java/org/apache/commons/collections4/list/AbstractListTest.java
+@@ -285,7 +285,7 @@ public void testListEquals() {
+ 
+         list2 = Arrays.asList(getFullElements());
+         if (list2.size() < 2 && isAddSupported()) {
+-            // main list is only size 1, so lets add other elements to get a better list
++            // main list is only size 1, so let's add other elements to get a better list
+             list.addAll(Arrays.asList(getOtherElements()));
+             getConfirmed().addAll(Arrays.asList(getOtherElements()));
+             list2 = new ArrayList<>(list2);
+diff --git a/src/test/java/org/apache/commons/collections4/list/CursorableLinkedListTest.java b/src/test/java/org/apache/commons/collections4/list/CursorableLinkedListTest.java
+index bf94a1a1f5..3e906bab02 100644
+--- a/src/test/java/org/apache/commons/collections4/list/CursorableLinkedListTest.java
++++ b/src/test/java/org/apache/commons/collections4/list/CursorableLinkedListTest.java
+@@ -1432,8 +1432,8 @@ public void testSerialization() throws Exception {
+         out.flush();
+         out.close();
+ 
+-        final java.io.ByteArrayInputStream bufin = new java.io.ByteArrayInputStream(buf.toByteArray());
+-        final java.io.ObjectInputStream in = new java.io.ObjectInputStream(bufin);
++        final java.io.ByteArrayInputStream bufIn = new java.io.ByteArrayInputStream(buf.toByteArray());
++        final java.io.ObjectInputStream in = new java.io.ObjectInputStream(bufIn);
+         final Object list2 = in.readObject();
+ 
+         assertNotSame(list, list2);
+diff --git a/src/test/java/org/apache/commons/collections4/list/TreeListTest.java b/src/test/java/org/apache/commons/collections4/list/TreeListTest.java
+index 88f59a616d..a18ebcbc44 100644
+--- a/src/test/java/org/apache/commons/collections4/list/TreeListTest.java
++++ b/src/test/java/org/apache/commons/collections4/list/TreeListTest.java
+@@ -228,7 +228,7 @@ public void testBug35258() {
+         treelist.add(Integer.valueOf(3));
+         treelist.add(Integer.valueOf(4));
+ 
+-        // this cause inconsistence of ListIterator()
++        // this cause inconsistency in ListIterator()
+         treelist.remove(objectToRemove);
+ 
+         final ListIterator<Integer> li = treelist.listIterator();
+diff --git a/src/test/java/org/apache/commons/collections4/map/AbstractMapTest.java b/src/test/java/org/apache/commons/collections4/map/AbstractMapTest.java
+index ea28f3d403..0fbf5a573c 100644
+--- a/src/test/java/org/apache/commons/collections4/map/AbstractMapTest.java
++++ b/src/test/java/org/apache/commons/collections4/map/AbstractMapTest.java
+@@ -342,7 +342,7 @@ protected <E> List<E> getAsList(final Object[] o) {
+      * {@link #getOtherKeys()} or {@link #getOtherValues}.
+      *
+      * <p>Override getOtherElements to return the results of this method if your
+-     * collection does not support heterogenous elements or the null element.
++     * collection does not support heterogeneous elements or the null element.
+      * </p>
+      */
+     public Object[] getOtherNonNullStringElements() {
+@@ -374,7 +374,7 @@ public V[] getSampleValues() {
+     }
+ 
+     /**
+-     * Returns a the set of values that can be used to replace the values
++     * Returns a set of values that can be used to replace the values
+      * returned from {@link #getSampleValues()}.  This method must return an
+      * array with the same length as {@link #getSampleValues()}.  The values
+      * returned from this method should not be the same as those returned from
+@@ -604,7 +604,7 @@ public void testMapSize() {
+     }
+ 
+     /**
+-     * Tests {@link Map#clear()}.  If the map {@link #isRemoveSupported()}
++     * Tests {@link Map#clear()}.  If the map {@link #isRemoveSupported()
+      * can add and remove elements}, then {@link Map#size()} and
+      * {@link Map#isEmpty()} are used to ensure that map has no elements after
+      * a call to clear.  If the map does not support adding and removing
+diff --git a/src/test/java/org/apache/commons/collections4/map/MultiValueMapTest.java b/src/test/java/org/apache/commons/collections4/map/MultiValueMapTest.java
+index 6c38128804..2d23384a61 100644
+--- a/src/test/java/org/apache/commons/collections4/map/MultiValueMapTest.java
++++ b/src/test/java/org/apache/commons/collections4/map/MultiValueMapTest.java
+@@ -487,7 +487,7 @@ public void testFullMapCompatibility() throws Exception {
+         final Map<?, ?> map2 = (Map<?, ?>) readExternalFormFromDisk(getCanonicalFullCollectionName(map));
+         assertEquals("Map is the right size", map.size(), map2.size());
+         for (final Object key : map.keySet()) {
+-            assertEquals( "Map had inequal elements", map.get(key), map2.get(key) );
++            assertEquals( "Map had unequal elements", map.get(key), map2.get(key) );
+             map2.remove(key);
+         }
+         assertEquals("Map had extra values", 0, map2.size());
+diff --git a/src/test/java/org/apache/commons/collections4/map/SingletonMapTest.java b/src/test/java/org/apache/commons/collections4/map/SingletonMapTest.java
+index acb508324f..2420255ed1 100644
+--- a/src/test/java/org/apache/commons/collections4/map/SingletonMapTest.java
++++ b/src/test/java/org/apache/commons/collections4/map/SingletonMapTest.java
+@@ -44,7 +44,7 @@ public static junit.framework.Test suite() {
+ 
+     @Override
+     public OrderedMap<K, V> makeObject() {
+-        // need an empty singleton map, but thats not possible
++        // need an empty singleton map, but that's not possible
+         // use a ridiculous fake instead to make the tests pass
+         return UnmodifiableOrderedMap.unmodifiableOrderedMap(ListOrderedMap.listOrderedMap(new HashMap<K, V>()));
+     }
+@@ -52,7 +52,7 @@ public OrderedMap<K, V> makeObject() {
+     @Override
+     public String[] ignoredTests() {
+         // the ridiculous map above still doesn't pass these tests
+-        // but its not relevant, so we ignore them
++        // but it's not relevant, so we ignore them
+         return new String[] {
+             "SingletonMapTest.bulkTestMapIterator.testEmptyMapIterator",
+             "SingletonMapTest.bulkTestOrderedMapIterator.testEmptyMapIterator",
+diff --git a/src/test/java/org/apache/commons/collections4/set/AbstractNavigableSetTest.java b/src/test/java/org/apache/commons/collections4/set/AbstractNavigableSetTest.java
+index 765d5c72b5..1cfb5c1e8e 100644
+--- a/src/test/java/org/apache/commons/collections4/set/AbstractNavigableSetTest.java
++++ b/src/test/java/org/apache/commons/collections4/set/AbstractNavigableSetTest.java
+@@ -78,12 +78,12 @@ public void verify() {
+ 
+         // Check that descending iterator returns elements in order and higher(), lower(),
+         // floor() and ceiling() are consistent
+-        final Iterator<E> colliter = getCollection().descendingIterator();
+-        final Iterator<E> confiter = getConfirmed().descendingIterator();
+-        while (colliter.hasNext()) {
+-            final E element = colliter.next();
+-            final E confelement = confiter.next();
+-            assertEquals("Element appears to be out of order.", confelement, element);
++        final Iterator<E> collIter = getCollection().descendingIterator();
++        final Iterator<E> confIter = getConfirmed().descendingIterator();
++        while (collIter.hasNext()) {
++            final E element = collIter.next();
++            final E confElement = confIter.next();
++            assertEquals("Element appears to be out of order.", confElement, element);
+ 
+             assertEquals("Incorrect element returned by higher().", getConfirmed().higher(element),
+                                                                     getCollection().higher(element));
+@@ -137,9 +137,9 @@ public E[] getOtherNonNullElements() {
+     public BulkTest bulkTestNavigableSetSubSet() {
+         final int length = getFullElements().length;
+ 
+-        final int lobound = length / 3;
+-        final int hibound = lobound * 2;
+-        return new TestNavigableSetSubSet(lobound, hibound, false);
++        final int loBound = length / 3;
++        final int hiBound = loBound * 2;
++        return new TestNavigableSetSubSet(loBound, hiBound, false);
+     }
+ 
+     /**
+@@ -153,9 +153,9 @@ public BulkTest bulkTestNavigableSetSubSet() {
+     public BulkTest bulkTestNavigableSetHeadSet() {
+         final int length = getFullElements().length;
+ 
+-        final int lobound = length / 3;
+-        final int hibound = lobound * 2;
+-        return new TestNavigableSetSubSet(hibound, true, true);
++        final int loBound = length / 3;
++        final int hiBound = loBound * 2;
++        return new TestNavigableSetSubSet(hiBound, true, true);
+     }
+ 
+     /**
+@@ -168,8 +168,8 @@ public BulkTest bulkTestNavigableSetHeadSet() {
+      */
+     public BulkTest bulkTestNavigableSetTailSet() {
+         final int length = getFullElements().length;
+-        final int lobound = length / 3;
+-        return new TestNavigableSetSubSet(lobound, false, false);
++        final int loBound = length / 3;
++        return new TestNavigableSetSubSet(loBound, false, false);
+     }
+ 
+     public class TestNavigableSetSubSet extends AbstractNavigableSetTest<E> {
+@@ -199,33 +199,33 @@ public TestNavigableSetSubSet(final int bound, final boolean head, final boolean
+                 type = TYPE_TAILSET;
+                 m_Inclusive = inclusive;
+                 lowBound = bound;
+-                final Object[] allelements = AbstractNavigableSetTest.this.getFullElements();
++                final Object[] allElements = AbstractNavigableSetTest.this.getFullElements();
+                 final int realBound = inclusive ? bound : bound + 1;
+-                fullElements = (E[]) new Object[allelements.length - realBound];
+-                System.arraycopy(allelements, realBound, fullElements, 0, allelements.length - realBound);
+-                otherElements = (E[]) new Object[allelements.length - bound - 1];
++                fullElements = (E[]) new Object[allElements.length - realBound];
++                System.arraycopy(allElements, realBound, fullElements, 0, allElements.length - realBound);
++                otherElements = (E[]) new Object[allElements.length - bound - 1];
+                 System.arraycopy(//src src_pos dst dst_pos length
+-                    AbstractNavigableSetTest.this.getOtherElements(), bound, otherElements, 0, allelements.length - bound - 1);
++                    AbstractNavigableSetTest.this.getOtherElements(), bound, otherElements, 0, allElements.length - bound - 1);
+             }
+ 
+         } //type
+ 
+         @SuppressWarnings("unchecked")
+-        public TestNavigableSetSubSet(final int lobound, final int hibound, final boolean inclusive) {
++        public TestNavigableSetSubSet(final int loBound, final int hiBound, final boolean inclusive) {
+             super("TestNavigableSetSubSet");
+             type = TYPE_SUBSET;
+-            lowBound = lobound;
+-            highBound = hibound;
++            lowBound = loBound;
++            highBound = hiBound;
+             m_Inclusive = inclusive;
+ 
+-            final int fullLoBound = inclusive ? lobound : lobound + 1;
+-            final int length = hibound - lobound + 1 - (inclusive ? 0 : 2);
++            final int fullLoBound = inclusive ? loBound : loBound + 1;
++            final int length = hiBound - loBound + 1 - (inclusive ? 0 : 2);
+             fullElements = (E[]) new Object[length];
+             System.arraycopy(AbstractNavigableSetTest.this.getFullElements(), fullLoBound, fullElements, 0, length);
+-            final int otherLength = hibound - lobound;
++            final int otherLength = hiBound - loBound;
+             otherElements = (E[]) new Object[otherLength - 1];
+             System.arraycopy(//src src_pos dst dst_pos length
+-                AbstractNavigableSetTest.this.getOtherElements(), lobound, otherElements, 0, otherLength - 1);
++                AbstractNavigableSetTest.this.getOtherElements(), loBound, otherElements, 0, otherLength - 1);
+         }
+ 
+         @Override
+diff --git a/src/test/java/org/apache/commons/collections4/set/AbstractSortedSetTest.java b/src/test/java/org/apache/commons/collections4/set/AbstractSortedSetTest.java
+index 1f8fd4cfb1..b8ed7af145 100644
+--- a/src/test/java/org/apache/commons/collections4/set/AbstractSortedSetTest.java
++++ b/src/test/java/org/apache/commons/collections4/set/AbstractSortedSetTest.java
+@@ -53,18 +53,18 @@ public void verify() {
+ 
+         // Check that iterator returns elements in order and first() and last()
+         // are consistent
+-        final Iterator<E> colliter = getCollection().iterator();
+-        final Iterator<E> confiter = getConfirmed().iterator();
++        final Iterator<E> collIter = getCollection().iterator();
++        final Iterator<E> confIter = getConfirmed().iterator();
+         E first = null;
+         E last = null;
+-        while (colliter.hasNext()) {
++        while (collIter.hasNext()) {
+             if (first == null) {
+-                first = colliter.next();
++                first = collIter.next();
+                 last = first;
+             } else {
+-                last = colliter.next();
++                last = collIter.next();
+             }
+-            assertEquals("Element appears to be out of order.", last, confiter.next());
++            assertEquals("Element appears to be out of order.", last, confIter.next());
+         }
+         if (!getCollection().isEmpty()) {
+             assertEquals("Incorrect element returned by first().", first,
+@@ -145,9 +145,9 @@ public E[] getOtherNonNullElements() {
+     public BulkTest bulkTestSortedSetSubSet() {
+         final int length = getFullElements().length;
+ 
+-        final int lobound = length / 3;
+-        final int hibound = lobound * 2;
+-        return new TestSortedSetSubSet(lobound, hibound);
++        final int loBound = length / 3;
++        final int hiBound = loBound * 2;
++        return new TestSortedSetSubSet(loBound, hiBound);
+ 
+     }
+ 
+@@ -162,9 +162,9 @@ public BulkTest bulkTestSortedSetSubSet() {
+     public BulkTest bulkTestSortedSetHeadSet() {
+         final int length = getFullElements().length;
+ 
+-        final int lobound = length / 3;
+-        final int hibound = lobound * 2;
+-        return new TestSortedSetSubSet(hibound, true);
++        final int loBound = length / 3;
++        final int hiBound = loBound * 2;
++        return new TestSortedSetSubSet(hiBound, true);
+     }
+ 
+     /**
+@@ -177,8 +177,8 @@ public BulkTest bulkTestSortedSetHeadSet() {
+      */
+     public BulkTest bulkTestSortedSetTailSet() {
+         final int length = getFullElements().length;
+-        final int lobound = length / 3;
+-        return new TestSortedSetSubSet(lobound, false);
++        final int loBound = length / 3;
++        return new TestSortedSetSubSet(loBound, false);
+     }
+ 
+     public class TestSortedSetSubSet extends AbstractSortedSetTest<E> {
+@@ -207,13 +207,13 @@ public TestSortedSetSubSet(final int bound, final boolean head) {
+                 //System.out.println("TAILSET");
+                 m_Type = TYPE_TAILSET;
+                 m_LowBound = bound;
+-                final Object[] allelements = AbstractSortedSetTest.this.getFullElements();
+-                //System.out.println("bound = "+bound +"::length="+allelements.length);
+-                m_FullElements = (E[]) new Object[allelements.length - bound];
+-                System.arraycopy(allelements, bound, m_FullElements, 0, allelements.length - bound);
+-                m_OtherElements = (E[]) new Object[allelements.length - bound - 1];
++                final Object[] allElements = AbstractSortedSetTest.this.getFullElements();
++                //System.out.println("bound = "+bound +"::length="+allElements.length);
++                m_FullElements = (E[]) new Object[allElements.length - bound];
++                System.arraycopy(allElements, bound, m_FullElements, 0, allElements.length - bound);
++                m_OtherElements = (E[]) new Object[allElements.length - bound - 1];
+                 System.arraycopy(//src src_pos dst dst_pos length
+-                    AbstractSortedSetTest.this.getOtherElements(), bound, m_OtherElements, 0, allelements.length - bound - 1);
++                    AbstractSortedSetTest.this.getOtherElements(), bound, m_OtherElements, 0, allElements.length - bound - 1);
+                 //System.out.println(new TreeSet(Arrays.asList(m_FullElements)));
+                 //System.out.println(new TreeSet(Arrays.asList(m_OtherElements)));
+                 //resetFull();
+@@ -225,19 +225,19 @@ public TestSortedSetSubSet(final int bound, final boolean head) {
+         } //type
+ 
+         @SuppressWarnings("unchecked")
+-        public TestSortedSetSubSet(final int lobound, final int hibound) {
++        public TestSortedSetSubSet(final int loBound, final int hiBound) {
+             super("TestSortedSetSubSet");
+             //System.out.println("SUBSET");
+             m_Type = TYPE_SUBSET;
+-            m_LowBound = lobound;
+-            m_HighBound = hibound;
+-            final int length = hibound - lobound;
+-            //System.out.println("Low=" + lobound + "::High=" + hibound + "::Length=" + length);
++            m_LowBound = loBound;
++            m_HighBound = hiBound;
++            final int length = hiBound - loBound;
++            //System.out.println("Low=" + loBound + "::High=" + hiBound + "::Length=" + length);
+             m_FullElements = (E[]) new Object[length];
+-            System.arraycopy(AbstractSortedSetTest.this.getFullElements(), lobound, m_FullElements, 0, length);
++            System.arraycopy(AbstractSortedSetTest.this.getFullElements(), loBound, m_FullElements, 0, length);
+             m_OtherElements = (E[]) new Object[length - 1];
+             System.arraycopy(//src src_pos dst dst_pos length
+-                AbstractSortedSetTest.this.getOtherElements(), lobound, m_OtherElements, 0, length - 1);
++                AbstractSortedSetTest.this.getOtherElements(), loBound, m_OtherElements, 0, length - 1);
+ 
+             //System.out.println(new TreeSet(Arrays.asList(m_FullElements)));
+             //System.out.println(new TreeSet(Arrays.asList(m_OtherElements)));

@@ -1,0 +1,144 @@
+diff --git a/src/test/java/org/apache/commons/io/channels/AbstractSeekableByteChannelTest.java b/src/test/java/org/apache/commons/io/channels/AbstractSeekableByteChannelTest.java
+index abf96d8f47d..afb2245a49f 100644
+--- a/src/test/java/org/apache/commons/io/channels/AbstractSeekableByteChannelTest.java
++++ b/src/test/java/org/apache/commons/io/channels/AbstractSeekableByteChannelTest.java
+@@ -47,7 +47,7 @@
+  */
+ abstract class AbstractSeekableByteChannelTest {
+ 
+-    private SeekableByteChannel channel;
++    protected SeekableByteChannel channel;
+ 
+     @TempDir
+     protected Path tempDir;
+@@ -87,6 +87,7 @@ void testCloseMultipleTimes() throws IOException {
+         assertFalse(channel.isOpen());
+     }
+ 
++
+     @Test
+     void testConcurrentPositionAndSizeQueries() throws IOException {
+         final byte[] data = "test data".getBytes();
+@@ -136,6 +137,20 @@ void testPositionBeyondSize() throws IOException {
+         assertEquals(4, channel.size()); // Size should not change
+     }
+ 
++    @Test
++    void testPositionBeyondSizeRead() throws IOException {
++        final ByteBuffer buffer = ByteBuffer.allocate(1);
++        channel.position(channel.size() + 1);
++        assertEquals(channel.size() + 1, channel.position());
++        assertEquals(-1, channel.read(buffer));
++        channel.position(Integer.MAX_VALUE + 1L);
++        assertEquals(Integer.MAX_VALUE + 1L, channel.position());
++        assertEquals(-1, channel.read(buffer));
++        assertThrows(IllegalArgumentException.class, () -> channel.position(-1));
++        assertThrows(IllegalArgumentException.class, () -> channel.position(Integer.MIN_VALUE));
++        assertThrows(IllegalArgumentException.class, () -> channel.position(Long.MIN_VALUE));
++    }
++
+     @ParameterizedTest
+     @CsvSource({ "0, 0", "5, 5", "10, 10", "100, 100" })
+     void testPositionInBounds(final long newPosition, final long expectedPosition) throws IOException {
+@@ -149,6 +164,7 @@ void testPositionInBounds(final long newPosition, final long expectedPosition) t
+         assertEquals(expectedPosition, channel.position());
+     }
+ 
++
+     @Test
+     void testPositionNegative() {
+         assertThrows(IllegalArgumentException.class, () -> channel.position(-1));
+@@ -292,6 +308,18 @@ void testSizeSameOnOverwrite() throws IOException {
+         assertEquals(11, channel.size()); // Size should not change
+     }
+ 
++    @Test
++    void testTrucateBeyondSizeReadWrite() throws IOException {
++        final ByteBuffer buffer = ByteBuffer.allocate(1);
++        channel.truncate(channel.size() + 1);
++        assertEquals(-1, channel.read(buffer));
++        channel.truncate(Integer.MAX_VALUE + 1L);
++        assertEquals(-1, channel.read(buffer));
++        assertThrows(IllegalArgumentException.class, () -> channel.truncate(-1));
++        assertThrows(IllegalArgumentException.class, () -> channel.truncate(Integer.MIN_VALUE));
++        assertThrows(IllegalArgumentException.class, () -> channel.truncate(Long.MIN_VALUE));
++    }
++
+     @Test
+     void testTruncateNegative() {
+         assertThrows(IllegalArgumentException.class, () -> channel.truncate(-1));
+diff --git a/src/test/java/org/apache/commons/io/channels/ByteArraySeekableByteChannelCompressTest.java b/src/test/java/org/apache/commons/io/channels/ByteArraySeekableByteChannelCompressTest.java
+index 66c8e60b91a..60c294f0d65 100644
+--- a/src/test/java/org/apache/commons/io/channels/ByteArraySeekableByteChannelCompressTest.java
++++ b/src/test/java/org/apache/commons/io/channels/ByteArraySeekableByteChannelCompressTest.java
+@@ -162,16 +162,39 @@ void testShouldThrowExceptionOnWritingToClosedChannel() {
+     }
+ 
+     @Test
+-    void testShouldThrowExceptionWhenSettingIncorrectPosition() {
++    void testThrowWhenSettingIncorrectPosition() throws IOException {
+         try (ByteArraySeekableByteChannel c = new ByteArraySeekableByteChannel()) {
+-            assertThrows(IllegalArgumentException.class, () -> c.position(Integer.MAX_VALUE + 1L));
++            final ByteBuffer buffer = ByteBuffer.allocate(1);
++            // write
++            c.write(buffer);
++            assertEquals(1, c.position());
++            // bad pos A
++            c.position(c.size() + 1);
++            assertEquals(c.size() + 1, c.position());
++            assertEquals(-1, c.read(buffer));
++            // bad pos B
++            c.position(Integer.MAX_VALUE + 1L);
++            assertEquals(Integer.MAX_VALUE + 1L, c.position());
++            assertEquals(-1, c.read(buffer));
++            assertThrows(IOException.class, () -> c.write(buffer));
++            // negative input is the only illegal input
++            assertThrows(IllegalArgumentException.class, () -> c.position(-1));
++            assertThrows(IllegalArgumentException.class, () -> c.position(Integer.MIN_VALUE));
++            assertThrows(IllegalArgumentException.class, () -> c.position(Long.MIN_VALUE));
+         }
+     }
+ 
+     @Test
+-    void testShouldThrowExceptionWhenTruncatingToIncorrectSize() {
++    void testThrowWhenTruncatingToIncorrectSize() throws IOException {
+         try (ByteArraySeekableByteChannel c = new ByteArraySeekableByteChannel()) {
+-            assertThrows(IllegalArgumentException.class, () -> c.truncate(Integer.MAX_VALUE + 1L));
++            final ByteBuffer buffer = ByteBuffer.allocate(1);
++            c.truncate(c.size() + 1);
++            assertEquals(-1, c.read(buffer));
++            c.truncate(Integer.MAX_VALUE + 1L);
++            assertEquals(-1, c.read(buffer));
++            assertThrows(IllegalArgumentException.class, () -> c.truncate(-1));
++            assertThrows(IllegalArgumentException.class, () -> c.truncate(Integer.MIN_VALUE));
++            assertThrows(IllegalArgumentException.class, () -> c.truncate(Long.MIN_VALUE));
+         }
+     }
+ 
+diff --git a/src/test/java/org/apache/commons/io/channels/ByteArraySeekableByteChannelTest.java b/src/test/java/org/apache/commons/io/channels/ByteArraySeekableByteChannelTest.java
+index 5b29b3f1be0..79f971e4a0c 100644
+--- a/src/test/java/org/apache/commons/io/channels/ByteArraySeekableByteChannelTest.java
++++ b/src/test/java/org/apache/commons/io/channels/ByteArraySeekableByteChannelTest.java
+@@ -84,6 +84,22 @@ void testConstructorInvalid() {
+         assertThrows(NullPointerException.class, () -> ByteArraySeekableByteChannel.wrap(null));
+     }
+ 
++    @Test
++    void testPositionBeyondSizeReadWrite() throws IOException {
++        final ByteBuffer buffer = ByteBuffer.allocate(1);
++        channel.position(channel.size() + 1);
++        assertEquals(channel.size() + 1, channel.position());
++        assertEquals(-1, channel.read(buffer));
++        channel.position(Integer.MAX_VALUE + 1L);
++        assertEquals(Integer.MAX_VALUE + 1L, channel.position());
++        assertEquals(-1, channel.read(buffer));
++        // ByteArraySeekableByteChannel has a hard boundary at Integer.MAX_VALUE, files don't.
++        assertThrows(IOException.class, () -> channel.write(buffer));
++        assertThrows(IllegalArgumentException.class, () -> channel.position(-1));
++        assertThrows(IllegalArgumentException.class, () -> channel.position(Integer.MIN_VALUE));
++        assertThrows(IllegalArgumentException.class, () -> channel.position(Long.MIN_VALUE));
++    }
++
+     @ParameterizedTest
+     @MethodSource
+     void testShouldResizeWhenWritingMoreDataThanCapacity(final byte[] data, final int wanted) throws IOException {

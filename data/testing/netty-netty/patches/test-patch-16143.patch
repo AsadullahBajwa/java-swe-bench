@@ -1,0 +1,594 @@
+diff --git a/common/src/test/java/io/netty/util/concurrent/DefaultPromiseTest.java b/common/src/test/java/io/netty/util/concurrent/DefaultPromiseTest.java
+index 8e8f0a360a3..187e7275102 100644
+--- a/common/src/test/java/io/netty/util/concurrent/DefaultPromiseTest.java
++++ b/common/src/test/java/io/netty/util/concurrent/DefaultPromiseTest.java
+@@ -141,7 +141,12 @@ public void execute(Runnable command) {
+     public void testCancelDoesNotScheduleWhenNoListeners() {
+         EventExecutor executor = new RejectingEventExecutor();
+ 
+-        Promise<Void> promise = new DefaultPromise<Void>(executor);
++        Promise<Void> promise = new DefaultPromise<Void>(executor) {
++            @Override
++            boolean isCancellationSupported() {
++                return true;
++            }
++        };
+         assertTrue(promise.cancel(false));
+         assertTrue(promise.isCancelled());
+     }
+@@ -168,7 +173,12 @@ public void testFailureDoesNotScheduleWhenNoListeners() {
+ 
+     @Test
+     public void testCancellationExceptionIsThrownWhenBlockingGet() {
+-        final Promise<Void> promise = new DefaultPromise<Void>(ImmediateEventExecutor.INSTANCE);
++        final Promise<Void> promise = new DefaultPromise<Void>(ImmediateEventExecutor.INSTANCE) {
++            @Override
++            boolean isCancellationSupported() {
++                return true;
++            }
++        };
+         assertTrue(promise.cancel(false));
+         assertThrows(CancellationException.class, new Executable() {
+             @Override
+@@ -180,7 +190,12 @@ public void execute() throws Throwable {
+ 
+     @Test
+     public void testCancellationExceptionIsThrownWhenBlockingGetWithTimeout() {
+-        final Promise<Void> promise = new DefaultPromise<Void>(ImmediateEventExecutor.INSTANCE);
++        final Promise<Void> promise = new DefaultPromise<Void>(ImmediateEventExecutor.INSTANCE) {
++            @Override
++            boolean isCancellationSupported() {
++                return true;
++            }
++        };
+         assertTrue(promise.cancel(false));
+         assertThrows(CancellationException.class, new Executable() {
+             @Override
+@@ -191,10 +206,10 @@ public void execute() throws Throwable {
+     }
+ 
+     @Test
+-    public void testCancellationExceptionIsReturnedAsCause() {
++    public void testCancellation() {
+         final Promise<Void> promise = new DefaultPromise<Void>(ImmediateEventExecutor.INSTANCE);
+-        assertTrue(promise.cancel(false));
+-        assertThat(promise.cause()).isInstanceOf(CancellationException.class);
++        assertFalse(promise.cancel(false));
++        assertNull(promise.cause());
+     }
+ 
+     @Test
+@@ -378,22 +393,6 @@ public void signalSuccessCompletionValue() {
+         assertTrue(promise.isSuccess());
+     }
+ 
+-    @Test
+-    public void setUncancellableGetNow() {
+-        final Promise<String> promise = new DefaultPromise<String>(ImmediateEventExecutor.INSTANCE);
+-        assertNull(promise.getNow());
+-        assertTrue(promise.setUncancellable());
+-        assertNull(promise.getNow());
+-        assertFalse(promise.isDone());
+-        assertFalse(promise.isSuccess());
+-
+-        promise.setSuccess("success");
+-
+-        assertTrue(promise.isDone());
+-        assertTrue(promise.isSuccess());
+-        assertEquals("success", promise.getNow());
+-    }
+-
+     private static void testStackOverFlowChainedFuturesA(int promiseChainLength, final EventExecutor executor,
+                                                          boolean runTestInExecutorThread)
+             throws InterruptedException {
+diff --git a/common/src/test/java/io/netty/util/concurrent/PromiseNotifierTest.java b/common/src/test/java/io/netty/util/concurrent/PromiseNotifierTest.java
+index b3baf39003d..554c557444e 100644
+--- a/common/src/test/java/io/netty/util/concurrent/PromiseNotifierTest.java
++++ b/common/src/test/java/io/netty/util/concurrent/PromiseNotifierTest.java
+@@ -97,8 +97,18 @@ public void testListenerFailure() throws Exception {
+ 
+     @Test
+     public void testCancelPropagationWhenFusedFromFuture() {
+-        Promise<Void> p1 = ImmediateEventExecutor.INSTANCE.newPromise();
+-        Promise<Void> p2 = ImmediateEventExecutor.INSTANCE.newPromise();
++        Promise<Void> p1 = new DefaultPromise<>(ImmediateEventExecutor.INSTANCE) {
++            @Override
++            boolean isCancellationSupported() {
++                return true;
++            }
++        };
++        Promise<Void> p2 = new DefaultPromise<>(ImmediateEventExecutor.INSTANCE) {
++            @Override
++            boolean isCancellationSupported() {
++                return true;
++            }
++        };
+ 
+         Future<Void> returned = PromiseNotifier.cascade(p1, p2);
+         assertSame(p1, returned);
+diff --git a/handler/src/test/java/io/netty/handler/ssl/CipherSuiteCanaryTest.java b/handler/src/test/java/io/netty/handler/ssl/CipherSuiteCanaryTest.java
+index 5447724a9dd..29ddf070820 100644
+--- a/handler/src/test/java/io/netty/handler/ssl/CipherSuiteCanaryTest.java
++++ b/handler/src/test/java/io/netty/handler/ssl/CipherSuiteCanaryTest.java
+@@ -160,7 +160,7 @@ protected void initChannel(Channel ch) throws Exception {
+                         pipeline.addLast(new SimpleChannelInboundHandler<Object>() {
+                             @Override
+                             public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+-                                serverPromise.cancel(true);
++                                serverPromise.tryFailure(new IllegalStateException());
+                                 ctx.fireChannelInactive();
+                             }
+ 
+@@ -196,7 +196,7 @@ protected void initChannel(Channel ch) throws Exception {
+                             pipeline.addLast(new SimpleChannelInboundHandler<Object>() {
+                                 @Override
+                                 public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+-                                    clientPromise.cancel(true);
++                                    clientPromise.tryFailure(new IllegalStateException());
+                                     ctx.fireChannelInactive();
+                                 }
+ 
+diff --git a/handler/src/test/java/io/netty/handler/ssl/OpenSslPrivateKeyMethodTest.java b/handler/src/test/java/io/netty/handler/ssl/OpenSslPrivateKeyMethodTest.java
+index c7b29ad799a..06984a3b505 100644
+--- a/handler/src/test/java/io/netty/handler/ssl/OpenSslPrivateKeyMethodTest.java
++++ b/handler/src/test/java/io/netty/handler/ssl/OpenSslPrivateKeyMethodTest.java
+@@ -246,7 +246,7 @@ protected void initChannel(Channel ch) {
+                         pipeline.addLast(new SimpleChannelInboundHandler<Object>() {
+                             @Override
+                             public void channelInactive(ChannelHandlerContext ctx) {
+-                                serverPromise.cancel(true);
++                                serverPromise.tryFailure(new IllegalStateException());
+                                 ctx.fireChannelInactive();
+                             }
+ 
+@@ -282,7 +282,7 @@ protected void initChannel(Channel ch) {
+                             pipeline.addLast(new SimpleChannelInboundHandler<Object>() {
+                                 @Override
+                                 public void channelInactive(ChannelHandlerContext ctx) {
+-                                    clientPromise.cancel(true);
++                                    clientPromise.tryFailure(new IllegalStateException());
+                                     ctx.fireChannelInactive();
+                                 }
+ 
+diff --git a/handler/src/test/java/io/netty/handler/ssl/SniHandlerTest.java b/handler/src/test/java/io/netty/handler/ssl/SniHandlerTest.java
+index 58a844c271f..a893a468704 100644
+--- a/handler/src/test/java/io/netty/handler/ssl/SniHandlerTest.java
++++ b/handler/src/test/java/io/netty/handler/ssl/SniHandlerTest.java
+@@ -549,7 +549,7 @@ public void handlerRemoved0(ChannelHandlerContext ctx) throws Exception {
+                             } finally {
+                                 if (!success) {
+                                     ReferenceCountUtil.safeRelease(sslContext);
+-                                    releasePromise.cancel(true);
++                                    releasePromise.tryFailure(new IllegalStateException());
+                                 }
+                             }
+                         }
+diff --git a/resolver-dns/src/test/java/io/netty/resolver/dns/DnsNameResolverTest.java b/resolver-dns/src/test/java/io/netty/resolver/dns/DnsNameResolverTest.java
+index fd16adab48a..56e91009748 100644
+--- a/resolver-dns/src/test/java/io/netty/resolver/dns/DnsNameResolverTest.java
++++ b/resolver-dns/src/test/java/io/netty/resolver/dns/DnsNameResolverTest.java
+@@ -3595,48 +3595,6 @@ public DatagramChannel newChannel(EventLoop eventLoop) {
+         }
+     }
+ 
+-    @ParameterizedTest
+-    @EnumSource(DnsNameResolverChannelStrategy.class)
+-    public void testCancelPromise(DnsNameResolverChannelStrategy strategy) throws Exception {
+-        final EventLoop eventLoop = group.next();
+-        final Promise<InetAddress> promise = eventLoop.newPromise();
+-        final TestDnsServer dnsServer1 = new TestDnsServer(Collections.<String>emptySet()) {
+-            @Override
+-            protected DnsMessage filterMessage(DnsMessage message) {
+-                promise.cancel(true);
+-                return message;
+-            }
+-        };
+-        dnsServer1.start();
+-        final AtomicBoolean isQuerySentToSecondServer = new AtomicBoolean();
+-        final TestDnsServer dnsServer2 = new TestDnsServer(Collections.<String>emptySet()) {
+-            @Override
+-            protected DnsMessage filterMessage(DnsMessage message) {
+-                isQuerySentToSecondServer.set(true);
+-                return message;
+-            }
+-        };
+-        dnsServer2.start();
+-        DnsServerAddressStreamProvider nameServerProvider =
+-                new SequentialDnsServerAddressStreamProvider(dnsServer1.localAddress(),
+-                                                             dnsServer2.localAddress());
+-        final DnsNameResolver resolver = new DnsNameResolverBuilder(group.next())
+-                .dnsQueryLifecycleObserverFactory(new TestRecursiveCacheDnsQueryLifecycleObserverFactory())
+-                .datagramChannelType(NioDatagramChannel.class)
+-                .optResourceEnabled(false)
+-                .nameServerProvider(nameServerProvider)
+-                .datagramChannelStrategy(strategy)
+-                .build();
+-
+-        try {
+-            resolver.resolve("non-existent.netty.io", promise).sync();
+-            fail();
+-        } catch (Exception e) {
+-            assertInstanceOf(CancellationException.class, e);
+-        }
+-        assertFalse(isQuerySentToSecondServer.get());
+-    }
+-
+     @ParameterizedTest
+     @EnumSource(DnsNameResolverChannelStrategy.class)
+     public void testCNAMERecursiveResolveDifferentNameServersForDomains(DnsNameResolverChannelStrategy strategy)
+diff --git a/testsuite/src/main/java/io/netty/testsuite/transport/socket/SocketCancelWriteTest.java b/testsuite/src/main/java/io/netty/testsuite/transport/socket/SocketCancelWriteTest.java
+deleted file mode 100644
+index d9c32563c86..00000000000
+--- a/testsuite/src/main/java/io/netty/testsuite/transport/socket/SocketCancelWriteTest.java
++++ /dev/null
+@@ -1,128 +0,0 @@
+-/*
+- * Copyright 2014 The Netty Project
+- *
+- * The Netty Project licenses this file to you under the Apache License,
+- * version 2.0 (the "License"); you may not use this file except in compliance
+- * with the License. You may obtain a copy of the License at:
+- *
+- *   https://www.apache.org/licenses/LICENSE-2.0
+- *
+- * Unless required by applicable law or agreed to in writing, software
+- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+- * License for the specific language governing permissions and limitations
+- * under the License.
+- */
+-package io.netty.testsuite.transport.socket;
+-
+-import io.netty.bootstrap.Bootstrap;
+-import io.netty.bootstrap.ServerBootstrap;
+-import io.netty.buffer.ByteBuf;
+-import io.netty.buffer.Unpooled;
+-import io.netty.channel.Channel;
+-import io.netty.channel.ChannelHandlerContext;
+-import io.netty.channel.SimpleChannelInboundHandler;
+-
+-import java.util.concurrent.Future;
+-import java.util.concurrent.TimeUnit;
+-import org.junit.jupiter.api.Test;
+-import org.junit.jupiter.api.TestInfo;
+-import org.junit.jupiter.api.Timeout;
+-
+-import java.io.IOException;
+-import java.util.concurrent.atomic.AtomicReference;
+-
+-import static org.junit.jupiter.api.Assertions.assertEquals;
+-import static org.junit.jupiter.api.Assertions.assertTrue;
+-
+-public class SocketCancelWriteTest extends AbstractSocketTest {
+-
+-    @Test
+-    @Timeout(value = 30000, unit = TimeUnit.MILLISECONDS)
+-    public void testCancelWrite(TestInfo testInfo) throws Throwable {
+-        run(testInfo, new Runner<ServerBootstrap, Bootstrap>() {
+-            @Override
+-            public void run(ServerBootstrap serverBootstrap, Bootstrap bootstrap) throws Throwable {
+-                testCancelWrite(serverBootstrap, bootstrap);
+-            }
+-        });
+-    }
+-
+-    public void testCancelWrite(ServerBootstrap sb, Bootstrap cb) throws Throwable {
+-        final TestHandler sh = new TestHandler();
+-        final TestHandler ch = new TestHandler();
+-        final ByteBuf a = Unpooled.buffer().writeByte('a');
+-        final ByteBuf b = Unpooled.buffer().writeByte('b');
+-        final ByteBuf c = Unpooled.buffer().writeByte('c');
+-        final ByteBuf d = Unpooled.buffer().writeByte('d');
+-        final ByteBuf e = Unpooled.buffer().writeByte('e');
+-
+-        cb.handler(ch);
+-        sb.childHandler(sh);
+-
+-        Channel sc = sb.bind().get();
+-        Channel cc = cb.connect(sc.localAddress()).get();
+-
+-        Future<Void> f = cc.write(a);
+-        assertTrue(f.cancel(false));
+-        cc.writeAndFlush(b);
+-        cc.write(c);
+-        Future<Void> f2 = cc.write(d);
+-        assertTrue(f2.cancel(false));
+-        cc.writeAndFlush(e);
+-
+-        while (sh.counter < 3) {
+-            if (sh.exception.get() != null) {
+-                break;
+-            }
+-            if (ch.exception.get() != null) {
+-                break;
+-            }
+-            Thread.sleep(50);
+-        }
+-        sh.channel.close().sync();
+-        ch.channel.close().sync();
+-        sc.close().sync();
+-
+-        if (sh.exception.get() != null && !(sh.exception.get() instanceof IOException)) {
+-            throw sh.exception.get();
+-        }
+-        if (sh.exception.get() != null) {
+-            throw sh.exception.get();
+-        }
+-        if (ch.exception.get() != null && !(ch.exception.get() instanceof IOException)) {
+-            throw ch.exception.get();
+-        }
+-        if (ch.exception.get() != null) {
+-            throw ch.exception.get();
+-        }
+-        assertEquals(0, ch.counter);
+-        assertEquals(Unpooled.wrappedBuffer(new byte[]{'b', 'c', 'e'}), sh.received);
+-    }
+-
+-    private static class TestHandler extends SimpleChannelInboundHandler<ByteBuf> {
+-        volatile Channel channel;
+-        final AtomicReference<Throwable> exception = new AtomicReference<Throwable>();
+-        volatile int counter;
+-        final ByteBuf received = Unpooled.buffer();
+-        @Override
+-        public void channelActive(ChannelHandlerContext ctx)
+-                throws Exception {
+-            channel = ctx.channel();
+-        }
+-
+-        @Override
+-        public void channelRead0(ChannelHandlerContext ctx, ByteBuf in) throws Exception {
+-            counter += in.readableBytes();
+-            received.writeBytes(in);
+-        }
+-
+-        @Override
+-        public void exceptionCaught(ChannelHandlerContext ctx,
+-                Throwable cause) throws Exception {
+-            if (exception.compareAndSet(null, cause)) {
+-                ctx.close();
+-            }
+-        }
+-    }
+-}
+diff --git a/testsuite/src/main/java/io/netty/testsuite/transport/socket/SocketConnectionAttemptTest.java b/testsuite/src/main/java/io/netty/testsuite/transport/socket/SocketConnectionAttemptTest.java
+index a0a574ceacc..a8588e67e93 100644
+--- a/testsuite/src/main/java/io/netty/testsuite/transport/socket/SocketConnectionAttemptTest.java
++++ b/testsuite/src/main/java/io/netty/testsuite/transport/socket/SocketConnectionAttemptTest.java
+@@ -22,7 +22,6 @@
+ import io.netty.channel.ChannelInboundHandler;
+ import io.netty.channel.ChannelOption;
+ import io.netty.util.concurrent.Future;
+-import io.netty.util.internal.SocketUtils;
+ import io.netty.util.NetUtil;
+ import io.netty.util.concurrent.GlobalEventExecutor;
+ import io.netty.util.concurrent.Promise;
+@@ -31,9 +30,7 @@
+ import org.junit.jupiter.api.TestInfo;
+ import org.junit.jupiter.api.Timeout;
+ 
+-import java.io.IOException;
+ import java.net.ConnectException;
+-import java.net.Socket;
+ import java.util.concurrent.TimeUnit;
+ 
+ import static io.netty.testsuite.transport.socket.SocketTestPermutation.BAD_HOST;
+@@ -42,8 +39,6 @@
+ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+ import static org.junit.jupiter.api.Assertions.assertNull;
+ import static org.junit.jupiter.api.Assertions.assertTrue;
+-import static org.junit.jupiter.api.Assertions.fail;
+-import static org.junit.jupiter.api.Assumptions.assumeTrue;
+ 
+ public class SocketConnectionAttemptTest extends AbstractClientSocketTest {
+ 
+@@ -116,61 +111,6 @@ public void channelActive(ChannelHandlerContext ctx) throws Exception {
+         assertNull(errorPromise.cause());
+     }
+ 
+-    @Test
+-    public void testConnectCancellation(TestInfo testInfo) throws Throwable {
+-        // Check if the test can be executed or should be skipped because of no network/internet connection
+-        // See https://github.com/netty/netty/issues/1474
+-        boolean badHostTimedOut = true;
+-        Socket socket = new Socket();
+-        try {
+-            SocketUtils.connect(socket, SocketUtils.socketAddress(BAD_HOST, BAD_PORT), 10);
+-        } catch (ConnectException e) {
+-            badHostTimedOut = false;
+-            // is thrown for no route to host when using Socket connect
+-        } catch (Exception e) {
+-            // ignore
+-        } finally {
+-            try {
+-                socket.close();
+-            } catch (IOException e) {
+-                // ignore
+-            }
+-        }
+-
+-        assumeTrue(badHostTimedOut, "The connection attempt to " + BAD_HOST + " does not time out.");
+-
+-        run(testInfo, new Runner<Bootstrap>() {
+-            @Override
+-            public void run(Bootstrap bootstrap) throws Throwable {
+-                testConnectCancellation(bootstrap);
+-            }
+-        });
+-    }
+-
+-    public void testConnectCancellation(Bootstrap cb) throws Throwable {
+-        cb.handler(new TestHandler()).option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 4000);
+-        Future<Channel> future = cb.connect(BAD_HOST, BAD_PORT);
+-        try {
+-            if (future.await(1000)) {
+-                if (future.isSuccess()) {
+-                    fail("A connection attempt to " + BAD_HOST + " must not succeed.");
+-                } else {
+-                    throw future.cause();
+-                }
+-            }
+-
+-            if (future.cancel(true)) {
+-                assertTrue(future.isCancelled());
+-            } else {
+-                fail();
+-            }
+-        } finally {
+-            if (future.isSuccess()) {
+-                future.getNow().close();
+-            }
+-        }
+-    }
+-
+     private static class TestHandler implements ChannelInboundHandler {
+         @Override
+         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+diff --git a/transport/src/test/java/io/netty/channel/ChannelOutboundBufferTest.java b/transport/src/test/java/io/netty/channel/ChannelOutboundBufferTest.java
+index 3692f777627..c0baa798617 100644
+--- a/transport/src/test/java/io/netty/channel/ChannelOutboundBufferTest.java
++++ b/transport/src/test/java/io/netty/channel/ChannelOutboundBufferTest.java
+@@ -50,42 +50,6 @@ public void testEmptyNioBuffers() {
+         release(buffer);
+     }
+ 
+-    @Test
+-    public void testNioBuffersCancelledRemoveBytes() {
+-        TestChannel channel = new TestChannel();
+-        ChannelOutboundBuffer buffer = new ChannelOutboundBuffer(channel.executor());
+-        ByteBuf b1 = wrappedBuffer(new byte[] { 0 });
+-        int r1 = b1.readableBytes();
+-        Promise<Void> p1 = channel.newPromise();
+-        buffer.addMessage(b1, r1, p1);
+-
+-        ByteBuf b2 = wrappedBuffer(new byte[] { 0, 1 });
+-        int r2 = b2.readableBytes();
+-        Promise<Void> p2 = channel.newPromise();
+-        buffer.addMessage(b2, r2, p2);
+-        p2.cancel(false);
+-
+-        ByteBuf b3 = wrappedBuffer(new byte[] { 0 });
+-        int r3 = b3.readableBytes();
+-        Promise<Void> p3 = channel.newPromise();
+-        buffer.addMessage(b3, r3, p3);
+-        buffer.addFlush();
+-
+-        ByteBuffer[] buffers = buffer.nioBuffers();
+-        assertEquals(2, buffer.nioBufferCount());
+-        assertNotNull(buffers);
+-        assertEquals(r1, buffers[0].remaining());
+-        assertEquals(r3, buffers[1].remaining());
+-
+-        buffer.removeBytes(r1 + r3);
+-        assertEquals(0, b1.refCnt());
+-        assertEquals(0, b2.refCnt());
+-        assertEquals(0, b3.refCnt());
+-
+-        assertTrue(buffer.isEmpty());
+-        release(buffer);
+-    }
+-
+     @Test
+     public void testNioBuffersSingleBacked() {
+         TestChannel channel = new TestChannel();
+diff --git a/transport/src/test/java/io/netty/channel/DefaultChannelPipelineTest.java b/transport/src/test/java/io/netty/channel/DefaultChannelPipelineTest.java
+index 291c612cb19..cd930b5c1dc 100644
+--- a/transport/src/test/java/io/netty/channel/DefaultChannelPipelineTest.java
++++ b/transport/src/test/java/io/netty/channel/DefaultChannelPipelineTest.java
+@@ -901,51 +901,6 @@ public void run() {
+         }).sync();
+     }
+ 
+-    // Tests for https://github.com/netty/netty/issues/2349
+-    @Test
+-    public void testCancelBind() {
+-        ChannelPipeline pipeline = new LocalChannel(group.next()).pipeline();
+-        pipeline.channel().register();
+-
+-        Promise<Void> promise = pipeline.channel().newPromise();
+-        assertTrue(promise.cancel(false));
+-        pipeline.bind(new LocalAddress("test"), promise);
+-        assertTrue(promise.isCancelled());
+-    }
+-
+-    @Test
+-    public void testCancelConnect() {
+-        ChannelPipeline pipeline = new LocalChannel(group.next()).pipeline();
+-        pipeline.channel().register();
+-
+-        Promise<Void> promise = pipeline.channel().newPromise();
+-        assertTrue(promise.cancel(false));
+-        pipeline.connect(new LocalAddress("test"), promise);
+-        assertTrue(promise.isCancelled());
+-    }
+-
+-    @Test
+-    public void testCancelDisconnect() {
+-        ChannelPipeline pipeline = new LocalChannel(group.next()).pipeline();
+-        pipeline.channel().register();
+-
+-        Promise<Void> promise = pipeline.channel().newPromise();
+-        assertTrue(promise.cancel(false));
+-        pipeline.disconnect(promise);
+-        assertTrue(promise.isCancelled());
+-    }
+-
+-    @Test
+-    public void testCancelClose() {
+-        ChannelPipeline pipeline = new LocalChannel(group.next()).pipeline();
+-        pipeline.channel().register();
+-
+-        Promise<Void> promise = pipeline.channel().newPromise();
+-        assertTrue(promise.cancel(false));
+-        pipeline.close(promise);
+-        assertTrue(promise.isCancelled());
+-    }
+-
+     @Test
+     public void testUnexpectedVoidChannelPromiseCloseFuture() throws Exception {
+         final ChannelPipeline pipeline = new LocalChannel(group.next()).pipeline();
+@@ -964,45 +919,6 @@ public void execute() {
+         }
+     }
+ 
+-    @Test
+-    public void testCancelDeregister() {
+-        ChannelPipeline pipeline = new LocalChannel(group.next()).pipeline();
+-        pipeline.channel().register();
+-
+-        Promise<Void> promise = pipeline.channel().newPromise();
+-        assertTrue(promise.cancel(false));
+-        pipeline.deregister(promise);
+-        assertTrue(promise.isCancelled());
+-    }
+-
+-    @Test
+-    public void testCancelWrite() {
+-        ChannelPipeline pipeline = new LocalChannel(group.next()).pipeline();
+-        pipeline.channel().register();
+-
+-        Promise<Void> promise = pipeline.channel().newPromise();
+-        assertTrue(promise.cancel(false));
+-        ByteBuf buffer = Unpooled.buffer();
+-        assertEquals(1, buffer.refCnt());
+-        pipeline.write(buffer, promise);
+-        assertTrue(promise.isCancelled());
+-        assertEquals(0, buffer.refCnt());
+-    }
+-
+-    @Test
+-    public void testCancelWriteAndFlush() {
+-        ChannelPipeline pipeline = new LocalChannel(group.next()).pipeline();
+-        pipeline.channel().register();
+-
+-        Promise<Void> promise = pipeline.channel().newPromise();
+-        assertTrue(promise.cancel(false));
+-        ByteBuf buffer = Unpooled.buffer();
+-        assertEquals(1, buffer.refCnt());
+-        pipeline.writeAndFlush(buffer, promise);
+-        assertTrue(promise.isCancelled());
+-        assertEquals(0, buffer.refCnt());
+-    }
+-
+     @Test
+     public void testFirstContextEmptyPipeline() {
+         ChannelPipeline pipeline = new LocalChannel(group.next()).pipeline();

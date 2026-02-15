@@ -1,0 +1,116 @@
+diff --git a/gson/src/main/java/com/google/gson/internal/GsonTypes.java b/gson/src/main/java/com/google/gson/internal/GsonTypes.java
+index 6a87c6637d..412c3bf98a 100644
+--- a/gson/src/main/java/com/google/gson/internal/GsonTypes.java
++++ b/gson/src/main/java/com/google/gson/internal/GsonTypes.java
+@@ -520,7 +520,7 @@ private static final class ParameterizedTypeImpl implements ParameterizedType, S
+     @SuppressWarnings("serial")
+     private final Type[] typeArguments;
+ 
+-    public ParameterizedTypeImpl(Type ownerType, Class<?> rawType, Type... typeArguments) {
++    ParameterizedTypeImpl(Type ownerType, Class<?> rawType, Type... typeArguments) {
+       requireNonNull(rawType);
+ 
+       if (ownerType == null && requiresOwnerType(rawType)) {
+@@ -592,7 +592,7 @@ private static final class GenericArrayTypeImpl implements GenericArrayType, Ser
+     @SuppressWarnings("serial")
+     private final Type componentType;
+ 
+-    public GenericArrayTypeImpl(Type componentType) {
++    GenericArrayTypeImpl(Type componentType) {
+       requireNonNull(componentType);
+       this.componentType = canonicalize(componentType);
+     }
+@@ -633,7 +633,7 @@ private static final class WildcardTypeImpl implements WildcardType, Serializabl
+     @SuppressWarnings("serial")
+     private final Type lowerBound;
+ 
+-    public WildcardTypeImpl(Type[] upperBounds, Type[] lowerBounds) {
++    WildcardTypeImpl(Type[] upperBounds, Type[] lowerBounds) {
+       if (lowerBounds.length > 1) {
+         throw new IllegalArgumentException("At most one lower bound is supported");
+       }
+diff --git a/gson/src/main/java/com/google/gson/internal/ReflectionAccessFilterHelper.java b/gson/src/main/java/com/google/gson/internal/ReflectionAccessFilterHelper.java
+index 980b29562f..ead949ae1e 100644
+--- a/gson/src/main/java/com/google/gson/internal/ReflectionAccessFilterHelper.java
++++ b/gson/src/main/java/com/google/gson/internal/ReflectionAccessFilterHelper.java
+@@ -78,7 +78,7 @@ public static boolean canAccess(AccessibleObject accessibleObject, Object object
+   }
+ 
+   private abstract static class AccessChecker {
+-    public static final AccessChecker INSTANCE;
++    static final AccessChecker INSTANCE;
+ 
+     static {
+       AccessChecker accessChecker = null;
+@@ -116,6 +116,6 @@ public boolean canAccess(AccessibleObject accessibleObject, Object object) {
+       INSTANCE = accessChecker;
+     }
+ 
+-    public abstract boolean canAccess(AccessibleObject accessibleObject, Object object);
++    abstract boolean canAccess(AccessibleObject accessibleObject, Object object);
+   }
+ }
+diff --git a/gson/src/main/java/com/google/gson/internal/bind/CollectionTypeAdapterFactory.java b/gson/src/main/java/com/google/gson/internal/bind/CollectionTypeAdapterFactory.java
+index f1f91f7380..7dd48a3ebb 100644
+--- a/gson/src/main/java/com/google/gson/internal/bind/CollectionTypeAdapterFactory.java
++++ b/gson/src/main/java/com/google/gson/internal/bind/CollectionTypeAdapterFactory.java
+@@ -65,7 +65,7 @@ private static final class Adapter<E> extends TypeAdapter<Collection<E>> {
+     private final TypeAdapter<E> elementTypeAdapter;
+     private final ObjectConstructor<? extends Collection<E>> constructor;
+ 
+-    public Adapter(
++    Adapter(
+         TypeAdapter<E> elementTypeAdapter, ObjectConstructor<? extends Collection<E>> constructor) {
+       this.elementTypeAdapter = elementTypeAdapter;
+       this.constructor = constructor;
+diff --git a/gson/src/main/java/com/google/gson/internal/bind/MapTypeAdapterFactory.java b/gson/src/main/java/com/google/gson/internal/bind/MapTypeAdapterFactory.java
+index 25c73efee8..49fc731edf 100644
+--- a/gson/src/main/java/com/google/gson/internal/bind/MapTypeAdapterFactory.java
++++ b/gson/src/main/java/com/google/gson/internal/bind/MapTypeAdapterFactory.java
+@@ -163,7 +163,7 @@ private final class Adapter<K, V> extends TypeAdapter<Map<K, V>> {
+     private final TypeAdapter<V> valueTypeAdapter;
+     private final ObjectConstructor<? extends Map<K, V>> constructor;
+ 
+-    public Adapter(
++    Adapter(
+         TypeAdapter<K> keyTypeAdapter,
+         TypeAdapter<V> valueTypeAdapter,
+         ObjectConstructor<? extends Map<K, V>> constructor) {
+diff --git a/gson/src/main/java/com/google/gson/internal/bind/ReflectiveTypeAdapterFactory.java b/gson/src/main/java/com/google/gson/internal/bind/ReflectiveTypeAdapterFactory.java
+index 89465dd627..ef464684aa 100644
+--- a/gson/src/main/java/com/google/gson/internal/bind/ReflectiveTypeAdapterFactory.java
++++ b/gson/src/main/java/com/google/gson/internal/bind/ReflectiveTypeAdapterFactory.java
+@@ -286,16 +286,14 @@ void readIntoField(JsonReader reader, Object target)
+   }
+ 
+   private static class FieldsData {
+-    public static final FieldsData EMPTY =
+-        new FieldsData(Collections.emptyMap(), Collections.emptyList());
++    static final FieldsData EMPTY = new FieldsData(Collections.emptyMap(), Collections.emptyList());
+ 
+     /** Maps from JSON member name to field */
+-    public final Map<String, BoundField> deserializedFields;
++    final Map<String, BoundField> deserializedFields;
+ 
+-    public final List<BoundField> serializedFields;
++    final List<BoundField> serializedFields;
+ 
+-    public FieldsData(
+-        Map<String, BoundField> deserializedFields, List<BoundField> serializedFields) {
++    FieldsData(Map<String, BoundField> deserializedFields, List<BoundField> serializedFields) {
+       this.deserializedFields = deserializedFields;
+       this.serializedFields = serializedFields;
+     }
+diff --git a/gson/src/main/java/com/google/gson/internal/reflect/ReflectionHelper.java b/gson/src/main/java/com/google/gson/internal/reflect/ReflectionHelper.java
+index 7a845ce515..0452942260 100644
+--- a/gson/src/main/java/com/google/gson/internal/reflect/ReflectionHelper.java
++++ b/gson/src/main/java/com/google/gson/internal/reflect/ReflectionHelper.java
+@@ -227,7 +227,7 @@ private abstract static class RecordHelper {
+ 
+     abstract <T> Constructor<T> getCanonicalRecordConstructor(Class<T> raw);
+ 
+-    public abstract Method getAccessor(Class<?> raw, Field field);
++    abstract Method getAccessor(Class<?> raw, Field field);
+   }
+ 
+   private static class RecordSupportedHelper extends RecordHelper {

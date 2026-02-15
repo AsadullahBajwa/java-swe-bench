@@ -1,0 +1,13 @@
+diff --git a/src/main/java/org/apache/commons/lang3/math/NumberUtils.java b/src/main/java/org/apache/commons/lang3/math/NumberUtils.java
+index 3bfd0ece346..77682188bd2 100644
+--- a/src/main/java/org/apache/commons/lang3/math/NumberUtils.java
++++ b/src/main/java/org/apache/commons/lang3/math/NumberUtils.java
+@@ -724,7 +724,7 @@ public static boolean isNumber(final String str) {
+      * @since 3.4
+      */
+     public static boolean isParsable(final String str) {
+-        if (StringUtils.isEmpty(str) || str.charAt(str.length() - 1) == '.') {
++        if (StringUtils.isEmpty(str)) {
+             return false;
+         }
+         if (str.charAt(0) == '-') {

@@ -1,0 +1,48 @@
+diff --git a/src/test/java/org/apache/commons/lang3/ClassUtilsTest.java b/src/test/java/org/apache/commons/lang3/ClassUtilsTest.java
+index 43957c97eb0..96ce5cdadf3 100644
+--- a/src/test/java/org/apache/commons/lang3/ClassUtilsTest.java
++++ b/src/test/java/org/apache/commons/lang3/ClassUtilsTest.java
+@@ -59,6 +59,8 @@
+ @SuppressWarnings("boxing") // JUnit4 does not support primitive equality testing apart from long
+ class ClassUtilsTest extends AbstractLangTest {
+ 
++    private static final int MAX_ARRAY_DIMENSIONS = 255;
++
+     private static class CX implements IB, IA, IE {
+         // empty
+     }
+@@ -1229,6 +1231,7 @@ void testGetClassByNormalNameArrays() throws ClassNotFoundException {
+         assertEquals(java.util.Map.Entry[].class, ClassUtils.getClass("java.util.Map$Entry[]"));
+         assertEquals(java.util.Map.Entry[].class, ClassUtils.getClass("[Ljava.util.Map.Entry;"));
+         assertEquals(java.util.Map.Entry[].class, ClassUtils.getClass("[Ljava.util.Map$Entry;"));
++        assertEquals(java.util.Map.Entry[][].class, ClassUtils.getClass("[[Ljava.util.Map$Entry;"));
+     }
+ 
+     @Test
+@@ -1282,6 +1285,26 @@ void testGetClassInvalidArguments() throws Exception {
+         assertGetClassThrowsClassNotFound("hello..world");
+     }
+ 
++    @ParameterizedTest
++    @IntRangeSource(from = 65536, to = 65555)
++    void testGetClassLengthIllegal(final int classNameLength) throws ClassNotFoundException {
++        assertThrows(IllegalArgumentException.class, () -> ClassUtils.getClass(StringUtils.repeat("a", classNameLength)));
++        assertThrows(IllegalArgumentException.class, () -> assertEquals(classNameLength, ClassUtils.getClass(StringUtils.repeat("a.", classNameLength / 2))));
++    }
++
++    @Test
++    void testGetClassLongestCheck() throws ClassNotFoundException {
++        final String maxClassName = StringUtils.repeat("a", 65535);
++        final String maxDimensions = StringUtils.repeat("[]", MAX_ARRAY_DIMENSIONS);
++        final String maxOpens = StringUtils.repeat("[", MAX_ARRAY_DIMENSIONS);
++        assertThrows(ClassNotFoundException.class, () -> ClassUtils.getClass(maxClassName));
++        assertNotNull(ClassUtils.getClass("java.lang.String" + maxDimensions));
++        assertThrows(ClassNotFoundException.class, () -> ClassUtils.getClass(maxClassName + maxDimensions));
++        assertThrows(ClassNotFoundException.class, () -> ClassUtils.getClass(maxOpens + "L" + maxClassName + ";"));
++        // maxOpens + 1
++        assertThrows(IllegalArgumentException.class, () -> ClassUtils.getClass(maxOpens + "[L" + maxClassName + ";"));
++    }
++
+     @Test
+     void testGetClassRawPrimitives() throws ClassNotFoundException {
+         assertEquals(int.class, ClassUtils.getClass("int"));

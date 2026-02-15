@@ -1,0 +1,70 @@
+diff --git a/release-notes/VERSION b/release-notes/VERSION
+index 7a3d3d9ff5..3a7765c103 100644
+--- a/release-notes/VERSION
++++ b/release-notes/VERSION
+@@ -15,12 +15,16 @@ JSON library.
+ === Releases ===
+ ------------------------------------------------------------------------
+ 
+-3.0.0-rc7 (08-Aug-2025)
++3.0.0-rc8 (not yet released)
+ 
+ * REVERT #1200: Change `JsonWriteFeature.ESCAPE_FORWARD_SLASHES` default
+   to `true` for 3.0
+  (that is, default remains `false` same as in 2.x)
+ 
++3.0.0-rc7 (08-Aug-2025)
++
++No changes since 3.0.0-rc6
++
+ 3.0.0-rc6 (18-Jul-2025)
+ 
+ #1434: Change `JsonParser.getNumberType()` to return `null` instead of
+diff --git a/src/main/java/tools/jackson/core/io/CharTypes.java b/src/main/java/tools/jackson/core/io/CharTypes.java
+index f47706c7ac..a7dd80ceaf 100644
+--- a/src/main/java/tools/jackson/core/io/CharTypes.java
++++ b/src/main/java/tools/jackson/core/io/CharTypes.java
+@@ -24,10 +24,9 @@ public final class CharTypes
+      */
+     protected final static int[] sInputCodes;
+     static {
+-        /* 96 would do for most cases (backslash is ASCII 94)
+-         * but if we want to do lookups by raw bytes it's better
+-         * to have full table
+-         */
++        // 96 would do for most cases (backslash is ASCII 94)
++        // but if we want to do lookups by raw bytes it's better
++        // to have full table
+         final int[] table = new int[256];
+         // Control chars and non-space white space are not allowed unquoted
+         for (int i = 0; i < 32; ++i) {
+@@ -217,13 +216,13 @@ public final class CharTypes
+      * Value of 0 means "no escaping"; other positive values that value is character
+      * to use after backslash; and negative values that generic (backslash - u)
+      * escaping is to be used.
+-     *<p>
+-     * NOTE: as of Jackson 3.0, forward slash ({@code "/"}) is escaped by default.
+      *
+      * @return 128-entry {@code int[]} that contains escape definitions
+      */
+     public static int[] get7BitOutputEscapes() {
+-        return get7BitOutputEscapes('"', true);
++        // 11-Aug-2025, tatu: Note! 3.x still defaults to NOT escaping forward slash
++        //   by defeault
++        return get7BitOutputEscapes('"', false);
+     }
+ 
+     /**
+diff --git a/src/main/java/tools/jackson/core/json/JsonWriteFeature.java b/src/main/java/tools/jackson/core/json/JsonWriteFeature.java
+index 39c5ec7a3e..e400be36cc 100644
+--- a/src/main/java/tools/jackson/core/json/JsonWriteFeature.java
++++ b/src/main/java/tools/jackson/core/json/JsonWriteFeature.java
+@@ -64,7 +64,7 @@ public enum JsonWriteFeature
+      * <p>
+      * Feature is disabled by default.
+      */
+-    ESCAPE_FORWARD_SLASHES(true),
++    ESCAPE_FORWARD_SLASHES(false),
+ 
+     /**
+      * Feature that specifies that all characters beyond 7-bit ASCII

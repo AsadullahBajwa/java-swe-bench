@@ -70,8 +70,14 @@ public class TestRunner {
             // Build the test command
             String fullCommand = buildTestCommand(testCommand, testCases);
 
-            // Execute tests
-            ProcessBuilder pb = new ProcessBuilder(fullCommand.split("\\s+"));
+            // Execute tests - use cmd.exe on Windows for batch scripts
+            ProcessBuilder pb;
+            boolean isWindows = System.getProperty("os.name").toLowerCase().contains("windows");
+            if (isWindows) {
+                pb = new ProcessBuilder("cmd.exe", "/c", fullCommand);
+            } else {
+                pb = new ProcessBuilder("sh", "-c", fullCommand);
+            }
             pb.directory(repoDir);
             pb.redirectErrorStream(true);
 
@@ -110,6 +116,8 @@ public class TestRunner {
     }
 
     private String detectTestCommand(File repoDir) {
+        boolean isWindows = System.getProperty("os.name").toLowerCase().contains("windows");
+
         // Check for Maven
         if (new File(repoDir, "pom.xml").exists()) {
             logger.debug("Detected Maven project");
@@ -122,9 +130,16 @@ public class TestRunner {
             logger.debug("Detected Gradle project");
 
             // Check for gradlew wrapper
-            File gradlew = new File(repoDir, "gradlew");
-            if (gradlew.exists()) {
-                return "./gradlew test";
+            if (isWindows) {
+                File gradlewBat = new File(repoDir, "gradlew.bat");
+                if (gradlewBat.exists()) {
+                    return "gradlew.bat test";
+                }
+            } else {
+                File gradlew = new File(repoDir, "gradlew");
+                if (gradlew.exists()) {
+                    return "./gradlew test";
+                }
             }
             return "gradle test";
         }
@@ -203,11 +218,18 @@ public class TestRunner {
                 if (file.isDirectory()) {
                     deleteDirectory(file);
                 } else {
-                    file.delete();
+                    // Make file writable (required for .git files on Windows)
+                    file.setWritable(true);
+                    if (!file.delete()) {
+                        logger.warn("Failed to delete file: {}", file.getAbsolutePath());
+                    }
                 }
             }
         }
-        directory.delete();
+        directory.setWritable(true);
+        if (!directory.delete()) {
+            logger.warn("Failed to delete directory: {}", directory.getAbsolutePath());
+        }
     }
 
     /**

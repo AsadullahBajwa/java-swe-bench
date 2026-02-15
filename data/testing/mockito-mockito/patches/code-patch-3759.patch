@@ -1,0 +1,35 @@
+diff --git a/mockito-core/src/main/java/org/mockito/internal/creation/bytebuddy/InlineBytecodeGenerator.java b/mockito-core/src/main/java/org/mockito/internal/creation/bytebuddy/InlineBytecodeGenerator.java
+index 3f32b93abc..9dd0a81277 100644
+--- a/mockito-core/src/main/java/org/mockito/internal/creation/bytebuddy/InlineBytecodeGenerator.java
++++ b/mockito-core/src/main/java/org/mockito/internal/creation/bytebuddy/InlineBytecodeGenerator.java
+@@ -36,6 +36,7 @@
+ import java.lang.instrument.ClassFileTransformer;
+ import java.lang.instrument.Instrumentation;
+ import java.lang.instrument.UnmodifiableClassException;
++import java.lang.ref.WeakReference;
+ import java.lang.reflect.Method;
+ import java.lang.reflect.Modifier;
+ import java.security.ProtectionDomain;
+@@ -65,7 +66,8 @@ public class InlineBytecodeGenerator implements BytecodeGenerator, ClassFileTran
+                             Long.class,
+                             Float.class,
+                             Double.class,
+-                            String.class));
++                            String.class,
++                            WeakReference.class));
+ 
+     private final Instrumentation instrumentation;
+ 
+diff --git a/mockito-core/src/main/java/org/mockito/internal/creation/bytebuddy/InlineDelegateByteBuddyMockMaker.java b/mockito-core/src/main/java/org/mockito/internal/creation/bytebuddy/InlineDelegateByteBuddyMockMaker.java
+index e05847f08f..3529f4a6d1 100644
+--- a/mockito-core/src/main/java/org/mockito/internal/creation/bytebuddy/InlineDelegateByteBuddyMockMaker.java
++++ b/mockito-core/src/main/java/org/mockito/internal/creation/bytebuddy/InlineDelegateByteBuddyMockMaker.java
+@@ -596,7 +596,7 @@ public String nonMockableReason() {
+                     return "primitive type";
+                 }
+                 if (EXCLUDES.contains(type)) {
+-                    return "Cannot mock wrapper types, String.class or Class.class";
++                    return "Cannot mock primitive wrapper types, String, Class, or WeakReference";
+                 }
+                 return "VM does not support modification of given type";
+             }

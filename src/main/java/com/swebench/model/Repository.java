@@ -1,11 +1,13 @@
 package com.swebench.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDateTime;
 
 /**
  * Represents a GitHub repository candidate for task extraction.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Repository {
     @JsonProperty("full_name")
     private String fullName;

@@ -6,11 +6,40 @@ import org.kohsuke.github.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.swebench.util.ConfigLoader;
+
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * Represents a split patch with separate test and code changes.
+ */
+class SplitPatch {
+    private final String testPatch;
+    private final String codePatch;
+    private final String fullPatch;
+
+    public SplitPatch(String testPatch, String codePatch, String fullPatch) {
+        this.testPatch = testPatch;
+        this.codePatch = codePatch;
+        this.fullPatch = fullPatch;
+    }
+
+    public String getTestPatch() { return testPatch; }
+    public String getCodePatch() { return codePatch; }
+    public String getFullPatch() { return fullPatch; }
+
+    public boolean hasTestChanges() { return testPatch != null && !testPatch.isEmpty(); }
+    public boolean hasCodeChanges() { return codePatch != null && !codePatch.isEmpty(); }
+    public boolean hasBothChanges() { return hasTestChanges() && hasCodeChanges(); }
+}
 
 /**
  * Service for interacting with GitHub API to discover repositories and extract task instances.
@@ -21,15 +50,24 @@ public class GitHubService {
 
     public GitHubService() {
         try {
-            // Try to connect with token from environment, fall back to anonymous
+            // Try to connect with token from environment first, then config file, fall back to anonymous
             String token = System.getenv("GITHUB_TOKEN");
-            if (token != null && !token.isEmpty()) {
+
+            // If not in environment, try config file
+            if (token == null || token.isEmpty()) {
+                token = ConfigLoader.get("github.token");
+                if (token != null && !token.isEmpty() && !token.startsWith("${")) {
+                    logger.info("Using GitHub token from config file");
+                }
+            }
+
+            if (token != null && !token.isEmpty() && !token.startsWith("${")) {
                 this.github = new GitHubBuilder().withOAuthToken(token).build();
                 logger.info("Connected to GitHub with authentication");
             } else {
                 this.github = GitHub.connectAnonymously();
                 logger.warn("Connected to GitHub anonymously - rate limits will be restrictive");
-                logger.warn("Set GITHUB_TOKEN environment variable for higher rate limits");
+                logger.warn("Set GITHUB_TOKEN environment variable or github.token in config for higher rate limits");
             }
         } catch (IOException e) {
             throw new RuntimeException("Failed to connect to GitHub", e);
@@ -107,6 +145,430 @@ public class GitHubService {
         logger.info("PR Analysis for {}: {} closed PRs checked, {} merged, {} with linked issues, {} tasks extracted",
                     repo.getFullName(), prCount, mergedCount, withLinkedIssues, tasks.size());
         return tasks;
+    }
+
+    /**
+     * Extract task instances from CODE-ONLY PRs (Option 1 implementation).
+     * These PRs modify source files but NOT test files.
+     * We then find existing test classes by naming convention.
+     */
+    public List<TaskInstance> extractCodeOnlyTaskInstances(Repository repo, int maxPRs) throws IOException {
+        logger.info("Extracting CODE-ONLY task instances from {} (max {} PRs)", repo.getFullName(), maxPRs);
+
+        List<TaskInstance> tasks = new ArrayList<>();
+        GHRepository ghRepo = github.getRepository(repo.getFullName());
+
+        List<GHPullRequest> allPRs = ghRepo.getPullRequests(GHIssueState.CLOSED);
+        logger.info("Found {} closed PRs in {}", allPRs.size(), repo.getFullName());
+
+        int prCount = 0;
+        int mergedCount = 0;
+        int codeOnlyCount = 0;
+        int withTestsFound = 0;
+
+        for (GHPullRequest pr : allPRs) {
+            if (prCount >= maxPRs) break;
+
+            try {
+                if (pr.isMerged()) {
+                    mergedCount++;
+
+                    // Fetch the patch first
+                    String patch = fetchPRPatch(pr);
+
+                    // Check if this is a code-only PR (no test file modifications)
+                    if (isCodeOnlyPR(patch)) {
+                        codeOnlyCount++;
+                        logger.debug("Found code-only PR #{}", pr.getNumber());
+
+                        // Extract source files modified
+                        List<String> sourceFiles = extractSourceFilesFromPatch(patch);
+
+                        // Find existing test classes for these source files
+                        List<String> existingTestClasses = findExistingTestClasses(ghRepo, sourceFiles);
+
+                        if (!existingTestClasses.isEmpty()) {
+                            withTestsFound++;
+                            TaskInstance task = extractCodeOnlyTaskFromPR(ghRepo, pr, patch, existingTestClasses);
+                            if (task != null) {
+                                tasks.add(task);
+                                logger.info("✓ Extracted code-only task from PR #{} with {} existing test classes",
+                                           pr.getNumber(), existingTestClasses.size());
+                            }
+                        } else {
+                            logger.debug("No existing test classes found for PR #{}", pr.getNumber());
+                        }
+                    }
+                }
+                prCount++;
+
+            } catch (Exception e) {
+                logger.debug("Failed to process PR #{}: {}", pr.getNumber(), e.getMessage());
+            }
+        }
+
+        logger.info("CODE-ONLY PR Analysis for {}: {} PRs checked, {} merged, {} code-only, {} with existing tests, {} tasks extracted",
+                    repo.getFullName(), prCount, mergedCount, codeOnlyCount, withTestsFound, tasks.size());
+        return tasks;
+    }
+
+    /**
+     * Check if a PR patch only modifies source files (no test files).
+     * This is the key filter for Option 1.
+     */
+    public boolean isCodeOnlyPR(String patch) {
+        if (patch == null || patch.isEmpty()) {
+            return false;
+        }
+
+        String[] lines = patch.split("\n");
+        boolean hasSourceChanges = false;
+        boolean hasTestChanges = false;
+
+        for (String line : lines) {
+            // Look for file paths in diff headers
+            if (line.startsWith("+++ b/") || line.startsWith("--- a/")) {
+                String filePath = line.substring(6).trim();
+
+                if (isTestFile(filePath)) {
+                    hasTestChanges = true;
+                } else if (isSourceFile(filePath)) {
+                    hasSourceChanges = true;
+                }
+            }
+        }
+
+        // Code-only = has source changes AND no test changes
+        return hasSourceChanges && !hasTestChanges;
+    }
+
+    /**
+     * Check if a file path is a Java source file (not test).
+     */
+    private boolean isSourceFile(String filePath) {
+        if (filePath == null) return false;
+
+        String lowerPath = filePath.toLowerCase();
+
+        // Must be a Java file
+        if (!lowerPath.endsWith(".java")) {
+            return false;
+        }
+
+        // Must NOT be in test directories or be a test file
+        if (lowerPath.contains("/test/") ||
+            lowerPath.contains("/tests/") ||
+            lowerPath.contains("test.java") ||
+            lowerPath.contains("tests.java") ||
+            lowerPath.contains("testcase.java") ||
+            lowerPath.contains("/it/") ||  // integration tests
+            lowerPath.contains("mock") ||
+            lowerPath.contains("stub")) {
+            return false;
+        }
+
+        // Should be in main source directory
+        return lowerPath.contains("/src/main/") ||
+               lowerPath.contains("/src/") && !lowerPath.contains("/test");
+    }
+
+    /**
+     * Extract list of source files modified in a patch.
+     */
+    public List<String> extractSourceFilesFromPatch(String patch) {
+        List<String> sourceFiles = new ArrayList<>();
+
+        if (patch == null || patch.isEmpty()) {
+            return sourceFiles;
+        }
+
+        String[] lines = patch.split("\n");
+        for (String line : lines) {
+            if (line.startsWith("+++ b/")) {
+                String filePath = line.substring(6).trim();
+                if (isSourceFile(filePath)) {
+                    sourceFiles.add(filePath);
+                    logger.trace("Found source file in patch: {}", filePath);
+                }
+            }
+        }
+
+        return sourceFiles;
+    }
+
+    /**
+     * Find existing test classes for the given source files using naming conventions.
+     *
+     * Naming conventions checked:
+     * - StringUtils.java → StringUtilsTest.java
+     * - StringUtils.java → StringUtilsTests.java
+     * - StringUtils.java → TestStringUtils.java
+     * - StringUtils.java → StringUtilsTestCase.java
+     */
+    public List<String> findExistingTestClasses(GHRepository repo, List<String> sourceFiles) {
+        Set<String> testClasses = new HashSet<>();
+
+        for (String sourceFile : sourceFiles) {
+            // Extract class name from path
+            String className = extractClassName(sourceFile);
+            if (className == null) continue;
+
+            // Generate possible test class names
+            List<String> possibleTestNames = generateTestClassNames(className);
+
+            // Try to find each possible test class in the repository
+            for (String testName : possibleTestNames) {
+                List<String> testPaths = generateTestPaths(sourceFile, testName);
+
+                for (String testPath : testPaths) {
+                    if (fileExistsInRepo(repo, testPath)) {
+                        // Convert path to fully qualified class name
+                        String fqClassName = pathToClassName(testPath);
+                        if (fqClassName != null) {
+                            testClasses.add(fqClassName);
+                            logger.debug("Found existing test class: {} for source: {}", fqClassName, sourceFile);
+                        }
+                        break; // Found a test for this name, move to next
+                    }
+                }
+            }
+        }
+
+        return new ArrayList<>(testClasses);
+    }
+
+    /**
+     * Extract class name from a file path.
+     * e.g., "src/main/java/org/apache/commons/lang3/StringUtils.java" → "StringUtils"
+     */
+    private String extractClassName(String filePath) {
+        if (filePath == null || !filePath.endsWith(".java")) {
+            return null;
+        }
+
+        int lastSlash = filePath.lastIndexOf('/');
+        String fileName = lastSlash >= 0 ? filePath.substring(lastSlash + 1) : filePath;
+
+        // Remove .java extension
+        return fileName.substring(0, fileName.length() - 5);
+    }
+
+    /**
+     * Generate possible test class names for a given source class.
+     */
+    private List<String> generateTestClassNames(String className) {
+        List<String> names = new ArrayList<>();
+        names.add(className + "Test");       // Most common: StringUtilsTest
+        names.add(className + "Tests");      // StringUtilsTests
+        names.add("Test" + className);       // TestStringUtils
+        names.add(className + "TestCase");   // StringUtilsTestCase
+        return names;
+    }
+
+    /**
+     * Generate possible test file paths for a test class name.
+     */
+    private List<String> generateTestPaths(String sourceFilePath, String testClassName) {
+        List<String> paths = new ArrayList<>();
+
+        // Convert src/main/java to src/test/java
+        String testPath = sourceFilePath
+            .replace("/src/main/java/", "/src/test/java/")
+            .replace("/src/main/", "/src/test/");
+
+        // Replace the class name with test class name
+        int lastSlash = testPath.lastIndexOf('/');
+        if (lastSlash >= 0) {
+            String basePath = testPath.substring(0, lastSlash + 1);
+            paths.add(basePath + testClassName + ".java");
+        }
+
+        // Also try common test directory patterns
+        if (sourceFilePath.contains("/java/")) {
+            // org/apache/commons/lang3/StringUtils.java pattern
+            int javaIndex = sourceFilePath.indexOf("/java/");
+            String packagePath = sourceFilePath.substring(javaIndex + 6);
+            int classStart = packagePath.lastIndexOf('/');
+            if (classStart >= 0) {
+                String packageDir = packagePath.substring(0, classStart + 1);
+                paths.add("src/test/java/" + packageDir + testClassName + ".java");
+            }
+        }
+
+        return paths;
+    }
+
+    /**
+     * Check if a file exists in the repository.
+     */
+    private boolean fileExistsInRepo(GHRepository repo, String filePath) {
+        try {
+            repo.getFileContent(filePath);
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Convert a file path to a fully qualified class name.
+     * e.g., "src/test/java/org/apache/commons/lang3/StringUtilsTest.java"
+     *       → "org.apache.commons.lang3.StringUtilsTest"
+     */
+    private String pathToClassName(String filePath) {
+        if (filePath == null || !filePath.endsWith(".java")) {
+            return null;
+        }
+
+        // Find the java/ directory marker
+        int javaIndex = filePath.indexOf("/java/");
+        if (javaIndex < 0) {
+            javaIndex = filePath.indexOf("\\java\\");
+        }
+
+        if (javaIndex >= 0) {
+            String classPath = filePath.substring(javaIndex + 6);
+            // Remove .java extension and convert / to .
+            classPath = classPath.substring(0, classPath.length() - 5);
+            return classPath.replace('/', '.').replace('\\', '.');
+        }
+
+        return null;
+    }
+
+    /**
+     * Extract a task from a code-only PR with existing test classes.
+     */
+    private TaskInstance extractCodeOnlyTaskFromPR(GHRepository repo, GHPullRequest pr,
+                                                    String patch, List<String> existingTestClasses) throws IOException {
+        // Check if PR references an issue
+        List<GHIssue> linkedIssues = findLinkedIssues(pr);
+        if (linkedIssues.isEmpty()) {
+            logger.debug("PR #{} has no linked issues, skipping", pr.getNumber());
+            return null;
+        }
+
+        GHIssue issue = linkedIssues.get(0);
+
+        // Filter: Must have a meaningful problem statement (bug description)
+        String problemStatement = issue.getBody();
+        if (problemStatement == null || problemStatement.length() < 50) {
+            logger.debug("PR #{} issue has insufficient problem statement", pr.getNumber());
+            return null;
+        }
+
+        // Create task instance
+        TaskInstance task = new TaskInstance();
+        task.setInstanceId(String.format("%s-PR-%d", repo.getFullName().replace("/", "-"), pr.getNumber()));
+        task.setRepo(repo.getFullName());
+        task.setIssueNumber(issue.getNumber());
+        task.setPullNumber(pr.getNumber());
+        task.setBaseCommit(pr.getBase().getSha());
+        task.setProblemStatement(problemStatement);
+        task.setCreatedAt(issue.getCreatedAt().toString());
+        task.setPatch(patch);
+
+        // Set the existing test classes as FAIL_TO_PASS
+        // These tests should fail at base commit (bug present) and pass after patch
+        task.setFailToPass(existingTestClasses);
+        logger.info("Set {} existing test classes for fail-to-pass validation", existingTestClasses.size());
+
+        // Determine build tool and Java version
+        detectBuildSystem(repo, task);
+
+        // Generate test command targeting specific test classes
+        generateTargetedTestCommand(task, existingTestClasses);
+
+        return task;
+    }
+
+    /**
+     * Generate a test command that targets specific test classes.
+     */
+    private void generateTargetedTestCommand(TaskInstance task, List<String> testClasses) {
+        String buildTool = task.getBuildTool();
+
+        if (testClasses.isEmpty()) {
+            generateTestCommand(task);
+            return;
+        }
+
+        // Extract module name from patch if this is a multi-module project
+        String module = extractModuleFromPatch(task.getPatch());
+
+        // Build a test command targeting specific classes
+        if ("maven".equalsIgnoreCase(buildTool)) {
+            // Maven: mvn test -Dtest=Class1,Class2
+            // For multi-module: mvn test -pl <module> -Dtest=Class1,Class2
+            String testList = String.join(",", testClasses.stream()
+                .map(c -> c.substring(c.lastIndexOf('.') + 1)) // Just class name for Maven
+                .toArray(String[]::new));
+
+            if (module != null && !module.isEmpty()) {
+                task.setTestCommand("mvn test -pl " + module + " -Dtest=" + testList);
+                logger.debug("Set Maven test command for module {}: mvn test -pl {} -Dtest={}", module, module, testList);
+            } else {
+                task.setTestCommand("mvn test -Dtest=" + testList);
+                logger.debug("Set Maven test command: mvn test -Dtest={}", testList);
+            }
+        } else if ("gradle".equalsIgnoreCase(buildTool)) {
+            // Gradle: ./gradlew test --tests "Class1" --tests "Class2"
+            // For multi-module: ./gradlew :module:test --tests "Class1"
+            StringBuilder cmd = new StringBuilder();
+            if (module != null && !module.isEmpty()) {
+                cmd.append("./gradlew :").append(module).append(":test");
+            } else {
+                cmd.append("./gradlew test");
+            }
+            for (String testClass : testClasses) {
+                cmd.append(" --tests \"").append(testClass).append("\"");
+            }
+            task.setTestCommand(cmd.toString());
+            logger.debug("Set Gradle test command: {}", cmd);
+        } else {
+            // Default to Maven
+            String testList = String.join(",", testClasses.stream()
+                .map(c -> c.substring(c.lastIndexOf('.') + 1))
+                .toArray(String[]::new));
+            if (module != null && !module.isEmpty()) {
+                task.setTestCommand("mvn test -pl " + module + " -Dtest=" + testList);
+            } else {
+                task.setTestCommand("mvn test -Dtest=" + testList);
+            }
+        }
+    }
+
+    /**
+     * Extract the module name from a patch for multi-module projects.
+     * Looks for patterns like "module-name/src/main/java/..."
+     */
+    private String extractModuleFromPatch(String patch) {
+        if (patch == null || patch.isEmpty()) {
+            return null;
+        }
+
+        String[] lines = patch.split("\n");
+        for (String line : lines) {
+            if (line.startsWith("+++ b/") || line.startsWith("--- a/")) {
+                String filePath = line.substring(6).trim();
+
+                // Check for multi-module pattern: module-name/src/...
+                if (filePath.contains("/src/main/") || filePath.contains("/src/test/")) {
+                    int srcIndex = filePath.indexOf("/src/");
+                    if (srcIndex > 0) {
+                        String potentialModule = filePath.substring(0, srcIndex);
+                        // Verify it's a module name (doesn't contain nested paths before src)
+                        // and isn't just "src" (single-module project)
+                        if (!potentialModule.isEmpty() && !potentialModule.equals("src") && !potentialModule.contains("/src/")) {
+                            logger.debug("Detected multi-module project, module: {}", potentialModule);
+                            return potentialModule;
+                        }
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
     private TaskInstance extractTaskFromPR(GHRepository repo, GHPullRequest pr) throws IOException {
@@ -262,6 +724,209 @@ public class GitHubService {
         }
 
         return testMethods;
+    }
+
+    /**
+     * Split a patch into separate test and code patches.
+     * This is critical for the split-patch validation approach.
+     *
+     * @param fullPatch The complete patch from a PR
+     * @return SplitPatch containing separate test and code patches
+     */
+    public SplitPatch splitPatch(String fullPatch) {
+        if (fullPatch == null || fullPatch.isEmpty()) {
+            return new SplitPatch("", "", fullPatch);
+        }
+
+        StringBuilder testPatch = new StringBuilder();
+        StringBuilder codePatch = new StringBuilder();
+
+        String[] lines = fullPatch.split("\n");
+        StringBuilder currentFilePatch = new StringBuilder();
+        boolean isCurrentFileTest = false;
+        String currentFile = null;
+
+        for (String line : lines) {
+            // Detect new file in diff
+            if (line.startsWith("diff --git")) {
+                // Save previous file's patch
+                if (currentFile != null && currentFilePatch.length() > 0) {
+                    if (isCurrentFileTest) {
+                        testPatch.append(currentFilePatch);
+                    } else {
+                        codePatch.append(currentFilePatch);
+                    }
+                }
+
+                // Start new file
+                currentFilePatch = new StringBuilder();
+                currentFilePatch.append(line).append("\n");
+
+                // Extract file path from diff line
+                // Format: diff --git a/path/to/file b/path/to/file
+                String[] parts = line.split(" ");
+                if (parts.length >= 4) {
+                    currentFile = parts[2].substring(2); // Remove "a/" prefix
+                    isCurrentFileTest = isTestFile(currentFile);
+                }
+                continue;
+            }
+
+            // Add line to current file patch
+            if (currentFile != null) {
+                currentFilePatch.append(line).append("\n");
+            }
+        }
+
+        // Don't forget the last file
+        if (currentFile != null && currentFilePatch.length() > 0) {
+            if (isCurrentFileTest) {
+                testPatch.append(currentFilePatch);
+            } else {
+                codePatch.append(currentFilePatch);
+            }
+        }
+
+        logger.debug("Split patch: {} chars test, {} chars code",
+                    testPatch.length(), codePatch.length());
+
+        return new SplitPatch(testPatch.toString(), codePatch.toString(), fullPatch);
+    }
+
+    /**
+     * Extract task instances using the SPLIT-PATCH approach.
+     * PRs must have BOTH test and code changes.
+     * Validation: Apply test_patch first (should fail), then code_patch (should pass).
+     */
+    public List<TaskInstance> extractSplitPatchTasks(Repository repo, int maxPRs) throws IOException {
+        logger.info("Extracting SPLIT-PATCH tasks from {} (max {} PRs)", repo.getFullName(), maxPRs);
+
+        List<TaskInstance> tasks = new ArrayList<>();
+        GHRepository ghRepo = github.getRepository(repo.getFullName());
+
+        List<GHPullRequest> allPRs = ghRepo.getPullRequests(GHIssueState.CLOSED);
+        logger.info("Found {} closed PRs in {}", allPRs.size(), repo.getFullName());
+
+        int prCount = 0;
+        int mergedCount = 0;
+        int splitPatchCount = 0;
+
+        for (GHPullRequest pr : allPRs) {
+            if (prCount >= maxPRs) break;
+            if (tasks.size() >= 20) break; // Limit tasks per repo
+
+            try {
+                if (pr.isMerged()) {
+                    mergedCount++;
+
+                    // Fetch and split the patch
+                    String fullPatch = fetchPRPatch(pr);
+                    SplitPatch splitPatch = splitPatch(fullPatch);
+
+                    // We need PRs that have BOTH test and code changes
+                    if (splitPatch.hasBothChanges()) {
+                        splitPatchCount++;
+                        logger.debug("Found split-patch candidate PR #{}", pr.getNumber());
+
+                        TaskInstance task = extractSplitPatchTaskFromPR(ghRepo, pr, splitPatch);
+                        if (task != null) {
+                            tasks.add(task);
+                            logger.info("✓ Extracted split-patch task from PR #{}: {}",
+                                       pr.getNumber(), task.getInstanceId());
+                        }
+                    }
+                }
+                prCount++;
+
+            } catch (Exception e) {
+                logger.debug("Failed to process PR #{}: {}", pr.getNumber(), e.getMessage());
+            }
+        }
+
+        logger.info("SPLIT-PATCH Analysis for {}: {} PRs checked, {} merged, {} with both test+code, {} tasks extracted",
+                    repo.getFullName(), prCount, mergedCount, splitPatchCount, tasks.size());
+        return tasks;
+    }
+
+    /**
+     * Extract a task from a PR using the split-patch approach.
+     */
+    private TaskInstance extractSplitPatchTaskFromPR(GHRepository repo, GHPullRequest pr,
+                                                      SplitPatch splitPatch) throws IOException {
+        // Create task instance
+        TaskInstance task = new TaskInstance();
+        task.setInstanceId(String.format("%s-PR-%d", repo.getFullName().replace("/", "-"), pr.getNumber()));
+        task.setRepo(repo.getFullName());
+        task.setPullNumber(pr.getNumber());
+        task.setBaseCommit(pr.getBase().getSha());
+        task.setCreatedAt(pr.getCreatedAt().toString());
+
+        // Set problem statement from PR title + body
+        String problemStatement = pr.getTitle();
+        if (pr.getBody() != null && !pr.getBody().isEmpty()) {
+            problemStatement += "\n\n" + pr.getBody();
+        }
+        task.setProblemStatement(problemStatement);
+
+        // KEY: Set split patches
+        task.setPatch(splitPatch.getCodePatch());      // Code-only changes
+        task.setTestPatch(splitPatch.getTestPatch());  // Test-only changes
+
+        // Try to find linked issue
+        List<GHIssue> linkedIssues = findLinkedIssues(pr);
+        if (!linkedIssues.isEmpty()) {
+            GHIssue issue = linkedIssues.get(0);
+            task.setIssueNumber(issue.getNumber());
+            // Use issue body as problem statement if available
+            if (issue.getBody() != null && issue.getBody().length() > 50) {
+                task.setProblemStatement(issue.getBody());
+            }
+        }
+
+        // Extract test classes from the test patch
+        List<String> testClasses = extractTestClassesFromPatch(splitPatch.getTestPatch());
+        if (!testClasses.isEmpty()) {
+            task.setFailToPass(testClasses);
+        } else {
+            task.setFailToPass(java.util.Arrays.asList("__ALL_TESTS__"));
+        }
+
+        // Determine build tool
+        detectBuildSystem(repo, task);
+
+        // Generate test command
+        generateTargetedTestCommand(task, testClasses);
+
+        return task;
+    }
+
+    /**
+     * Extract test class names from a patch.
+     * Returns simple class names like "StringUtilsTest", "NumberUtilsTest".
+     */
+    public List<String> extractTestClassesFromPatch(String patch) {
+        Set<String> testClasses = new HashSet<>();
+
+        if (patch == null || patch.isEmpty()) {
+            return new ArrayList<>(testClasses);
+        }
+
+        String[] lines = patch.split("\n");
+        for (String line : lines) {
+            if (line.startsWith("+++ b/") || line.startsWith("--- a/")) {
+                String filePath = line.substring(6).trim();
+                if (isTestFile(filePath)) {
+                    // Extract class name from path
+                    String className = extractClassName(filePath);
+                    if (className != null) {
+                        testClasses.add(className);
+                        logger.trace("Found test class in patch: {}", className);
+                    }
+                }
+            }
+        }
+
+        return new ArrayList<>(testClasses);
     }
 
     /**

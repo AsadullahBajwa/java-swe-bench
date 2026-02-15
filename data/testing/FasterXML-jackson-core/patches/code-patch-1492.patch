@@ -1,0 +1,72 @@
+diff --git a/release-notes/VERSION b/release-notes/VERSION
+index 89f51d08d5..1c65ae2f4b 100644
+--- a/release-notes/VERSION
++++ b/release-notes/VERSION
+@@ -15,6 +15,15 @@ JSON library.
+ === Releases ===
+ ------------------------------------------------------------------------
+ 
++3.1.0 (not yet released)
++
++-
++
++3.0.2 (not yet released)
++
++#1491: Mismatched property name for byte-backed `JsonParser.nextNameMatch(PropertyNameMatcher)`
++ (fix by @cowtowncoder, w/ Claude code)
++
+ 3.0.1 (21-Oct-2025)
+ 
+ No changes since 3.0.0
+diff --git a/src/main/java/tools/jackson/core/json/UTF8StreamJsonParser.java b/src/main/java/tools/jackson/core/json/UTF8StreamJsonParser.java
+index bfdccd8b07..5e140e91f8 100644
+--- a/src/main/java/tools/jackson/core/json/UTF8StreamJsonParser.java
++++ b/src/main/java/tools/jackson/core/json/UTF8StreamJsonParser.java
+@@ -1573,6 +1573,8 @@ protected final int _matchLongName(PropertyNameMatcher matcher, int qptr,
+                 if (i != INT_QUOTE) {
+                     return -1;
+                 }
++                // [core#1491]: Need to include partial quad in matching
++                _quadBuffer[qlen++] = q;
+                 _quadPtr = qptr;
+                 return matcher.matchByQuad(_quadBuffer, qlen);
+             }
+@@ -1582,8 +1584,10 @@ protected final int _matchLongName(PropertyNameMatcher matcher, int qptr,
+                 if (i != INT_QUOTE) {
+                     return -1;
+                 }
+-//                q = _padLastQuadNoCheck(q, (-1 << 8));
+-                break;
++                // [core#1491]: Need to include partial quad in matching
++                _quadBuffer[qlen++] = q;
++                _quadPtr = qptr;
++                return matcher.matchByQuad(_quadBuffer, qlen);
+             }
+             q = (q << 8) | i;
+             i = input[qptr++] & 0xFF;
+@@ -1591,8 +1595,10 @@ protected final int _matchLongName(PropertyNameMatcher matcher, int qptr,
+                 if (i != INT_QUOTE) {
+                     return -1;
+                 }
+-//                q = _padLastQuadNoCheck(q, (-1 << 16));
+-                break;
++                // [core#1491]: Need to include partial quad in matching
++                _quadBuffer[qlen++] = q;
++                _quadPtr = qptr;
++                return matcher.matchByQuad(_quadBuffer, qlen);
+             }
+             q = (q << 8) | i;
+             i = input[qptr++] & 0xFF;
+@@ -1600,8 +1606,10 @@ protected final int _matchLongName(PropertyNameMatcher matcher, int qptr,
+                 if (i != INT_QUOTE) {
+                     return -1;
+                 }
+-//                q = _padLastQuadNoCheck(q, (-1 << 24));
+-                break;
++                // [core#1491]: Need to include partial quad in matching
++                _quadBuffer[qlen++] = q;
++                _quadPtr = qptr;
++                return matcher.matchByQuad(_quadBuffer, qlen);
+             }
+             // Nope, no end in sight. Need to grow quad array etc
+             if (qlen >= _quadBuffer.length) {

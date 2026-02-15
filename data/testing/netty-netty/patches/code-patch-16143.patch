@@ -1,0 +1,631 @@
+diff --git a/codec-classes-quic/src/main/java/io/netty/handler/codec/quic/QuicheQuicChannel.java b/codec-classes-quic/src/main/java/io/netty/handler/codec/quic/QuicheQuicChannel.java
+index 32c308d987b..50f001dac8e 100644
+--- a/codec-classes-quic/src/main/java/io/netty/handler/codec/quic/QuicheQuicChannel.java
++++ b/codec-classes-quic/src/main/java/io/netty/handler/codec/quic/QuicheQuicChannel.java
+@@ -1507,9 +1507,6 @@ protected void doConnect(SocketAddress remote, SocketAddress local, Promise<Void
+ 
+     void connectStream(QuicStreamType type, @Nullable ChannelHandler handler,
+                        Promise<QuicStreamChannel> promise) {
+-        if (!promise.setUncancellable()) {
+-            return;
+-        }
+         long streamId = idGenerator.nextStreamId(type == QuicStreamType.BIDIRECTIONAL);
+ 
+         try {
+diff --git a/codec-classes-quic/src/main/java/io/netty/handler/codec/quic/QuicheQuicStreamChannel.java b/codec-classes-quic/src/main/java/io/netty/handler/codec/quic/QuicheQuicStreamChannel.java
+index 3bf7d1ae162..08e416a6034 100644
+--- a/codec-classes-quic/src/main/java/io/netty/handler/codec/quic/QuicheQuicStreamChannel.java
++++ b/codec-classes-quic/src/main/java/io/netty/handler/codec/quic/QuicheQuicStreamChannel.java
+@@ -140,9 +140,6 @@ public void updatePriority(QuicStreamPriority priority, Promise<Void> promise) {
+ 
+     private void updatePriority0(QuicStreamPriority priority, Promise<Void> promise) {
+         assert executor().inEventLoop();
+-        if (!promise.setUncancellable()) {
+-            return;
+-        }
+         try {
+             parent().streamPriority(streamId(), (byte) priority.urgency(), priority.isIncremental());
+         } catch (Throwable cause) {
+@@ -438,9 +435,6 @@ private void shutdown0(boolean read, boolean write, int error, Promise<Void> pro
+ 
+         @Override
+         public void register(Promise<Void> promise) {
+-            if (!promise.setUncancellable()) {
+-                return;
+-            }
+             if (registered) {
+                 promise.setFailure(new IllegalStateException());
+                 return;
+@@ -454,9 +448,6 @@ public void register(Promise<Void> promise) {
+         @Override
+         public void bind(SocketAddress localAddress, Promise<Void> promise) {
+             assert executor().inEventLoop();
+-            if (!promise.setUncancellable()) {
+-                return;
+-            }
+             promise.setFailure(new UnsupportedOperationException());
+         }
+ 
+@@ -473,9 +464,6 @@ public void close(Promise<Void> promise) {
+ 
+         void close(@Nullable ClosedChannelException writeFailCause, Promise<Void> promise) {
+             assert executor().inEventLoop();
+-            if (!promise.setUncancellable()) {
+-                return;
+-            }
+             if (!active || closePromise.isDone()) {
+                 closePromise.addListener(new PromiseNotifier<>(promise));
+                 return;
+@@ -516,10 +504,6 @@ void close(@Nullable ClosedChannelException writeFailCause, Promise<Void> promis
+ 
+         private void deregister(final Promise<Void> promise, final boolean fireChannelInactive) {
+             assert executor().inEventLoop();
+-            if (!promise.setUncancellable()) {
+-                return;
+-            }
+-
+             if (!registered) {
+                 promise.trySuccess(null);
+                 return;
+@@ -652,10 +636,6 @@ boolean writeQueued() {
+         @Override
+         public void write(Object msg, Promise<Void> promise) {
+             assert executor().inEventLoop();
+-            if (!promise.setUncancellable()) {
+-                ReferenceCountUtil.release(msg);
+-                return;
+-            }
+             // Check first if the Channel is in a state in which it will accept writes, if not fail everything
+             // with the right exception
+             if (!isOpen()) {
+diff --git a/codec-http2/src/main/java/io/netty/handler/codec/http2/AbstractHttp2StreamChannel.java b/codec-http2/src/main/java/io/netty/handler/codec/http2/AbstractHttp2StreamChannel.java
+index 6dabc9a2845..ad1a94507d6 100644
+--- a/codec-http2/src/main/java/io/netty/handler/codec/http2/AbstractHttp2StreamChannel.java
++++ b/codec-http2/src/main/java/io/netty/handler/codec/http2/AbstractHttp2StreamChannel.java
+@@ -635,9 +635,6 @@ public void shutdown(ChannelShutdownType type, Promise<Void> promise) {
+         @Override
+         public void connect(final SocketAddress remoteAddress,
+                             SocketAddress localAddress, final Promise<Void> promise) {
+-            if (!promise.setUncancellable()) {
+-                return;
+-            }
+             promise.setFailure(new UnsupportedOperationException());
+         }
+ 
+@@ -651,9 +648,6 @@ public RecvByteBufAllocator.Handle recvBufAllocHandle() {
+ 
+         @Override
+         public void register(Promise<Void> promise) {
+-            if (!promise.setUncancellable()) {
+-                return;
+-            }
+             if (registered) {
+                 promise.setFailure(new UnsupportedOperationException("Re-register is not supported"));
+                 return;
+@@ -671,9 +665,6 @@ public void register(Promise<Void> promise) {
+ 
+         @Override
+         public void bind(SocketAddress localAddress, Promise<Void> promise) {
+-            if (!promise.setUncancellable()) {
+-                return;
+-            }
+             promise.setFailure(new UnsupportedOperationException());
+         }
+ 
+@@ -688,9 +679,6 @@ public void close(final Promise<Void> promise) {
+         }
+ 
+         private void close(final Promise<Void> promise, Http2Error error) {
+-            if (!promise.setUncancellable()) {
+-                return;
+-            }
+             if (closeInitiated) {
+                 if (closePromise.isDone()) {
+                     // Closed already.
+@@ -755,10 +743,6 @@ public void deregister(Promise<Void> promise) {
+ 
+         private void fireChannelInactiveAndDeregister(final Promise<Void> promise,
+                                                       final boolean fireChannelInactive) {
+-            if (!promise.setUncancellable()) {
+-                return;
+-            }
+-
+             if (!registered) {
+                 promise.setSuccess(null);
+                 return;
+@@ -978,12 +962,6 @@ private Future<Void> writeWindowUpdateFrame(Http2WindowUpdateFrame windowUpdateF
+ 
+         @Override
+         public void write(Object msg, final Promise<Void> promise) {
+-            // After this point its not possible to cancel a write anymore.
+-            if (!promise.setUncancellable()) {
+-                ReferenceCountUtil.release(msg);
+-                return;
+-            }
+-
+             if (!isActive() ||
+                     // Once the outbound side was closed we should not allow header / data frames
+                     outboundClosed && (msg instanceof Http2HeadersFrame || msg instanceof Http2DataFrame)) {
+diff --git a/codec-http2/src/main/java/io/netty/handler/codec/http2/Http2StreamChannelBootstrap.java b/codec-http2/src/main/java/io/netty/handler/codec/http2/Http2StreamChannelBootstrap.java
+index 9aac2647bfc..28bf793b3cc 100644
+--- a/codec-http2/src/main/java/io/netty/handler/codec/http2/Http2StreamChannelBootstrap.java
++++ b/codec-http2/src/main/java/io/netty/handler/codec/http2/Http2StreamChannelBootstrap.java
+@@ -162,9 +162,6 @@ private ChannelHandlerContext findCtx() throws ClosedChannelException {
+     @Deprecated
+     public void open0(ChannelHandlerContext ctx, final Promise<Http2StreamChannel> promise) {
+         assert ctx.executor().inEventLoop();
+-        if (!promise.setUncancellable()) {
+-            return;
+-        }
+         final Http2StreamChannel streamChannel;
+         try {
+             if (ctx.handler() instanceof Http2MultiplexCodec) {
+@@ -188,12 +185,15 @@ public void open0(ChannelHandlerContext ctx, final Promise<Http2StreamChannel> p
+         future.addListener(f -> {
+             if (f.isSuccess()) {
+                 promise.setSuccess(streamChannel);
+-            } else if (f.isCancelled()) {
+-                promise.cancel(false);
+-            } else {
+-                streamChannel.close();
+-                promise.setFailure(f.cause());
++                return;
++            }
++            if (f.isCancelled()) {
++                if (promise.cancel(false)) {
++                    return;
++                }
+             }
++            streamChannel.close();
++            promise.setFailure(f.cause());
+         });
+     }
+ 
+diff --git a/common/src/main/java/io/netty/util/concurrent/DefaultPromise.java b/common/src/main/java/io/netty/util/concurrent/DefaultPromise.java
+index c77fad08a11..c94588d7b4e 100644
+--- a/common/src/main/java/io/netty/util/concurrent/DefaultPromise.java
++++ b/common/src/main/java/io/netty/util/concurrent/DefaultPromise.java
+@@ -131,8 +131,11 @@ public boolean tryFailure(Throwable cause) {
+         return setFailure0(cause);
+     }
+ 
+-    @Override
+-    public boolean setUncancellable() {
++    boolean isCancellationSupported() {
++        return false;
++    }
++
++    final boolean setUncancellable() {
+         if (RESULT_UPDATER.compareAndSet(this, null, UNCANCELLABLE)) {
+             return true;
+         }
+@@ -148,7 +151,7 @@ public boolean isSuccess() {
+ 
+     @Override
+     public boolean isCancellable() {
+-        return result == null;
++        return isCancellationSupported() && result == null;
+     }
+ 
+     private static final class LeanCancellationException extends CancellationException {
+@@ -358,7 +361,8 @@ public V get(long timeout, TimeUnit unit) throws InterruptedException, Execution
+      */
+     @Override
+     public boolean cancel(boolean mayInterruptIfRunning) {
+-        if (RESULT_UPDATER.compareAndSet(this, null, CANCELLATION_CAUSE_HOLDER)) {
++        if (isCancellationSupported() &&
++                RESULT_UPDATER.compareAndSet(this, null, CANCELLATION_CAUSE_HOLDER)) {
+             if (checkNotifyWaiters()) {
+                 notifyListeners();
+             }
+diff --git a/common/src/main/java/io/netty/util/concurrent/Promise.java b/common/src/main/java/io/netty/util/concurrent/Promise.java
+index 563a3982da8..fa8ffde997b 100644
+--- a/common/src/main/java/io/netty/util/concurrent/Promise.java
++++ b/common/src/main/java/io/netty/util/concurrent/Promise.java
+@@ -56,14 +56,6 @@ public interface Promise<V> extends Future<V> {
+      */
+     boolean tryFailure(Throwable cause);
+ 
+-    /**
+-     * Make this future impossible to cancel.
+-     *
+-     * @return {@code true} if and only if successfully marked this future as uncancellable or it is already done
+-     *         without being cancelled.  {@code false} if this future has been cancelled already.
+-     */
+-    boolean setUncancellable();
+-
+     @Override
+     Promise<V> addListener(FutureListener<? super V> listener);
+ 
+diff --git a/common/src/main/java/io/netty/util/concurrent/PromiseTask.java b/common/src/main/java/io/netty/util/concurrent/PromiseTask.java
+index 1a14219b8cd..a8356a9b39b 100644
+--- a/common/src/main/java/io/netty/util/concurrent/PromiseTask.java
++++ b/common/src/main/java/io/netty/util/concurrent/PromiseTask.java
+@@ -102,7 +102,7 @@ V runTask() throws Throwable {
+     @Override
+     public void run() {
+         try {
+-            if (setUncancellableInternal()) {
++            if (setUncancellable()) {
+                 V result = runTask();
+                 setSuccessInternal(result);
+             }
+@@ -162,15 +162,6 @@ protected final boolean trySuccessInternal(V result) {
+         return clearTaskAfterCompletion(super.trySuccess(result), COMPLETED);
+     }
+ 
+-    @Override
+-    public final boolean setUncancellable() {
+-        throw new IllegalStateException();
+-    }
+-
+-    protected final boolean setUncancellableInternal() {
+-        return super.setUncancellable();
+-    }
+-
+     @Override
+     public boolean cancel(boolean mayInterruptIfRunning) {
+         return clearTaskAfterCompletion(super.cancel(mayInterruptIfRunning), CANCELLED);
+diff --git a/common/src/main/java/io/netty/util/concurrent/ScheduledFutureTask.java b/common/src/main/java/io/netty/util/concurrent/ScheduledFutureTask.java
+index 4c5960d6741..5500ec63e19 100644
+--- a/common/src/main/java/io/netty/util/concurrent/ScheduledFutureTask.java
++++ b/common/src/main/java/io/netty/util/concurrent/ScheduledFutureTask.java
+@@ -151,7 +151,7 @@ public void run() {
+                 return;
+             }
+             if (periodNanos == 0) {
+-                if (setUncancellableInternal()) {
++                if (setUncancellable()) {
+                     V result = runTask();
+                     setSuccessInternal(result);
+                 }
+@@ -219,4 +219,9 @@ public int priorityQueueIndex(DefaultPriorityQueue<?> queue) {
+     public void priorityQueueIndex(DefaultPriorityQueue<?> queue, int i) {
+         queueIndex = i;
+     }
++
++    @Override
++    boolean isCancellationSupported() {
++        return true;
++    }
+ }
+diff --git a/common/src/main/java/io/netty/util/concurrent/UnorderedThreadPoolEventExecutor.java b/common/src/main/java/io/netty/util/concurrent/UnorderedThreadPoolEventExecutor.java
+index cda34e84146..c869da0886b 100644
+--- a/common/src/main/java/io/netty/util/concurrent/UnorderedThreadPoolEventExecutor.java
++++ b/common/src/main/java/io/netty/util/concurrent/UnorderedThreadPoolEventExecutor.java
+@@ -227,6 +227,11 @@ private static final class RunnableScheduledFutureTask<V> extends PromiseTask<V>
+             this.wasCallable = wasCallable;
+         }
+ 
++        @Override
++        boolean isCancellationSupported() {
++            return true;
++        }
++
+         @Override
+         V runTask() throws Throwable {
+             V result =  super.runTask();
+diff --git a/transport/src/main/java/io/netty/channel/AbstractChannel.java b/transport/src/main/java/io/netty/channel/AbstractChannel.java
+index a3c9aca5963..af1530aef2a 100644
+--- a/transport/src/main/java/io/netty/channel/AbstractChannel.java
++++ b/transport/src/main/java/io/netty/channel/AbstractChannel.java
+@@ -449,9 +449,6 @@ private final class IoTransportImpl implements IoTransport {
+         @Override
+         public void shutdown(ChannelShutdownType type, Promise<Void> promise) {
+             assertEventLoop();
+-            if (!promise.setUncancellable()) {
+-                return;
+-            }
+             if (!isActive()) {
+                 if (isOpen()) {
+                     promise.setFailure(new NotYetConnectedException());
+@@ -492,7 +489,7 @@ public void register(final Promise<Void> promise) {
+ 
+             // check if the channel is still open as it could be closed in the mean time when the register
+             // call was outside of the eventLoop
+-            if (!promise.setUncancellable() || !ensureOpen(promise)) {
++            if (!ensureOpen(promise)) {
+                 return;
+             }
+             if (isRegistered()) {
+@@ -536,7 +533,7 @@ public void register(final Promise<Void> promise) {
+         public void bind(final SocketAddress localAddress, final Promise<Void> promise) {
+             assertEventLoop();
+ 
+-            if (!promise.setUncancellable() || !ensureOpen(promise)) {
++            if (!ensureOpen(promise)) {
+                 return;
+             }
+ 
+@@ -667,10 +664,6 @@ private void fulfillConnectPromise(Promise<Void> promise, Throwable cause, Socke
+         public void disconnect(final Promise<Void> promise) {
+             assertEventLoop();
+ 
+-            if (!promise.setUncancellable()) {
+-                return;
+-            }
+-
+             boolean wasActive = isActive();
+             Promise<Void> disconnectPromise = newPromise();
+             disconnectPromise.addListener((FutureListener<Void>) f -> {
+@@ -703,10 +696,6 @@ public void close(final Promise<Void> promise) {
+ 
+         private void close(final Promise<Void> promise, final Throwable cause,
+                            final ClosedChannelException closeCause) {
+-            if (!promise.setUncancellable()) {
+-                return;
+-            }
+-
+             if (closeInitiated) {
+                 if (closeFuture.isDone()) {
+                     // Closed already.
+@@ -784,10 +773,6 @@ public void deregister(final Promise<Void> promise) {
+         }
+ 
+         private void deregister(final Promise<Void> promise, final boolean fireChannelInactive) {
+-            if (!promise.setUncancellable()) {
+-                return;
+-            }
+-
+             if (!registered) {
+                 safeSetSuccess(promise);
+                 return;
+diff --git a/transport/src/main/java/io/netty/channel/ChannelOutboundBuffer.java b/transport/src/main/java/io/netty/channel/ChannelOutboundBuffer.java
+index 360d8d3ad11..e03aab55b7f 100644
+--- a/transport/src/main/java/io/netty/channel/ChannelOutboundBuffer.java
++++ b/transport/src/main/java/io/netty/channel/ChannelOutboundBuffer.java
+@@ -18,7 +18,6 @@
+ import io.netty.buffer.AbstractReferenceCountedByteBuf;
+ import io.netty.buffer.ByteBuf;
+ import io.netty.buffer.ByteBufHolder;
+-import io.netty.buffer.Unpooled;
+ import io.netty.util.Recycler;
+ import io.netty.util.Recycler.EnhancedHandle;
+ import io.netty.util.ReferenceCountUtil;
+@@ -167,11 +166,6 @@ public void addFlush() {
+             }
+             do {
+                 flushed ++;
+-                if (!entry.promise.setUncancellable()) {
+-                    // Was cancelled so make sure we free up memory and notify about the freed bytes
+-                    int pending = entry.cancel();
+-                    decrementPendingOutboundBytes(pending);
+-                }
+                 entry = entry.next;
+             } while (entry != null);
+ 
+@@ -226,23 +220,20 @@ public boolean remove() {
+ 
+         removeEntry(e);
+ 
+-        // only release message, notify and decrement if it was not canceled before.
+-        if (!e.cancelled) {
+-            // this save both checking against the ReferenceCounted interface
+-            // and makes better use of virtual calls vs interface ones
+-            if (msg instanceof AbstractReferenceCountedByteBuf) {
+-                try {
+-                    // release now as it is flushed.
+-                    ((AbstractReferenceCountedByteBuf) msg).release();
+-                } catch (Throwable t) {
+-                    logger.warn("Failed to release a ByteBuf: {}", msg, t);
+-                }
+-            } else {
+-                ReferenceCountUtil.safeRelease(msg);
++        // this save both checking against the ReferenceCounted interface
++        // and makes better use of virtual calls vs interface ones
++        if (msg instanceof AbstractReferenceCountedByteBuf) {
++            try {
++                // release now as it is flushed.
++                ((AbstractReferenceCountedByteBuf) msg).release();
++            } catch (Throwable t) {
++                logger.warn("Failed to release a ByteBuf: {}", msg, t);
+             }
+-            safeSuccess(promise);
+-            decrementPendingOutboundBytes(size);
++        } else {
++            ReferenceCountUtil.safeRelease(msg);
+         }
++        safeSuccess(promise);
++        decrementPendingOutboundBytes(size);
+ 
+         // recycle the entry
+         e.unguardedRecycle();
+@@ -269,13 +260,10 @@ public boolean remove(Throwable cause) {
+ 
+         removeEntry(e);
+ 
+-        if (!e.cancelled) {
+-            // only release message, fail and decrement if it was not canceled before.
+-            ReferenceCountUtil.safeRelease(msg);
++        ReferenceCountUtil.safeRelease(msg);
+ 
+-            safeFail(promise, cause);
+-            decrementPendingOutboundBytes(size);
+-        }
++        safeFail(promise, cause);
++        decrementPendingOutboundBytes(size);
+ 
+         // recycle the entry
+         e.unguardedRecycle();
+@@ -374,53 +362,51 @@ public ByteBuffer[] nioBuffers(int maxCount, long maxBytes) {
+         ByteBuffer[] nioBuffers = NIO_BUFFERS.get(threadLocalMap);
+         Entry entry = flushedEntry;
+         while (isFlushedEntry(entry) && entry.msg instanceof ByteBuf) {
+-            if (!entry.cancelled) {
+-                ByteBuf buf = (ByteBuf) entry.msg;
+-                final int readerIndex = buf.readerIndex();
+-                final int readableBytes = buf.writerIndex() - readerIndex;
+-
+-                if (readableBytes > 0) {
+-                    if (maxBytes - readableBytes < nioBufferSize && nioBufferCount != 0) {
+-                        // If the nioBufferSize + readableBytes will overflow maxBytes, and there is at least one entry
+-                        // we stop populate the ByteBuffer array. This is done for 2 reasons:
+-                        // 1. bsd/osx don't allow to write more bytes then Integer.MAX_VALUE with one writev(...) call
+-                        // and so will return 'EINVAL', which will raise an IOException. On Linux it may work depending
+-                        // on the architecture and kernel but to be safe we also enforce the limit here.
+-                        // 2. There is no sense in putting more data in the array than is likely to be accepted by the
+-                        // OS.
+-                        //
+-                        // See also:
+-                        // - https://www.freebsd.org/cgi/man.cgi?query=write&sektion=2
+-                        // - https://linux.die.net//man/2/writev
+-                        break;
+-                    }
+-                    nioBufferSize += readableBytes;
+-                    int count = entry.count;
+-                    if (count == -1) {
+-                        //noinspection ConstantValueVariableUse
+-                        entry.count = count = buf.nioBufferCount();
+-                    }
+-                    int neededSpace = min(maxCount, nioBufferCount + count);
+-                    if (neededSpace > nioBuffers.length) {
+-                        nioBuffers = expandNioBufferArray(nioBuffers, neededSpace, nioBufferCount);
+-                        NIO_BUFFERS.set(threadLocalMap, nioBuffers);
+-                    }
+-                    if (count == 1) {
+-                        ByteBuffer nioBuf = entry.buf;
+-                        if (nioBuf == null) {
+-                            // cache ByteBuffer as it may need to create a new ByteBuffer instance if its a
+-                            // derived buffer
+-                            entry.buf = nioBuf = buf.internalNioBuffer(readerIndex, readableBytes);
+-                        }
+-                        nioBuffers[nioBufferCount++] = nioBuf;
+-                    } else {
+-                        // The code exists in an extra method to ensure the method is not too big to inline as this
+-                        // branch is not very likely to get hit very frequently.
+-                        nioBufferCount = nioBuffers(entry, buf, nioBuffers, nioBufferCount, maxCount);
+-                    }
+-                    if (nioBufferCount >= maxCount) {
+-                        break;
++            ByteBuf buf = (ByteBuf) entry.msg;
++            final int readerIndex = buf.readerIndex();
++            final int readableBytes = buf.writerIndex() - readerIndex;
++
++            if (readableBytes > 0) {
++                if (maxBytes - readableBytes < nioBufferSize && nioBufferCount != 0) {
++                    // If the nioBufferSize + readableBytes will overflow maxBytes, and there is at least one entry
++                    // we stop populate the ByteBuffer array. This is done for 2 reasons:
++                    // 1. bsd/osx don't allow to write more bytes then Integer.MAX_VALUE with one writev(...) call
++                    // and so will return 'EINVAL', which will raise an IOException. On Linux it may work depending
++                    // on the architecture and kernel but to be safe we also enforce the limit here.
++                    // 2. There is no sense in putting more data in the array than is likely to be accepted by the
++                    // OS.
++                    //
++                    // See also:
++                    // - https://www.freebsd.org/cgi/man.cgi?query=write&sektion=2
++                    // - https://linux.die.net//man/2/writev
++                    break;
++                }
++                nioBufferSize += readableBytes;
++                int count = entry.count;
++                if (count == -1) {
++                    //noinspection ConstantValueVariableUse
++                    entry.count = count = buf.nioBufferCount();
++                }
++                int neededSpace = min(maxCount, nioBufferCount + count);
++                if (neededSpace > nioBuffers.length) {
++                    nioBuffers = expandNioBufferArray(nioBuffers, neededSpace, nioBufferCount);
++                    NIO_BUFFERS.set(threadLocalMap, nioBuffers);
++                }
++                if (count == 1) {
++                    ByteBuffer nioBuf = entry.buf;
++                    if (nioBuf == null) {
++                        // cache ByteBuffer as it may need to create a new ByteBuffer instance if its a
++                        // derived buffer
++                        entry.buf = nioBuf = buf.internalNioBuffer(readerIndex, readableBytes);
+                     }
++                    nioBuffers[nioBufferCount++] = nioBuf;
++                } else {
++                    // The code exists in an extra method to ensure the method is not too big to inline as this
++                    // branch is not very likely to get hit very frequently.
++                    nioBufferCount = nioBuffers(entry, buf, nioBuffers, nioBufferCount, maxCount);
++                }
++                if (nioBufferCount >= maxCount) {
++                    break;
+                 }
+             }
+             entry = entry.next;
+@@ -560,10 +546,8 @@ public void run() {
+                 int size = e.pendingSize;
+                 decrementPendingOutboundBytes(size);
+ 
+-                if (!e.cancelled) {
+-                    ReferenceCountUtil.safeRelease(e.msg);
+-                    safeFail(e.promise, cause);
+-                }
++                ReferenceCountUtil.safeRelease(e.msg);
++                safeFail(e.promise, cause);
+                 e = e.unguardedRecycleAndGetNext();
+             }
+         } finally {
+@@ -603,10 +587,8 @@ public void forEachFlushedMessage(MessageProcessor processor) throws Exception {
+         }
+ 
+         do {
+-            if (!entry.cancelled) {
+-                if (!processor.processMessage(entry.msg)) {
+-                    return;
+-                }
++            if (!processor.processMessage(entry.msg)) {
++                return;
+             }
+             entry = entry.next;
+         } while (isFlushedEntry(entry));
+@@ -642,7 +624,6 @@ protected Entry newObject(Handle<Entry> handle) {
+         long total;
+         int pendingSize;
+         int count = -1;
+-        boolean cancelled;
+ 
+         private Entry(Handle<Entry> handle) {
+             this.handle = (EnhancedHandle<Entry>) handle;
+@@ -657,25 +638,6 @@ static Entry newInstance(Object msg, int size, long total, Promise<Void> promise
+             return entry;
+         }
+ 
+-        int cancel() {
+-            if (!cancelled) {
+-                cancelled = true;
+-                int pSize = pendingSize;
+-
+-                // release message and replace with an empty buffer
+-                ReferenceCountUtil.safeRelease(msg);
+-                msg = Unpooled.EMPTY_BUFFER;
+-
+-                pendingSize = 0;
+-                total = 0;
+-                progress = 0;
+-                bufs = null;
+-                buf = null;
+-                return pSize;
+-            }
+-            return 0;
+-        }
+-
+         void unguardedRecycle() {
+             next = null;
+             bufs = null;
+@@ -686,7 +648,6 @@ void unguardedRecycle() {
+             total = 0;
+             pendingSize = 0;
+             count = -1;
+-            cancelled = false;
+             handle.unguardedRecycle(this);
+         }
+ 
+diff --git a/transport/src/main/java/io/netty/channel/DelegatingChannelPromiseNotifier.java b/transport/src/main/java/io/netty/channel/DelegatingChannelPromiseNotifier.java
+index 7d17d528e84..866b21fee64 100644
+--- a/transport/src/main/java/io/netty/channel/DelegatingChannelPromiseNotifier.java
++++ b/transport/src/main/java/io/netty/channel/DelegatingChannelPromiseNotifier.java
+@@ -94,11 +94,6 @@ public boolean tryFailure(Throwable cause) {
+         return delegate.tryFailure(cause);
+     }
+ 
+-    @Override
+-    public boolean setUncancellable() {
+-        return delegate.setUncancellable();
+-    }
+-
+     @Override
+     public Promise<Void> await() throws InterruptedException {
+         delegate.await();

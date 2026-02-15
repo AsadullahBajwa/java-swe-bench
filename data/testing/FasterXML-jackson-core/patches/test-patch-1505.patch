@@ -1,0 +1,783 @@
+diff --git a/src/test/java/module-info.java b/src/test/java/module-info.java
+index 47e16dba17..89677a12ba 100644
+--- a/src/test/java/module-info.java
++++ b/src/test/java/module-info.java
+@@ -1,6 +1,6 @@
+ // jackson-core test Module descriptor: used both for tests and to
+ // to produce "test-jar" for other Jackson components to use
+-module tools.jackson.core.testutil
++module tools.jackson.core.unittest
+ {
+     // Additional test lib/framework dependencies
+     requires org.assertj.core;
+@@ -11,10 +11,10 @@
+     requires tools.jackson.core;
+ 
+     // Exports/opens a small set of Classes for downstream Jackson components
+-    exports tools.jackson.core.testutil;
+-    exports tools.jackson.core.testutil.failure;
+-    opens tools.jackson.core.testutil;
+-    opens tools.jackson.core.testutil.failure;
++    exports tools.jackson.core.unittest.testutil;
++    exports tools.jackson.core.unittest.testutil.failure;
++    opens tools.jackson.core.unittest.testutil;
++    opens tools.jackson.core.unittest.testutil.failure;
+ 
+     // Additional test opens for Unit tests
+ 
+diff --git a/src/test/java/tools/jackson/core/unittest/JacksonCoreTestBase.java b/src/test/java/tools/jackson/core/unittest/JacksonCoreTestBase.java
+index 0afba59e3a..3a5618e2a8 100644
+--- a/src/test/java/tools/jackson/core/unittest/JacksonCoreTestBase.java
++++ b/src/test/java/tools/jackson/core/unittest/JacksonCoreTestBase.java
+@@ -10,10 +10,10 @@
+ import tools.jackson.core.TokenStreamFactory;
+ import tools.jackson.core.json.JsonFactory;
+ import tools.jackson.core.json.JsonFactoryBuilder;
+-import tools.jackson.core.testutil.JacksonTestUtilBase;
+-import tools.jackson.core.testutil.MockDataInput;
+-import tools.jackson.core.testutil.ThrottledInputStream;
+-import tools.jackson.core.testutil.ThrottledReader;
++import tools.jackson.core.unittest.testutil.JacksonTestUtilBase;
++import tools.jackson.core.unittest.testutil.MockDataInput;
++import tools.jackson.core.unittest.testutil.ThrottledInputStream;
++import tools.jackson.core.unittest.testutil.ThrottledReader;
+ 
+ /**
+  * Base class for Jackson-core unit tests, using JUnit 5.
+diff --git a/src/test/java/tools/jackson/core/unittest/async/AsyncTestBase.java b/src/test/java/tools/jackson/core/unittest/async/AsyncTestBase.java
+index 5c95e1d1d6..d216da2f98 100644
+--- a/src/test/java/tools/jackson/core/unittest/async/AsyncTestBase.java
++++ b/src/test/java/tools/jackson/core/unittest/async/AsyncTestBase.java
+@@ -5,10 +5,10 @@
+ import tools.jackson.core.ObjectReadContext;
+ import tools.jackson.core.TokenStreamFactory;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+-import tools.jackson.core.testutil.AsyncReaderWrapperForByteArray;
+-import tools.jackson.core.testutil.AsyncReaderWrapperForByteBuffer;
+ import tools.jackson.core.unittest.*;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapperForByteArray;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapperForByteBuffer;
+ 
+ public abstract class AsyncTestBase extends JacksonCoreTestBase
+ {
+diff --git a/src/test/java/tools/jackson/core/unittest/base64/Base64GenerationTest.java b/src/test/java/tools/jackson/core/unittest/base64/Base64GenerationTest.java
+index f1521d82db..833fbbc04a 100644
+--- a/src/test/java/tools/jackson/core/unittest/base64/Base64GenerationTest.java
++++ b/src/test/java/tools/jackson/core/unittest/base64/Base64GenerationTest.java
+@@ -13,8 +13,8 @@
+ import tools.jackson.core.ObjectReadContext;
+ import tools.jackson.core.ObjectWriteContext;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.ThrottledInputStream;
+ import tools.jackson.core.unittest.*;
++import tools.jackson.core.unittest.testutil.ThrottledInputStream;
+ 
+ import static org.junit.jupiter.api.Assertions.assertEquals;
+ 
+diff --git a/src/test/java/tools/jackson/core/unittest/constraints/LargeDocReadTest.java b/src/test/java/tools/jackson/core/unittest/constraints/LargeDocReadTest.java
+index bfd7c6f37f..4e34492906 100644
+--- a/src/test/java/tools/jackson/core/unittest/constraints/LargeDocReadTest.java
++++ b/src/test/java/tools/jackson/core/unittest/constraints/LargeDocReadTest.java
+@@ -8,8 +8,8 @@
+ import tools.jackson.core.StreamReadConstraints;
+ import tools.jackson.core.exc.StreamConstraintsException;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.assertEquals;
+ import static org.junit.jupiter.api.Assertions.fail;
+diff --git a/src/test/java/tools/jackson/core/unittest/fuzz/Fuzz32208UTF32ParseTest.java b/src/test/java/tools/jackson/core/unittest/fuzz/Fuzz32208UTF32ParseTest.java
+index 927f7abc7e..41cd190048 100644
+--- a/src/test/java/tools/jackson/core/unittest/fuzz/Fuzz32208UTF32ParseTest.java
++++ b/src/test/java/tools/jackson/core/unittest/fuzz/Fuzz32208UTF32ParseTest.java
+@@ -12,8 +12,8 @@
+ import tools.jackson.core.exc.JacksonIOException;
+ import tools.jackson.core.io.UTF32Reader;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.ThrottledInputStream;
+ import tools.jackson.core.unittest.*;
++import tools.jackson.core.unittest.testutil.ThrottledInputStream;
+ 
+ import static org.junit.jupiter.api.Assertions.fail;
+ 
+diff --git a/src/test/java/tools/jackson/core/unittest/fuzz/Fuzz52688ParseTest.java b/src/test/java/tools/jackson/core/unittest/fuzz/Fuzz52688ParseTest.java
+index c1bb496f66..5104680f3a 100644
+--- a/src/test/java/tools/jackson/core/unittest/fuzz/Fuzz52688ParseTest.java
++++ b/src/test/java/tools/jackson/core/unittest/fuzz/Fuzz52688ParseTest.java
+@@ -10,8 +10,8 @@
+ import tools.jackson.core.ObjectReadContext;
+ import tools.jackson.core.exc.StreamReadException;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.ThrottledInputStream;
+ import tools.jackson.core.unittest.*;
++import tools.jackson.core.unittest.testutil.ThrottledInputStream;
+ 
+ import static org.junit.jupiter.api.Assertions.assertEquals;
+ import static org.junit.jupiter.api.Assertions.fail;
+diff --git a/src/test/java/tools/jackson/core/unittest/json/JsonParserClosedCaseTest.java b/src/test/java/tools/jackson/core/unittest/json/JsonParserClosedCaseTest.java
+index 50e1eb634c..f846b52443 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/JsonParserClosedCaseTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/JsonParserClosedCaseTest.java
+@@ -12,8 +12,8 @@
+ import tools.jackson.core.*;
+ import tools.jackson.core.io.SerializedString;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.MockDataInput;
+ import tools.jackson.core.unittest.JacksonCoreTestBase;
++import tools.jackson.core.unittest.testutil.MockDataInput;
+ 
+ import static org.junit.jupiter.api.Assertions.assertFalse;
+ import static org.junit.jupiter.api.Assertions.assertNull;
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/AsyncBinaryParseTest.java b/src/test/java/tools/jackson/core/unittest/json/async/AsyncBinaryParseTest.java
+index 502ad00373..13143c0681 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/AsyncBinaryParseTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/AsyncBinaryParseTest.java
+@@ -8,8 +8,8 @@
+ import tools.jackson.core.JsonToken;
+ import tools.jackson.core.ObjectWriteContext;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.*;
+ 
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/AsyncCharEscapingTest.java b/src/test/java/tools/jackson/core/unittest/json/async/AsyncCharEscapingTest.java
+index 91dd728126..f6fe22fbe9 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/AsyncCharEscapingTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/AsyncCharEscapingTest.java
+@@ -5,8 +5,8 @@
+ import tools.jackson.core.JsonToken;
+ import tools.jackson.core.exc.StreamReadException;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.assertEquals;
+ import static org.junit.jupiter.api.Assertions.fail;
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/AsyncCommentParsingTest.java b/src/test/java/tools/jackson/core/unittest/json/async/AsyncCommentParsingTest.java
+index e9ef9e41bb..d5e3cd1b1d 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/AsyncCommentParsingTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/AsyncCommentParsingTest.java
+@@ -8,8 +8,8 @@
+ import tools.jackson.core.exc.StreamReadException;
+ import tools.jackson.core.json.JsonFactory;
+ import tools.jackson.core.json.JsonReadFeature;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.*;
+ 
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/AsyncConcurrencyByteBufferTest.java b/src/test/java/tools/jackson/core/unittest/json/async/AsyncConcurrencyByteBufferTest.java
+index ea3bb7a8e5..033944711d 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/AsyncConcurrencyByteBufferTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/AsyncConcurrencyByteBufferTest.java
+@@ -2,7 +2,7 @@
+ 
+ import java.io.IOException;
+ 
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ public class AsyncConcurrencyByteBufferTest extends AsyncConcurrencyTest {
+ 
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/AsyncConcurrencyTest.java b/src/test/java/tools/jackson/core/unittest/json/async/AsyncConcurrencyTest.java
+index 3f62ad83fa..b12ef60a38 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/AsyncConcurrencyTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/AsyncConcurrencyTest.java
+@@ -10,8 +10,8 @@
+ 
+ import tools.jackson.core.JsonToken;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.fail;
+ 
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/AsyncInvalidCharsTest.java b/src/test/java/tools/jackson/core/unittest/json/async/AsyncInvalidCharsTest.java
+index 88253e7a83..ff6bc34c12 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/AsyncInvalidCharsTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/AsyncInvalidCharsTest.java
+@@ -8,8 +8,8 @@
+ import tools.jackson.core.TokenStreamLocation;
+ import tools.jackson.core.exc.StreamReadException;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.assertEquals;
+ import static org.junit.jupiter.api.Assertions.fail;
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/AsyncMissingValuesInArrayTest.java b/src/test/java/tools/jackson/core/unittest/json/async/AsyncMissingValuesInArrayTest.java
+index 2a26692473..61df2e5760 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/AsyncMissingValuesInArrayTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/AsyncMissingValuesInArrayTest.java
+@@ -10,8 +10,8 @@
+ import tools.jackson.core.json.JsonFactory;
+ import tools.jackson.core.json.JsonFactoryBuilder;
+ import tools.jackson.core.json.JsonReadFeature;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.*;
+ 
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/AsyncMissingValuesInObjectTest.java b/src/test/java/tools/jackson/core/unittest/json/async/AsyncMissingValuesInObjectTest.java
+index f61550f9f6..91189ce9bc 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/AsyncMissingValuesInObjectTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/AsyncMissingValuesInObjectTest.java
+@@ -10,8 +10,8 @@
+ import tools.jackson.core.json.JsonFactory;
+ import tools.jackson.core.json.JsonFactoryBuilder;
+ import tools.jackson.core.json.JsonReadFeature;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.*;
+ 
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/AsyncNaNHandlingTest.java b/src/test/java/tools/jackson/core/unittest/json/async/AsyncNaNHandlingTest.java
+index c807ba8412..9dfccc0dae 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/AsyncNaNHandlingTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/AsyncNaNHandlingTest.java
+@@ -7,8 +7,8 @@
+ import tools.jackson.core.JsonToken;
+ import tools.jackson.core.json.JsonFactory;
+ import tools.jackson.core.json.JsonReadFeature;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.*;
+ 
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/AsyncNonStandardNumberParsingTest.java b/src/test/java/tools/jackson/core/unittest/json/async/AsyncNonStandardNumberParsingTest.java
+index 9cd669aa01..4a01fabf9f 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/AsyncNonStandardNumberParsingTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/AsyncNonStandardNumberParsingTest.java
+@@ -8,8 +8,8 @@
+ import tools.jackson.core.exc.StreamReadException;
+ import tools.jackson.core.json.JsonFactory;
+ import tools.jackson.core.json.JsonReadFeature;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.assertEquals;
+ import static org.junit.jupiter.api.Assertions.fail;
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/AsyncNonStdNumberHandlingTest.java b/src/test/java/tools/jackson/core/unittest/json/async/AsyncNonStdNumberHandlingTest.java
+index b7973581bb..ff73f82a3c 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/AsyncNonStdNumberHandlingTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/AsyncNonStdNumberHandlingTest.java
+@@ -6,8 +6,8 @@
+ import tools.jackson.core.exc.StreamReadException;
+ import tools.jackson.core.json.JsonFactory;
+ import tools.jackson.core.json.JsonReadFeature;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.*;
+ 
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/AsyncNonStdParsingTest.java b/src/test/java/tools/jackson/core/unittest/json/async/AsyncNonStdParsingTest.java
+index 4df3c5d23f..a022ff1d97 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/AsyncNonStdParsingTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/AsyncNonStdParsingTest.java
+@@ -6,9 +6,8 @@
+ import tools.jackson.core.exc.StreamReadException;
+ import tools.jackson.core.json.JsonFactory;
+ import tools.jackson.core.json.JsonReadFeature;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+-
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.assertEquals;
+ import static org.junit.jupiter.api.Assertions.fail;
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/AsyncNumberCoercionTest.java b/src/test/java/tools/jackson/core/unittest/json/async/AsyncNumberCoercionTest.java
+index d34d63d81e..80b8cff7c7 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/AsyncNumberCoercionTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/AsyncNumberCoercionTest.java
+@@ -10,8 +10,8 @@
+ import tools.jackson.core.JsonToken;
+ import tools.jackson.core.exc.InputCoercionException;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.assertEquals;
+ import static org.junit.jupiter.api.Assertions.fail;
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/AsyncNumberDeferredReadTest.java b/src/test/java/tools/jackson/core/unittest/json/async/AsyncNumberDeferredReadTest.java
+index 3e5ba2e1ca..9287d1aa84 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/AsyncNumberDeferredReadTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/AsyncNumberDeferredReadTest.java
+@@ -9,8 +9,8 @@
+ import tools.jackson.core.JsonToken;
+ import tools.jackson.core.JsonParser.NumberType;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.assertEquals;
+ import static org.junit.jupiter.api.Assertions.assertNull;
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/AsyncParserNamesTest.java b/src/test/java/tools/jackson/core/unittest/json/async/AsyncParserNamesTest.java
+index 4077f9e3bf..04802b12a6 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/AsyncParserNamesTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/AsyncParserNamesTest.java
+@@ -10,8 +10,8 @@
+ import tools.jackson.core.json.JsonFactory;
+ import tools.jackson.core.json.async.NonBlockingJsonParserBase;
+ import tools.jackson.core.sym.ByteQuadsCanonicalizer;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.*;
+ 
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/AsyncPointerFromContext563Test.java b/src/test/java/tools/jackson/core/unittest/json/async/AsyncPointerFromContext563Test.java
+index 9286f7de77..9e9af8685e 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/AsyncPointerFromContext563Test.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/AsyncPointerFromContext563Test.java
+@@ -5,8 +5,8 @@
+ import tools.jackson.core.JsonPointer;
+ import tools.jackson.core.JsonToken;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.*;
+ 
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/AsyncPropertyNamesTest.java b/src/test/java/tools/jackson/core/unittest/json/async/AsyncPropertyNamesTest.java
+index bbb1e207cd..1118f2b279 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/AsyncPropertyNamesTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/AsyncPropertyNamesTest.java
+@@ -8,8 +8,8 @@
+ import tools.jackson.core.TokenStreamLocation;
+ import tools.jackson.core.json.JsonFactory;
+ import tools.jackson.core.json.JsonReadFeature;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.assertEquals;
+ import static org.junit.jupiter.api.Assertions.assertNull;
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/AsyncRootNumbersTest.java b/src/test/java/tools/jackson/core/unittest/json/async/AsyncRootNumbersTest.java
+index add275a99e..85b28307d4 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/AsyncRootNumbersTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/AsyncRootNumbersTest.java
+@@ -6,8 +6,8 @@
+ 
+ import tools.jackson.core.JsonToken;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.*;
+ 
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/AsyncRootValuesTest.java b/src/test/java/tools/jackson/core/unittest/json/async/AsyncRootValuesTest.java
+index a629753e0b..d7a4695841 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/AsyncRootValuesTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/AsyncRootValuesTest.java
+@@ -7,8 +7,8 @@
+ 
+ import tools.jackson.core.JsonToken;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.*;
+ 
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/AsyncScalarArrayTest.java b/src/test/java/tools/jackson/core/unittest/json/async/AsyncScalarArrayTest.java
+index 39092d5f69..b5b46dc1b8 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/AsyncScalarArrayTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/AsyncScalarArrayTest.java
+@@ -11,8 +11,8 @@
+ import tools.jackson.core.ObjectWriteContext;
+ import tools.jackson.core.JsonParser.NumberType;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.*;
+ 
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/AsyncScopeMatchingTest.java b/src/test/java/tools/jackson/core/unittest/json/async/AsyncScopeMatchingTest.java
+index e7ddbf3b45..490b27deb0 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/AsyncScopeMatchingTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/AsyncScopeMatchingTest.java
+@@ -5,8 +5,8 @@
+ import tools.jackson.core.JsonToken;
+ import tools.jackson.core.exc.StreamReadException;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.assertEquals;
+ import static org.junit.jupiter.api.Assertions.fail;
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/AsyncSimpleNestedTest.java b/src/test/java/tools/jackson/core/unittest/json/async/AsyncSimpleNestedTest.java
+index 2f734a664c..997a789f2f 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/AsyncSimpleNestedTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/AsyncSimpleNestedTest.java
+@@ -5,8 +5,8 @@
+ import tools.jackson.core.JsonToken;
+ import tools.jackson.core.exc.StreamReadException;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.*;
+ 
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/AsyncSimpleObjectTest.java b/src/test/java/tools/jackson/core/unittest/json/async/AsyncSimpleObjectTest.java
+index aaf903721f..caf4dd0c4c 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/AsyncSimpleObjectTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/AsyncSimpleObjectTest.java
+@@ -12,8 +12,8 @@
+ import tools.jackson.core.exc.InputCoercionException;
+ import tools.jackson.core.exc.StreamReadException;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.*;
+ 
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/AsyncStringArrayTest.java b/src/test/java/tools/jackson/core/unittest/json/async/AsyncStringArrayTest.java
+index 891021efe9..a2578addc5 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/AsyncStringArrayTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/AsyncStringArrayTest.java
+@@ -11,8 +11,8 @@
+ import tools.jackson.core.ObjectWriteContext;
+ import tools.jackson.core.StreamReadConstraints;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.*;
+ 
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/AsyncStringObjectTest.java b/src/test/java/tools/jackson/core/unittest/json/async/AsyncStringObjectTest.java
+index 2007e58a61..14bd6c1602 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/AsyncStringObjectTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/AsyncStringObjectTest.java
+@@ -6,8 +6,8 @@
+ 
+ import tools.jackson.core.JsonToken;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.*;
+ 
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/AsyncUnicodeHandlingTest.java b/src/test/java/tools/jackson/core/unittest/json/async/AsyncUnicodeHandlingTest.java
+index 7dc58e329a..c0d97151ad 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/AsyncUnicodeHandlingTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/AsyncUnicodeHandlingTest.java
+@@ -6,8 +6,8 @@
+ 
+ import tools.jackson.core.JsonToken;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.assertEquals;
+ import static org.junit.jupiter.api.Assertions.assertNull;
+diff --git a/src/test/java/tools/jackson/core/unittest/json/async/ConfigTest.java b/src/test/java/tools/jackson/core/unittest/json/async/ConfigTest.java
+index c1c356f4fc..8884c90d99 100644
+--- a/src/test/java/tools/jackson/core/unittest/json/async/ConfigTest.java
++++ b/src/test/java/tools/jackson/core/unittest/json/async/ConfigTest.java
+@@ -7,8 +7,8 @@
+ import tools.jackson.core.JsonParser;
+ import tools.jackson.core.JsonToken;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
+ 
+ import static org.junit.jupiter.api.Assertions.*;
+ 
+diff --git a/src/test/java/tools/jackson/core/unittest/read/SimpleParserTest.java b/src/test/java/tools/jackson/core/unittest/read/SimpleParserTest.java
+index 298581c980..30fc75231e 100644
+--- a/src/test/java/tools/jackson/core/unittest/read/SimpleParserTest.java
++++ b/src/test/java/tools/jackson/core/unittest/read/SimpleParserTest.java
+@@ -15,8 +15,8 @@
+ import tools.jackson.core.TokenStreamLocation;
+ import tools.jackson.core.exc.StreamReadException;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.MockDataInput;
+ import tools.jackson.core.unittest.*;
++import tools.jackson.core.unittest.testutil.MockDataInput;
+ import tools.jackson.core.util.JsonParserDelegate;
+ 
+ import static org.junit.jupiter.api.Assertions.*;
+diff --git a/src/test/java/tools/jackson/core/testutil/AsyncReaderWrapper.java b/src/test/java/tools/jackson/core/unittest/testutil/AsyncReaderWrapper.java
+similarity index 98%
+rename from src/test/java/tools/jackson/core/testutil/AsyncReaderWrapper.java
+rename to src/test/java/tools/jackson/core/unittest/testutil/AsyncReaderWrapper.java
+index 49786ae693..a40415e800 100644
+--- a/src/test/java/tools/jackson/core/testutil/AsyncReaderWrapper.java
++++ b/src/test/java/tools/jackson/core/unittest/testutil/AsyncReaderWrapper.java
+@@ -1,4 +1,4 @@
+-package tools.jackson.core.testutil;
++package tools.jackson.core.unittest.testutil;
+ 
+ import java.io.StringWriter;
+ import java.math.BigDecimal;
+diff --git a/src/test/java/tools/jackson/core/testutil/AsyncReaderWrapperForByteArray.java b/src/test/java/tools/jackson/core/unittest/testutil/AsyncReaderWrapperForByteArray.java
+similarity index 97%
+rename from src/test/java/tools/jackson/core/testutil/AsyncReaderWrapperForByteArray.java
+rename to src/test/java/tools/jackson/core/unittest/testutil/AsyncReaderWrapperForByteArray.java
+index 22f93ce938..2acccc9050 100644
+--- a/src/test/java/tools/jackson/core/testutil/AsyncReaderWrapperForByteArray.java
++++ b/src/test/java/tools/jackson/core/unittest/testutil/AsyncReaderWrapperForByteArray.java
+@@ -1,4 +1,4 @@
+-package tools.jackson.core.testutil;
++package tools.jackson.core.unittest.testutil;
+ 
+ import tools.jackson.core.JsonParser;
+ import tools.jackson.core.JsonToken;
+diff --git a/src/test/java/tools/jackson/core/testutil/AsyncReaderWrapperForByteBuffer.java b/src/test/java/tools/jackson/core/unittest/testutil/AsyncReaderWrapperForByteBuffer.java
+similarity index 97%
+rename from src/test/java/tools/jackson/core/testutil/AsyncReaderWrapperForByteBuffer.java
+rename to src/test/java/tools/jackson/core/unittest/testutil/AsyncReaderWrapperForByteBuffer.java
+index 68d1528daa..dbf562d59e 100644
+--- a/src/test/java/tools/jackson/core/testutil/AsyncReaderWrapperForByteBuffer.java
++++ b/src/test/java/tools/jackson/core/unittest/testutil/AsyncReaderWrapperForByteBuffer.java
+@@ -1,4 +1,4 @@
+-package tools.jackson.core.testutil;
++package tools.jackson.core.unittest.testutil;
+ 
+ import java.nio.ByteBuffer;
+ 
+diff --git a/src/test/java/tools/jackson/core/testutil/ByteOutputStreamForTesting.java b/src/test/java/tools/jackson/core/unittest/testutil/ByteOutputStreamForTesting.java
+similarity index 93%
+rename from src/test/java/tools/jackson/core/testutil/ByteOutputStreamForTesting.java
+rename to src/test/java/tools/jackson/core/unittest/testutil/ByteOutputStreamForTesting.java
+index 6d07ccd7fe..eb47a3a3b9 100644
+--- a/src/test/java/tools/jackson/core/testutil/ByteOutputStreamForTesting.java
++++ b/src/test/java/tools/jackson/core/unittest/testutil/ByteOutputStreamForTesting.java
+@@ -1,4 +1,4 @@
+-package tools.jackson.core.testutil;
++package tools.jackson.core.unittest.testutil;
+ 
+ import java.io.ByteArrayOutputStream;
+ import java.io.IOException;
+diff --git a/src/test/java/tools/jackson/core/testutil/JacksonTestUtilBase.java b/src/test/java/tools/jackson/core/unittest/testutil/JacksonTestUtilBase.java
+similarity index 99%
+rename from src/test/java/tools/jackson/core/testutil/JacksonTestUtilBase.java
+rename to src/test/java/tools/jackson/core/unittest/testutil/JacksonTestUtilBase.java
+index 38f00a69ab..b0537ef842 100644
+--- a/src/test/java/tools/jackson/core/testutil/JacksonTestUtilBase.java
++++ b/src/test/java/tools/jackson/core/unittest/testutil/JacksonTestUtilBase.java
+@@ -1,4 +1,4 @@
+-package tools.jackson.core.testutil;
++package tools.jackson.core.unittest.testutil;
+ 
+ import static org.junit.jupiter.api.Assertions.assertEquals;
+ import static org.junit.jupiter.api.Assertions.fail;
+diff --git a/src/test/java/tools/jackson/core/testutil/MockDataInput.java b/src/test/java/tools/jackson/core/unittest/testutil/MockDataInput.java
+similarity index 98%
+rename from src/test/java/tools/jackson/core/testutil/MockDataInput.java
+rename to src/test/java/tools/jackson/core/unittest/testutil/MockDataInput.java
+index 8302138b27..b50a5ab7af 100644
+--- a/src/test/java/tools/jackson/core/testutil/MockDataInput.java
++++ b/src/test/java/tools/jackson/core/unittest/testutil/MockDataInput.java
+@@ -1,4 +1,4 @@
+-package tools.jackson.core.testutil;
++package tools.jackson.core.unittest.testutil;
+ 
+ import java.io.*;
+ import java.nio.charset.StandardCharsets;
+diff --git a/src/test/java/tools/jackson/core/testutil/StringWriterForTesting.java b/src/test/java/tools/jackson/core/unittest/testutil/StringWriterForTesting.java
+similarity index 92%
+rename from src/test/java/tools/jackson/core/testutil/StringWriterForTesting.java
+rename to src/test/java/tools/jackson/core/unittest/testutil/StringWriterForTesting.java
+index 63d1850d06..1aa9671da1 100644
+--- a/src/test/java/tools/jackson/core/testutil/StringWriterForTesting.java
++++ b/src/test/java/tools/jackson/core/unittest/testutil/StringWriterForTesting.java
+@@ -1,4 +1,4 @@
+-package tools.jackson.core.testutil;
++package tools.jackson.core.unittest.testutil;
+ 
+ import java.io.IOException;
+ import java.io.StringWriter;
+diff --git a/src/test/java/tools/jackson/core/testutil/ThrottledInputStream.java b/src/test/java/tools/jackson/core/unittest/testutil/ThrottledInputStream.java
+similarity index 94%
+rename from src/test/java/tools/jackson/core/testutil/ThrottledInputStream.java
+rename to src/test/java/tools/jackson/core/unittest/testutil/ThrottledInputStream.java
+index 345f6d4e2b..5e984ca0f3 100644
+--- a/src/test/java/tools/jackson/core/testutil/ThrottledInputStream.java
++++ b/src/test/java/tools/jackson/core/unittest/testutil/ThrottledInputStream.java
+@@ -1,4 +1,4 @@
+-package tools.jackson.core.testutil;
++package tools.jackson.core.unittest.testutil;
+ 
+ import java.io.ByteArrayInputStream;
+ import java.io.FilterInputStream;
+diff --git a/src/test/java/tools/jackson/core/testutil/ThrottledReader.java b/src/test/java/tools/jackson/core/unittest/testutil/ThrottledReader.java
+similarity index 93%
+rename from src/test/java/tools/jackson/core/testutil/ThrottledReader.java
+rename to src/test/java/tools/jackson/core/unittest/testutil/ThrottledReader.java
+index 4ea3a8756c..265c474091 100644
+--- a/src/test/java/tools/jackson/core/testutil/ThrottledReader.java
++++ b/src/test/java/tools/jackson/core/unittest/testutil/ThrottledReader.java
+@@ -1,4 +1,4 @@
+-package tools.jackson.core.testutil;
++package tools.jackson.core.unittest.testutil;
+ 
+ import java.io.*;
+ 
+diff --git a/src/test/java/tools/jackson/core/testutil/failure/ExpectedPassingTestCasePredicate.java b/src/test/java/tools/jackson/core/unittest/testutil/failure/ExpectedPassingTestCasePredicate.java
+similarity index 85%
+rename from src/test/java/tools/jackson/core/testutil/failure/ExpectedPassingTestCasePredicate.java
+rename to src/test/java/tools/jackson/core/unittest/testutil/failure/ExpectedPassingTestCasePredicate.java
+index 292d5fd5ec..caa60bbc67 100644
+--- a/src/test/java/tools/jackson/core/testutil/failure/ExpectedPassingTestCasePredicate.java
++++ b/src/test/java/tools/jackson/core/unittest/testutil/failure/ExpectedPassingTestCasePredicate.java
+@@ -1,4 +1,4 @@
+-package tools.jackson.core.testutil.failure;
++package tools.jackson.core.unittest.testutil.failure;
+ 
+ import java.util.List;
+ 
+diff --git a/src/test/java/tools/jackson/core/testutil/failure/JacksonTestFailureExpected.java b/src/test/java/tools/jackson/core/unittest/testutil/failure/JacksonTestFailureExpected.java
+similarity index 96%
+rename from src/test/java/tools/jackson/core/testutil/failure/JacksonTestFailureExpected.java
+rename to src/test/java/tools/jackson/core/unittest/testutil/failure/JacksonTestFailureExpected.java
+index 3eed0d4511..7704d93a4e 100644
+--- a/src/test/java/tools/jackson/core/testutil/failure/JacksonTestFailureExpected.java
++++ b/src/test/java/tools/jackson/core/unittest/testutil/failure/JacksonTestFailureExpected.java
+@@ -1,4 +1,4 @@
+-package tools.jackson.core.testutil.failure;
++package tools.jackson.core.unittest.testutil.failure;
+ 
+ import java.lang.annotation.ElementType;
+ import java.lang.annotation.Retention;
+diff --git a/src/test/java/tools/jackson/core/testutil/failure/JacksonTestFailureExpectedInterceptor.java b/src/test/java/tools/jackson/core/unittest/testutil/failure/JacksonTestFailureExpectedInterceptor.java
+similarity index 98%
+rename from src/test/java/tools/jackson/core/testutil/failure/JacksonTestFailureExpectedInterceptor.java
+rename to src/test/java/tools/jackson/core/unittest/testutil/failure/JacksonTestFailureExpectedInterceptor.java
+index 85309eb7b0..2063575484 100644
+--- a/src/test/java/tools/jackson/core/testutil/failure/JacksonTestFailureExpectedInterceptor.java
++++ b/src/test/java/tools/jackson/core/unittest/testutil/failure/JacksonTestFailureExpectedInterceptor.java
+@@ -1,4 +1,4 @@
+-package tools.jackson.core.testutil.failure;
++package tools.jackson.core.unittest.testutil.failure;
+ 
+ import java.lang.reflect.Method;
+ 
+diff --git a/src/test/java/tools/jackson/core/testutil/failure/JacksonTestShouldFailException.java b/src/test/java/tools/jackson/core/unittest/testutil/failure/JacksonTestShouldFailException.java
+similarity index 88%
+rename from src/test/java/tools/jackson/core/testutil/failure/JacksonTestShouldFailException.java
+rename to src/test/java/tools/jackson/core/unittest/testutil/failure/JacksonTestShouldFailException.java
+index 760e5eb611..850dec1e9e 100644
+--- a/src/test/java/tools/jackson/core/testutil/failure/JacksonTestShouldFailException.java
++++ b/src/test/java/tools/jackson/core/unittest/testutil/failure/JacksonTestShouldFailException.java
+@@ -1,4 +1,4 @@
+-package tools.jackson.core.testutil.failure;
++package tools.jackson.core.unittest.testutil.failure;
+ 
+ /**
+  * Exception used to alert that a test is passing, but should be failing.
+diff --git a/src/test/java/tools/jackson/core/unittest/tofix/ParserErrorHandling105Test.java b/src/test/java/tools/jackson/core/unittest/tofix/ParserErrorHandling105Test.java
+index 6a4ade90d9..6a37eaa0cd 100644
+--- a/src/test/java/tools/jackson/core/unittest/tofix/ParserErrorHandling105Test.java
++++ b/src/test/java/tools/jackson/core/unittest/tofix/ParserErrorHandling105Test.java
+@@ -5,7 +5,7 @@
+ import tools.jackson.core.JsonParser;
+ import tools.jackson.core.JsonToken;
+ import tools.jackson.core.exc.StreamReadException;
+-import tools.jackson.core.testutil.failure.JacksonTestFailureExpected;
++import tools.jackson.core.unittest.testutil.failure.JacksonTestFailureExpected;
+ 
+ import static org.junit.jupiter.api.Assertions.fail;
+ 
+diff --git a/src/test/java/tools/jackson/core/unittest/tofix/ParserErrorHandling679Test.java b/src/test/java/tools/jackson/core/unittest/tofix/ParserErrorHandling679Test.java
+index 33631a9a8d..b69abf4ed2 100644
+--- a/src/test/java/tools/jackson/core/unittest/tofix/ParserErrorHandling679Test.java
++++ b/src/test/java/tools/jackson/core/unittest/tofix/ParserErrorHandling679Test.java
+@@ -5,7 +5,7 @@
+ import tools.jackson.core.JsonParser;
+ import tools.jackson.core.JsonToken;
+ import tools.jackson.core.exc.StreamReadException;
+-import tools.jackson.core.testutil.failure.JacksonTestFailureExpected;
++import tools.jackson.core.unittest.testutil.failure.JacksonTestFailureExpected;
+ 
+ import static org.junit.jupiter.api.Assertions.assertEquals;
+ import static org.junit.jupiter.api.Assertions.fail;
+diff --git a/src/test/java/tools/jackson/core/unittest/tofix/ParserFilterEmpty1418Test.java b/src/test/java/tools/jackson/core/unittest/tofix/ParserFilterEmpty1418Test.java
+index fcd6c1721f..2054e795cb 100644
+--- a/src/test/java/tools/jackson/core/unittest/tofix/ParserFilterEmpty1418Test.java
++++ b/src/test/java/tools/jackson/core/unittest/tofix/ParserFilterEmpty1418Test.java
+@@ -7,8 +7,8 @@
+ import tools.jackson.core.filter.TokenFilter;
+ import tools.jackson.core.filter.TokenFilter.Inclusion;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.failure.JacksonTestFailureExpected;
+ import tools.jackson.core.unittest.JacksonCoreTestBase;
++import tools.jackson.core.unittest.testutil.failure.JacksonTestFailureExpected;
+ 
+ import static org.junit.jupiter.api.Assertions.assertEquals;
+ import static org.junit.jupiter.api.Assertions.assertNull;
+diff --git a/src/test/java/tools/jackson/core/unittest/tofix/async/AsyncTokenNonRootErrorTest.java b/src/test/java/tools/jackson/core/unittest/tofix/async/AsyncTokenNonRootErrorTest.java
+index 9c0d5f376f..d373cea908 100644
+--- a/src/test/java/tools/jackson/core/unittest/tofix/async/AsyncTokenNonRootErrorTest.java
++++ b/src/test/java/tools/jackson/core/unittest/tofix/async/AsyncTokenNonRootErrorTest.java
+@@ -5,9 +5,9 @@
+ import tools.jackson.core.JsonToken;
+ import tools.jackson.core.exc.StreamReadException;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+-import tools.jackson.core.testutil.failure.JacksonTestFailureExpected;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
++import tools.jackson.core.unittest.testutil.failure.JacksonTestFailureExpected;
+ 
+ import static org.junit.jupiter.api.Assertions.fail;
+ 
+diff --git a/src/test/java/tools/jackson/core/unittest/tofix/async/AsyncTokenRootErrorTest.java b/src/test/java/tools/jackson/core/unittest/tofix/async/AsyncTokenRootErrorTest.java
+index 039374223f..20780c05ec 100644
+--- a/src/test/java/tools/jackson/core/unittest/tofix/async/AsyncTokenRootErrorTest.java
++++ b/src/test/java/tools/jackson/core/unittest/tofix/async/AsyncTokenRootErrorTest.java
+@@ -5,9 +5,9 @@
+ import tools.jackson.core.JsonToken;
+ import tools.jackson.core.exc.StreamReadException;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.AsyncReaderWrapper;
+-import tools.jackson.core.testutil.failure.JacksonTestFailureExpected;
+ import tools.jackson.core.unittest.async.AsyncTestBase;
++import tools.jackson.core.unittest.testutil.AsyncReaderWrapper;
++import tools.jackson.core.unittest.testutil.failure.JacksonTestFailureExpected;
+ 
+ import static org.junit.jupiter.api.Assertions.fail;
+ 
+diff --git a/src/test/java/tools/jackson/core/unittest/write/GeneratorCloseTest.java b/src/test/java/tools/jackson/core/unittest/write/GeneratorCloseTest.java
+index 4f663d68fb..a46ad43b70 100644
+--- a/src/test/java/tools/jackson/core/unittest/write/GeneratorCloseTest.java
++++ b/src/test/java/tools/jackson/core/unittest/write/GeneratorCloseTest.java
+@@ -10,9 +10,9 @@
+ import tools.jackson.core.ObjectWriteContext;
+ import tools.jackson.core.StreamWriteFeature;
+ import tools.jackson.core.json.JsonFactory;
+-import tools.jackson.core.testutil.ByteOutputStreamForTesting;
+-import tools.jackson.core.testutil.StringWriterForTesting;
+ import tools.jackson.core.unittest.*;
++import tools.jackson.core.unittest.testutil.ByteOutputStreamForTesting;
++import tools.jackson.core.unittest.testutil.StringWriterForTesting;
+ 
+ import static org.junit.jupiter.api.Assertions.*;
+ 

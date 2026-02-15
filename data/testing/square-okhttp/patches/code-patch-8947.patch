@@ -1,0 +1,133 @@
+diff --git a/.github/workflows/build.yml b/.github/workflows/build.yml
+index 1f5371e0b93b..0c7a711b7d82 100644
+--- a/.github/workflows/build.yml
++++ b/.github/workflows/build.yml
+@@ -475,7 +475,7 @@ jobs:
+       - uses: graalvm/setup-graalvm@v1
+         with:
+           distribution: 'graalvm'
+-          java-version: 21
++          java-version: 24
+           github-token: ${{ secrets.GITHUB_TOKEN }}
+           cache: 'gradle'
+           native-image-job-reports: true
+diff --git a/build.gradle.kts b/build.gradle.kts
+index e00b81e380c4..4475baabeb2f 100644
+--- a/build.gradle.kts
++++ b/build.gradle.kts
+@@ -175,8 +175,8 @@ subprojects {
+ 
+   val javaVersionSetting =
+     if (testJavaVersion > 8 && (project.name == "okcurl" || project.name == "native-image-tests")) {
+-      // Depends on native-image-tools which is 11+, but avoids on Java 8 tests
+-      "11"
++      // Depends on native-image-tools which is 17+, but avoids on Java 8 tests
++      "17"
+     } else {
+       "1.8"
+     }
+diff --git a/gradle/libs.versions.toml b/gradle/libs.versions.toml
+index c6c9fd12900e..8a1bab927272 100644
+--- a/gradle/libs.versions.toml
++++ b/gradle/libs.versions.toml
+@@ -51,7 +51,7 @@ gradlePlugin-binaryCompatibilityValidator = "org.jetbrains.kotlinx.binary-compat
+ gradlePlugin-bnd = { module = "biz.aQute.bnd:biz.aQute.bnd.gradle", version.ref = "biz-aQute-bnd" }
+ gradlePlugin-dokka = "org.jetbrains.dokka:dokka-gradle-plugin:2.0.0"
+ gradlePlugin-errorprone = "net.ltgt.gradle:gradle-errorprone-plugin:4.3.0"
+-gradlePlugin-graalvmBuildTools = "org.graalvm.buildtools.native:org.graalvm.buildtools.native.gradle.plugin:0.10.6"
++gradlePlugin-graalvmBuildTools = "org.graalvm.buildtools.native:org.graalvm.buildtools.native.gradle.plugin:0.11.0"
+ gradlePlugin-kotlin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "org-jetbrains-kotlin" }
+ gradlePlugin-kotlinSerialization = { module = "org.jetbrains.kotlin:kotlin-serialization", version.ref = "org-jetbrains-kotlin" }
+ gradlePlugin-ksp = { module = "com.google.devtools.ksp:symbol-processing-gradle-plugin", version.ref = "ksp" }
+diff --git a/native-image-tests/build.gradle.kts b/native-image-tests/build.gradle.kts
+index a0cb2ec19cee..a252297f8da3 100644
+--- a/native-image-tests/build.gradle.kts
++++ b/native-image-tests/build.gradle.kts
+@@ -25,7 +25,9 @@ dependencies {
+ 
+   testImplementation(projects.mockwebserver3Junit5)
+   testImplementation(libs.assertk)
+-  testImplementation(kotlin("test"))
++  testRuntimeOnly(libs.junit.jupiter.engine)
++  testImplementation(libs.kotlin.junit5)
++  testImplementation(libs.junit.jupiter.params)
+ }
+ 
+ graalvmNative {
+@@ -35,30 +37,6 @@ graalvmNative {
+     named("test") {
+       buildArgs.add("--strict-image-heap")
+ 
+-      // see https://github.com/junit-team/junit5/wiki/Upgrading-to-JUnit-5.13
+-      // should not be needed after updating native build tools to 0.11.0
+-      val initializeAtBuildTime = listOf(
+-        "kotlin.coroutines.intrinsics.CoroutineSingletons",
+-        "org.junit.jupiter.api.DisplayNameGenerator\$IndicativeSentences",
+-        "org.junit.jupiter.engine.descriptor.ClassBasedTestDescriptor\$ClassInfo",
+-        "org.junit.jupiter.engine.descriptor.ClassBasedTestDescriptor\$LifecycleMethods",
+-        "org.junit.jupiter.engine.descriptor.ClassTemplateInvocationTestDescriptor",
+-        "org.junit.jupiter.engine.descriptor.ClassTemplateTestDescriptor",
+-        "org.junit.jupiter.engine.descriptor.DynamicDescendantFilter\$Mode",
+-        "org.junit.jupiter.engine.descriptor.ExclusiveResourceCollector\$1",
+-        "org.junit.jupiter.engine.descriptor.MethodBasedTestDescriptor\$MethodInfo",
+-        "org.junit.jupiter.engine.config.InstantiatingConfigurationParameterConverter",
+-        "org.junit.jupiter.engine.discovery.ClassSelectorResolver\$DummyClassTemplateInvocationContext",
+-        "org.junit.platform.engine.support.store.NamespacedHierarchicalStore\$EvaluatedValue",
+-        "org.junit.platform.launcher.core.DiscoveryIssueNotifier",
+-        "org.junit.platform.launcher.core.HierarchicalOutputDirectoryProvider",
+-        "org.junit.platform.launcher.core.LauncherConfig",
+-        "org.junit.platform.launcher.core.LauncherPhase",
+-        "org.junit.platform.launcher.core.LauncherDiscoveryResult\$EngineResultInfo",
+-        "org.junit.platform.suite.engine.SuiteTestDescriptor\$LifecycleMethods"
+-      )
+-      buildArgs.add("--initialize-at-build-time=${initializeAtBuildTime.joinToString(",")}")
+-
+       // speed up development testing
+       buildArgs.add("-Ob")
+     }
+diff --git a/okcurl/build.gradle.kts b/okcurl/build.gradle.kts
+index 9bfce470dfc1..a2e879421d8f 100644
+--- a/okcurl/build.gradle.kts
++++ b/okcurl/build.gradle.kts
+@@ -28,13 +28,11 @@ kotlin {
+ }
+ 
+ dependencies {
+-  api(libs.kotlin.stdlib)
+   api(projects.okhttp)
+   api(projects.loggingInterceptor)
+   api(libs.squareup.okio)
+   implementation(libs.clikt)
+ 
+-  testImplementation(projects.okhttpTestingSupport)
+   testApi(libs.assertk)
+   testImplementation(kotlin("test"))
+ }
+@@ -54,15 +52,19 @@ tasks.shadowJar {
+   mergeServiceFiles()
+ }
+ 
+-if (testJavaVersion >= 11) {
+-  apply(plugin = "org.graalvm.buildtools.native")
++tasks.withType<Test> {
++  onlyIf("native build requires Java 17") {
++    testJavaVersion > 17
++  }
++}
++
++apply(plugin = "org.graalvm.buildtools.native")
+ 
+-  configure<GraalVMExtension> {
+-    binaries {
+-      named("main") {
+-        imageName = "okcurl"
+-        mainClass = "okhttp3.curl.MainCommandLineKt"
+-      }
++configure<GraalVMExtension> {
++  binaries {
++    named("main") {
++      imageName = "okcurl"
++      mainClass = "okhttp3.curl.MainCommandLineKt"
+     }
+   }
+ }

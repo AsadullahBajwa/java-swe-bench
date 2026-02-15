@@ -1,0 +1,768 @@
+diff --git a/src/test/java/org/apache/commons/collections4/bloomfilter/AbstractBloomFilterTest.java b/src/test/java/org/apache/commons/collections4/bloomfilter/AbstractBloomFilterTest.java
+index 74b140c44e..d8ceea079d 100644
+--- a/src/test/java/org/apache/commons/collections4/bloomfilter/AbstractBloomFilterTest.java
++++ b/src/test/java/org/apache/commons/collections4/bloomfilter/AbstractBloomFilterTest.java
+@@ -30,15 +30,15 @@
+  */
+ public abstract class AbstractBloomFilterTest<T extends BloomFilter> {
+ 
+-    protected final SimpleHasher from1 = new SimpleHasher(1, 1);
++    protected final Hasher from1 = new IncrementingHasher(1, 1);
+     protected final long from1Value = 0x3fffeL;
+-    protected final SimpleHasher from11 = new SimpleHasher(11, 1);
++    protected final Hasher from11 = new IncrementingHasher(11, 1);
+     protected final long from11Value = 0xffff800L;
+     protected final HasherCollection bigHasher = new HasherCollection(from1, from11);
+     protected final long bigHashValue = 0xffffffeL;
+-    protected final HasherCollection fullHasher = new HasherCollection(new SimpleHasher(0, 1)/* 0-16 */,
+-            new SimpleHasher(17, 1)/* 17-33 */, new SimpleHasher(33, 1)/* 33-49 */, new SimpleHasher(50, 1)/* 50-66 */,
+-            new SimpleHasher(67, 1)/* 67-83 */
++    protected final HasherCollection fullHasher = new HasherCollection(new IncrementingHasher(0, 1)/* 0-16 */,
++            new IncrementingHasher(17, 1)/* 17-33 */, new IncrementingHasher(33, 1)/* 33-49 */, new IncrementingHasher(50, 1)/* 50-66 */,
++            new IncrementingHasher(67, 1)/* 67-83 */
+     );
+     protected final long[] fullHashValue = { 0xffffffffffffffffL, 0xfffffL };
+ 
+@@ -150,18 +150,18 @@ public final void testContains() {
+         assertFalse(bf1.contains(bf2), "BF should not contain BF2");
+         assertTrue(bf2.contains(bf1), "BF2 should contain BF");
+ 
+-        assertTrue(bf2.contains(new SimpleHasher(1, 1)), "BF2 Should contain this hasher");
+-        assertFalse(bf2.contains(new SimpleHasher(1, 3)), "BF2 Should not contain this hasher");
++        assertTrue(bf2.contains(new IncrementingHasher(1, 1)), "BF2 Should contain this hasher");
++        assertFalse(bf2.contains(new IncrementingHasher(1, 3)), "BF2 Should not contain this hasher");
+ 
+-        IndexProducer indexProducer = new SimpleHasher(1, 1).indices(getTestShape());
++        IndexProducer indexProducer = new IncrementingHasher(1, 1).indices(getTestShape());
+         assertTrue(bf2.contains(indexProducer), "BF2 Should contain this hasher");
+-        indexProducer = new SimpleHasher(1, 3).indices(getTestShape());
++        indexProducer = new IncrementingHasher(1, 3).indices(getTestShape());
+         assertFalse(bf2.contains(indexProducer), "BF2 Should not contain this hasher");
+ 
+-        BitMapProducer bitMapProducer = BitMapProducer.fromIndexProducer(new SimpleHasher(1, 1).indices(getTestShape()),
++        BitMapProducer bitMapProducer = BitMapProducer.fromIndexProducer(new IncrementingHasher(1, 1).indices(getTestShape()),
+                 getTestShape().getNumberOfBits());
+         assertTrue(bf2.contains(bitMapProducer), "BF2 Should contain this hasher");
+-        bitMapProducer = BitMapProducer.fromIndexProducer(new SimpleHasher(1, 3).indices(getTestShape()),
++        bitMapProducer = BitMapProducer.fromIndexProducer(new IncrementingHasher(1, 3).indices(getTestShape()),
+                 getTestShape().getNumberOfBits());
+         assertFalse(bf2.contains(bitMapProducer), "BF2 Should not contain this hasher");
+ 
+@@ -228,11 +228,11 @@ public final void testEstimateN() {
+ 
+         // the data provided above do not generate an estimate that is equivalent to the
+         // actual.
+-        filter1.merge(new SimpleHasher(4, 1));
++        filter1.merge(new IncrementingHasher(4, 1));
+ 
+         assertEquals(1, filter1.estimateN());
+ 
+-        filter1.merge(new SimpleHasher(17, 1));
++        filter1.merge(new IncrementingHasher(17, 1));
+ 
+         assertEquals(3, filter1.estimateN());
+     }
+@@ -244,7 +244,7 @@ public final void testEstimateN() {
+     public final void testAsBitMapArray() {
+ 
+         // test when multiple long values are returned.
+-        final SimpleHasher hasher = new SimpleHasher(63, 1);
++        final IncrementingHasher hasher = new IncrementingHasher(63, 1);
+         final BloomFilter bf = createFilter(Shape.fromKM(2, 72), hasher);
+         final long[] lb = bf.asBitMapArray();
+         assertEquals(2, lb.length);
+@@ -265,7 +265,7 @@ public final void testIsFull() {
+         filter = createFilter(getTestShape(), fullHasher);
+         assertTrue(filter.isFull(), "Should be full");
+ 
+-        filter = createFilter(getTestShape(), new SimpleHasher(1, 3));
++        filter = createFilter(getTestShape(), new IncrementingHasher(1, 3));
+         assertFalse(filter.isFull(), "Should not be full");
+     }
+ 
+@@ -313,12 +313,12 @@ public final void testMerge() {
+         // test error when bloom filter returns values out of range
+         final BloomFilter bf5 = new SimpleBloomFilter(
+                 Shape.fromKM(getTestShape().getNumberOfHashFunctions(), 3 * Long.SIZE),
+-                new SimpleHasher(Long.SIZE * 2, 1));
++                new IncrementingHasher(Long.SIZE * 2, 1));
+         assertThrows(IllegalArgumentException.class, () -> bf1.merge(bf5));
+ 
+         final BloomFilter bf6 = new SparseBloomFilter(
+                 Shape.fromKM(getTestShape().getNumberOfHashFunctions(), 3 * Long.SIZE),
+-                new SimpleHasher(Long.SIZE * 2, 1));
++                new IncrementingHasher(Long.SIZE * 2, 1));
+         assertThrows(IllegalArgumentException.class, () -> bf1.merge(bf6));
+     }
+ 
+diff --git a/src/test/java/org/apache/commons/collections4/bloomfilter/AbstractCountingBloomFilterTest.java b/src/test/java/org/apache/commons/collections4/bloomfilter/AbstractCountingBloomFilterTest.java
+index 02839df9b9..b7ca7dd37f 100644
+--- a/src/test/java/org/apache/commons/collections4/bloomfilter/AbstractCountingBloomFilterTest.java
++++ b/src/test/java/org/apache/commons/collections4/bloomfilter/AbstractCountingBloomFilterTest.java
+@@ -234,7 +234,7 @@ public void testExcludesDuplicates() {
+         // create a hasher that produces duplicates with the specified shape.
+         // this setup produces 5, 17, 29, 41, 53, 65 two times
+         Shape shape = Shape.fromKM(12, 72);
+-        SimpleHasher hasher = new SimpleHasher(5, 12);
++        Hasher hasher = new IncrementingHasher(5, 12);
+ 
+         CountingBloomFilter bf1 = createFilter(shape, hasher);
+         assertEquals(6, bf1.cardinality());
+diff --git a/src/test/java/org/apache/commons/collections4/bloomfilter/AbstractHasherTest.java b/src/test/java/org/apache/commons/collections4/bloomfilter/AbstractHasherTest.java
+index 95b2e59fbf..cd5eda18c4 100644
+--- a/src/test/java/org/apache/commons/collections4/bloomfilter/AbstractHasherTest.java
++++ b/src/test/java/org/apache/commons/collections4/bloomfilter/AbstractHasherTest.java
+@@ -19,10 +19,13 @@
+ import static org.junit.jupiter.api.Assertions.assertEquals;
+ import static org.junit.jupiter.api.Assertions.assertTrue;
+ 
++import java.util.Arrays;
+ import java.util.HashSet;
++import java.util.List;
+ import java.util.Set;
++import java.util.stream.Collectors;
+ 
+-import org.junit.Test;
++import org.junit.jupiter.api.Test;
+ import org.junit.jupiter.params.ParameterizedTest;
+ import org.junit.jupiter.params.provider.CsvSource;
+ 
+@@ -63,7 +66,7 @@ protected IndexProducer createEmptyProducer() {
+     }
+ 
+     @ParameterizedTest
+-    @CsvSource({ "17, 72", "3, 14", "5, 67868", })
++    @CsvSource({ "17, 72", "3, 14", "5, 67868", "75, 10"})
+     public void testHashing(int k, int m) {
+         int[] count = { 0 };
+         Hasher hasher = createHasher();
+@@ -74,16 +77,28 @@ public void testHashing(int k, int m) {
+         });
+         assertEquals(k * getHasherSize(hasher), count[0],
+                 () -> String.format("Did not produce k=%d * m=%d indices", k, getHasherSize(hasher)));
++
++        // test early exit
++        count[0] = 0;
++        hasher.indices(Shape.fromKM(k, m)).forEachIndex(i -> {
++            assertTrue(i >= 0 && i < m, () -> "Out of range: " + i + ", m=" + m);
++            count[0]++;
++            return false;
++        });
++        assertEquals(1, count[0], "did not exit early" );
+     }
+ 
+     @Test
+     public void testUniqueIndex() {
+-        // create a hasher that produces duplicates with the specified shape.
+-        // this setup produces 5, 17, 29, 41, 53, 65 two times
+-        Shape shape = Shape.fromKM(12, 72);
+-        Hasher hasher = new SimpleHasher(5, 12);
+-        Set<Integer> set = new HashSet<>();
+-        assertTrue(hasher.uniqueIndices(shape).forEachIndex(set::add), "Duplicate detected");
+-        assertEquals(6, set.size());
++        // generating 11 numbers in the range of [0,9] will yield at least on collision.
++        Shape shape = Shape.fromKM(11, 10);
++        Hasher hasher = createHasher();
++        IndexProducer producer = hasher.indices(shape);
++        List<Integer> full = Arrays.stream(producer.asIndexArray()).boxed().collect(Collectors.toList());
++        producer = hasher.uniqueIndices(shape);
++        List<Integer> unique = Arrays.stream(producer.asIndexArray()).boxed().collect(Collectors.toList());
++        assertTrue( full.size() > unique.size() );
++        Set<Integer> set = new HashSet<Integer>( unique );
++        assertEquals( set.size(), unique.size() );
+     }
+ }
+diff --git a/src/test/java/org/apache/commons/collections4/bloomfilter/BitCountProducerFromArrayCountingBloomFilterTest.java b/src/test/java/org/apache/commons/collections4/bloomfilter/BitCountProducerFromArrayCountingBloomFilterTest.java
+index 3329bc4b5c..7961b6d53d 100644
+--- a/src/test/java/org/apache/commons/collections4/bloomfilter/BitCountProducerFromArrayCountingBloomFilterTest.java
++++ b/src/test/java/org/apache/commons/collections4/bloomfilter/BitCountProducerFromArrayCountingBloomFilterTest.java
+@@ -23,7 +23,7 @@ public class BitCountProducerFromArrayCountingBloomFilterTest extends AbstractBi
+     @Override
+     protected BitCountProducer createProducer() {
+         ArrayCountingBloomFilter filter = new ArrayCountingBloomFilter(shape);
+-        Hasher hasher = new SimpleHasher(0, 1);
++        Hasher hasher = new IncrementingHasher(0, 1);
+         filter.merge(hasher);
+         return filter;
+     }
+diff --git a/src/test/java/org/apache/commons/collections4/bloomfilter/BitMapProducerFromArrayCountingBloomFilterTest.java b/src/test/java/org/apache/commons/collections4/bloomfilter/BitMapProducerFromArrayCountingBloomFilterTest.java
+index 48f5fb411a..38c24af732 100644
+--- a/src/test/java/org/apache/commons/collections4/bloomfilter/BitMapProducerFromArrayCountingBloomFilterTest.java
++++ b/src/test/java/org/apache/commons/collections4/bloomfilter/BitMapProducerFromArrayCountingBloomFilterTest.java
+@@ -23,7 +23,7 @@ public class BitMapProducerFromArrayCountingBloomFilterTest extends AbstractBitM
+     @Override
+     protected BitMapProducer createProducer() {
+         ArrayCountingBloomFilter filter = new ArrayCountingBloomFilter(shape);
+-        Hasher hasher = new SimpleHasher(0, 1);
++        Hasher hasher = new IncrementingHasher(0, 1);
+         filter.merge(hasher);
+         return filter;
+     }
+diff --git a/src/test/java/org/apache/commons/collections4/bloomfilter/BitMapProducerFromSimpleBloomFilterTest.java b/src/test/java/org/apache/commons/collections4/bloomfilter/BitMapProducerFromSimpleBloomFilterTest.java
+index f73b4807bc..aa000797e5 100644
+--- a/src/test/java/org/apache/commons/collections4/bloomfilter/BitMapProducerFromSimpleBloomFilterTest.java
++++ b/src/test/java/org/apache/commons/collections4/bloomfilter/BitMapProducerFromSimpleBloomFilterTest.java
+@@ -22,7 +22,7 @@ public class BitMapProducerFromSimpleBloomFilterTest extends AbstractBitMapProdu
+ 
+     @Override
+     protected BitMapProducer createProducer() {
+-        Hasher hasher = new SimpleHasher(0, 1);
++        Hasher hasher = new IncrementingHasher(0, 1);
+         return new SimpleBloomFilter(shape, hasher);
+     }
+ 
+diff --git a/src/test/java/org/apache/commons/collections4/bloomfilter/BitMapProducerFromSparseBloomFilterTest.java b/src/test/java/org/apache/commons/collections4/bloomfilter/BitMapProducerFromSparseBloomFilterTest.java
+index 0a6331ce78..0c80b6d0d3 100644
+--- a/src/test/java/org/apache/commons/collections4/bloomfilter/BitMapProducerFromSparseBloomFilterTest.java
++++ b/src/test/java/org/apache/commons/collections4/bloomfilter/BitMapProducerFromSparseBloomFilterTest.java
+@@ -22,7 +22,7 @@ public class BitMapProducerFromSparseBloomFilterTest extends AbstractBitMapProdu
+ 
+     @Override
+     protected BitMapProducer createProducer() {
+-        Hasher hasher = new SimpleHasher(0, 1);
++        Hasher hasher = new IncrementingHasher(0, 1);
+         return new SparseBloomFilter(shape, hasher);
+     }
+ 
+diff --git a/src/test/java/org/apache/commons/collections4/bloomfilter/DefaultBloomFilterTest.java b/src/test/java/org/apache/commons/collections4/bloomfilter/DefaultBloomFilterTest.java
+index 2c107fb01e..26862bb194 100644
+--- a/src/test/java/org/apache/commons/collections4/bloomfilter/DefaultBloomFilterTest.java
++++ b/src/test/java/org/apache/commons/collections4/bloomfilter/DefaultBloomFilterTest.java
+@@ -52,7 +52,7 @@ protected AbstractDefaultBloomFilter createFilter(final Shape shape, final Index
+     @Test
+     public void testDefaultBloomFilterSimpleSpecificMerge() {
+         AbstractDefaultBloomFilter filter = new SparseDefaultBloomFilter(Shape.fromKM(3, 150));
+-        Hasher hasher = new SimpleHasher(0, 1);
++        Hasher hasher = new IncrementingHasher(0, 1);
+         assertTrue(filter.merge(hasher));
+         assertEquals(3, filter.cardinality());
+     }
+@@ -62,7 +62,7 @@ public void testDefaultBloomFilterSimpleSpecificMerge() {
+     public void testDefaultBloomFilterSparseSpecificMerge() {
+         Shape shape = Shape.fromKM(3, 150);
+         AbstractDefaultBloomFilter filter = new SparseDefaultBloomFilter(shape);
+-        AbstractDefaultBloomFilter filter2 = new SparseDefaultBloomFilter(shape, new SimpleHasher(0, 1));
++        AbstractDefaultBloomFilter filter2 = new SparseDefaultBloomFilter(shape, new IncrementingHasher(0, 1));
+         BloomFilter newFilter = filter.copy();
+         newFilter.merge(filter2);
+         assertEquals(3, newFilter.cardinality());
+@@ -70,7 +70,7 @@ public void testDefaultBloomFilterSparseSpecificMerge() {
+ 
+     @Test
+     public void testHasherBasedMergeInPlaceWithDifferingSparseness() {
+-        Hasher hasher = new SimpleHasher(1, 1);
++        Hasher hasher = new IncrementingHasher(1, 1);
+ 
+         BloomFilter bf1 = new NonSparseDefaultBloomFilter(getTestShape());
+         bf1.merge(hasher);
+diff --git a/src/test/java/org/apache/commons/collections4/bloomfilter/EnhancedDoubleHasherTest.java b/src/test/java/org/apache/commons/collections4/bloomfilter/EnhancedDoubleHasherTest.java
+new file mode 100644
+index 0000000000..2c028bf02f
+--- /dev/null
++++ b/src/test/java/org/apache/commons/collections4/bloomfilter/EnhancedDoubleHasherTest.java
+@@ -0,0 +1,94 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.commons.collections4.bloomfilter;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertThrows;
++import org.junit.jupiter.api.Test;
++
++/**
++ * Tests the {@link EnhancedDoubleHasher}.
++ */
++public class EnhancedDoubleHasherTest extends AbstractHasherTest {
++
++    @Override
++    protected Hasher createHasher() {
++        return new EnhancedDoubleHasher(1, 1);
++    }
++
++    @Override
++    protected Hasher createEmptyHasher() {
++        return NullHasher.INSTANCE;
++    }
++
++    @Override
++    protected int getHasherSize(Hasher hasher) {
++        return 1;
++    }
++
++    @Test
++    public void testByteConstructor() {
++        // single value become increment.
++        EnhancedDoubleHasher hasher = new EnhancedDoubleHasher( new byte[] { 1 } );
++        assertEquals( 0, hasher.getInitial() );
++        assertEquals( 0x01_00_00_00_00_00_00_00L, hasher.getIncrement() );
++
++        // 2 bytes become initial and increment.
++        hasher = new EnhancedDoubleHasher( new byte[] { 1, 2 } );
++        assertEquals( 0x01_00_00_00_00_00_00_00L, hasher.getInitial() );
++        assertEquals( 0x200000000000000L, hasher.getIncrement() );
++
++        // odd values place extra byte in increment.
++        hasher = new EnhancedDoubleHasher( new byte[] { 1, 2, 3 } );
++        assertEquals( 0x01_00_00_00_00_00_00_00L, hasher.getInitial() );
++        assertEquals( 0x203000000000000L, hasher.getIncrement() );
++
++        // even short split
++        hasher = new EnhancedDoubleHasher( new byte[] {0, 1, 0, 2 } );
++        assertEquals( 0x01_00_00_00_00_00_00L, hasher.getInitial() );
++        assertEquals( 0x02_00_00_00_00_00_00L, hasher.getIncrement() );
++
++        // longs are parse correctly
++        hasher = new EnhancedDoubleHasher( new byte[] { 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2 } );
++        assertEquals( 1, hasher.getInitial() );
++        assertEquals( 2, hasher.getIncrement() );
++
++        // excess bytes are ignored before mid point and at end
++        hasher = new EnhancedDoubleHasher( new byte[] { 0, 0, 0, 0, 0, 0, 0, 1, 5, 5, 0, 0, 0, 0, 0, 0, 0, 2, 5, 5 } );
++        assertEquals( 1, hasher.getInitial() );
++        assertEquals( 2, hasher.getIncrement() );
++
++        // odd extra bytes are accounted for correctly
++        hasher = new EnhancedDoubleHasher( new byte[] { 0, 0, 0, 0, 0, 0, 0, 1, 5, 1, 0, 0, 0, 0, 0, 0, 2, 5, 5 } );
++        assertEquals( 1, hasher.getInitial() );
++        assertEquals( 0x01_00_00_00_00_00_00_02L, hasher.getIncrement() );
++
++        // test empty buffer
++        assertThrows(IllegalArgumentException.class, () -> new EnhancedDoubleHasher(new byte[0]));
++    }
++
++    @Test
++    void testModEdgeCases() {
++        for (long dividend : new long[] { -1, -2, -3, -6378683, -23567468136887892L, Long.MIN_VALUE, 345, 678686,
++            67868768686878924L, Long.MAX_VALUE }) {
++            for (int divisor : new int[] { 1, 2, 3, 5, 13, Integer.MAX_VALUE }) {
++                assertEquals((int) Long.remainderUnsigned(dividend, divisor), EnhancedDoubleHasher.mod(dividend, divisor),
++                        () -> String.format("failure with dividend=%s and divisor=%s.", dividend, divisor));
++            }
++        }
++    }
++}
+diff --git a/src/test/java/org/apache/commons/collections4/bloomfilter/HasherCollectionTest.java b/src/test/java/org/apache/commons/collections4/bloomfilter/HasherCollectionTest.java
+index 29d3c55206..997ee01a21 100644
+--- a/src/test/java/org/apache/commons/collections4/bloomfilter/HasherCollectionTest.java
++++ b/src/test/java/org/apache/commons/collections4/bloomfilter/HasherCollectionTest.java
+@@ -33,7 +33,7 @@ public class HasherCollectionTest extends AbstractHasherTest {
+ 
+     @Override
+     protected HasherCollection createHasher() {
+-        return new HasherCollection(new SimpleHasher(1, 1), new SimpleHasher(2, 2));
++        return new HasherCollection(new IncrementingHasher(1, 1), new IncrementingHasher(2, 2));
+     }
+ 
+     @Override
+@@ -54,7 +54,7 @@ protected void nestedTest(HasherCollectionTest nestedTest) {
+ 
+     @Test
+     public void testCollectionConstructor() {
+-        List<Hasher> lst = Arrays.asList(new SimpleHasher(3, 2), new SimpleHasher(4, 2));
++        List<Hasher> lst = Arrays.asList(new IncrementingHasher(3, 2), new IncrementingHasher(4, 2));
+         HasherCollectionTest nestedTest = new HasherCollectionTest() {
+             @Override
+             protected HasherCollection createHasher() {
+@@ -71,7 +71,7 @@ protected HasherCollection createEmptyHasher() {
+         nestedTest = new HasherCollectionTest() {
+             @Override
+             protected HasherCollection createHasher() {
+-                return new HasherCollection(new SimpleHasher(3, 2), new SimpleHasher(4, 2));
++                return new HasherCollection(new IncrementingHasher(3, 2), new IncrementingHasher(4, 2));
+             }
+ 
+             @Override
+@@ -85,10 +85,10 @@ protected HasherCollection createEmptyHasher() {
+     @Test
+     public void testAdd() {
+         HasherCollection hasher = createHasher();
+-        hasher.add(new SimpleHasher(2, 2));
++        hasher.add(new IncrementingHasher(2, 2));
+         assertEquals(3, hasher.getHashers().size());
+ 
+-        hasher.add(Arrays.asList(new SimpleHasher(3, 2), new SimpleHasher(4, 2)));
++        hasher.add(Arrays.asList(new IncrementingHasher(3, 2), new IncrementingHasher(4, 2)));
+         assertEquals(5, hasher.getHashers().size());
+     }
+ 
+@@ -97,7 +97,7 @@ public void testUniqueIndex() {
+         // create a hasher that produces duplicates with the specified shape.
+         // this setup produces 5, 17, 29, 41, 53, 65 two times
+         Shape shape = Shape.fromKM(12, 72);
+-        Hasher h1 = new SimpleHasher(5, 12);
++        Hasher h1 = new IncrementingHasher(5, 12);
+         HasherCollection hasher = createEmptyHasher();
+         hasher.add(h1);
+         hasher.add(h1);
+@@ -115,9 +115,9 @@ public void testUniqueIndex() {
+ 
+     @Test
+     void testHasherCollection() {
+-        Hasher h1 = new SimpleHasher(13, 4678);
+-        Hasher h2 = new SimpleHasher(42, 987);
+-        Hasher h3 = new SimpleHasher(454, 2342);
++        Hasher h1 = new IncrementingHasher(13, 4678);
++        Hasher h2 = new IncrementingHasher(42, 987);
++        Hasher h3 = new IncrementingHasher(454, 2342);
+ 
+         HasherCollection hc1 = new HasherCollection(Arrays.asList(h1, h1));
+         HasherCollection hc2 = new HasherCollection(Arrays.asList(h2, h3));
+diff --git a/src/test/java/org/apache/commons/collections4/bloomfilter/IncrementingHasher.java b/src/test/java/org/apache/commons/collections4/bloomfilter/IncrementingHasher.java
+new file mode 100644
+index 0000000000..bc4003f18d
+--- /dev/null
++++ b/src/test/java/org/apache/commons/collections4/bloomfilter/IncrementingHasher.java
+@@ -0,0 +1,100 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one or more
++ * contributor license agreements.  See the NOTICE file distributed with
++ * this work for additional information regarding copyright ownership.
++ * The ASF licenses this file to You under the Apache License, Version 2.0
++ * (the "License"); you may not use this file except in compliance with
++ * the License.  You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.apache.commons.collections4.bloomfilter;
++
++import java.util.Objects;
++import java.util.function.IntPredicate;
++
++/**
++ * A Hasher that implements simple combinatorial hashing as as described by
++ * <a href="https://www.eecs.harvard.edu/~michaelm/postscripts/tr-02-05.pdf">Krisch and Mitzenmacher</a>.
++ *
++ * <p>To be used for testing only.</p>
++ *
++ * @since 4.5
++ */
++class IncrementingHasher implements Hasher {
++
++    /**
++     * The initial hash value.
++     */
++    private final long initial;
++
++    /**
++     * The value to increment the hash value by.
++     */
++    private final long increment;
++
++    /**
++     * Constructs the IncrementingHasher from 2 longs.  The long values will be interpreted as unsigned values.
++     * <p>
++     * The initial hash value will be the modulus of the initial value.
++     * Subsequent values will be calculated by repeatedly adding the increment to the last value and taking the modulus.
++     * </p>
++     * @param initial The initial value for the hasher.
++     * @param increment The value to increment the hash by on each iteration.
++     */
++    IncrementingHasher(long initial, long increment) {
++        this.initial = initial;
++        this.increment = increment;
++    }
++
++    @Override
++    public IndexProducer indices(final Shape shape) {
++        Objects.requireNonNull(shape, "shape");
++
++        return new IndexProducer() {
++
++            @Override
++            public boolean forEachIndex(IntPredicate consumer) {
++                Objects.requireNonNull(consumer, "consumer");
++                int bits = shape.getNumberOfBits();
++
++                // Essentially this is computing a wrapped modulus from a start point and an
++                // increment. So actually you only need two modulus operations before the loop.
++                // This avoids any modulus operation inside the while loop. It uses a long index
++                // to avoid overflow.
++
++                long index = EnhancedDoubleHasher.mod(initial, bits);
++                int inc = EnhancedDoubleHasher.mod(increment, bits);
++
++                for (int functionalCount = 0; functionalCount < shape.getNumberOfHashFunctions(); functionalCount++) {
++                    if (!consumer.test((int) index)) {
++                        return false;
++                    }
++                    index += inc;
++                    index = index >= bits ? index - bits : index;
++                }
++                return true;
++            }
++
++            @Override
++            public int[] asIndexArray() {
++                int[] result = new int[shape.getNumberOfHashFunctions()];
++                int[] idx = new int[1];
++
++                // This method needs to return duplicate indices
++
++                forEachIndex(i -> {
++                    result[idx[0]++] = i;
++                    return true;
++                });
++                return result;
++            }
++        };
++    }
++}
+diff --git a/src/test/java/org/apache/commons/collections4/bloomfilter/IndexProducerFromArrayCountingBloomFilterTest.java b/src/test/java/org/apache/commons/collections4/bloomfilter/IndexProducerFromArrayCountingBloomFilterTest.java
+index 383cf38619..0ea2c60795 100644
+--- a/src/test/java/org/apache/commons/collections4/bloomfilter/IndexProducerFromArrayCountingBloomFilterTest.java
++++ b/src/test/java/org/apache/commons/collections4/bloomfilter/IndexProducerFromArrayCountingBloomFilterTest.java
+@@ -23,7 +23,7 @@ public class IndexProducerFromArrayCountingBloomFilterTest extends AbstractIndex
+     @Override
+     protected IndexProducer createProducer() {
+         ArrayCountingBloomFilter filter = new ArrayCountingBloomFilter(shape);
+-        Hasher hasher = new SimpleHasher(0, 1);
++        Hasher hasher = new IncrementingHasher(0, 1);
+         filter.merge(hasher);
+         return filter;
+     }
+diff --git a/src/test/java/org/apache/commons/collections4/bloomfilter/IndexProducerFromHasherCollectionTest.java b/src/test/java/org/apache/commons/collections4/bloomfilter/IndexProducerFromHasherCollectionTest.java
+index d7e61d796d..1376a4bfc0 100644
+--- a/src/test/java/org/apache/commons/collections4/bloomfilter/IndexProducerFromHasherCollectionTest.java
++++ b/src/test/java/org/apache/commons/collections4/bloomfilter/IndexProducerFromHasherCollectionTest.java
+@@ -20,7 +20,7 @@ public class IndexProducerFromHasherCollectionTest extends AbstractIndexProducer
+ 
+     @Override
+     protected IndexProducer createProducer() {
+-        return new HasherCollection(new SimpleHasher(0, 1), new SimpleHasher(0, 2)).indices(Shape.fromKM(17, 72));
++        return new HasherCollection(new IncrementingHasher(0, 1), new IncrementingHasher(0, 2)).indices(Shape.fromKM(17, 72));
+     }
+ 
+     @Override
+diff --git a/src/test/java/org/apache/commons/collections4/bloomfilter/IndexProducerFromHasherTest.java b/src/test/java/org/apache/commons/collections4/bloomfilter/IndexProducerFromHasherTest.java
+index c089b4b420..683b3705e2 100644
+--- a/src/test/java/org/apache/commons/collections4/bloomfilter/IndexProducerFromHasherTest.java
++++ b/src/test/java/org/apache/commons/collections4/bloomfilter/IndexProducerFromHasherTest.java
+@@ -20,7 +20,7 @@ public class IndexProducerFromHasherTest extends AbstractIndexProducerTest {
+ 
+     @Override
+     protected IndexProducer createProducer() {
+-        return new SimpleHasher(0, 1).indices(Shape.fromKM(17, 72));
++        return new IncrementingHasher(0, 1).indices(Shape.fromKM(17, 72));
+     }
+ 
+     @Override
+diff --git a/src/test/java/org/apache/commons/collections4/bloomfilter/IndexProducerFromSimpleBloomFilterTest.java b/src/test/java/org/apache/commons/collections4/bloomfilter/IndexProducerFromSimpleBloomFilterTest.java
+index 8525428671..d62ac959e0 100644
+--- a/src/test/java/org/apache/commons/collections4/bloomfilter/IndexProducerFromSimpleBloomFilterTest.java
++++ b/src/test/java/org/apache/commons/collections4/bloomfilter/IndexProducerFromSimpleBloomFilterTest.java
+@@ -22,7 +22,7 @@ public class IndexProducerFromSimpleBloomFilterTest extends AbstractIndexProduce
+ 
+     @Override
+     protected IndexProducer createProducer() {
+-        Hasher hasher = new SimpleHasher(0, 1);
++        Hasher hasher = new IncrementingHasher(0, 1);
+         return new SparseBloomFilter(shape, hasher);
+     }
+ 
+diff --git a/src/test/java/org/apache/commons/collections4/bloomfilter/IndexProducerFromSparseBloomFilterTest.java b/src/test/java/org/apache/commons/collections4/bloomfilter/IndexProducerFromSparseBloomFilterTest.java
+index 4204c90fe7..b51e01b40b 100644
+--- a/src/test/java/org/apache/commons/collections4/bloomfilter/IndexProducerFromSparseBloomFilterTest.java
++++ b/src/test/java/org/apache/commons/collections4/bloomfilter/IndexProducerFromSparseBloomFilterTest.java
+@@ -22,7 +22,7 @@ public class IndexProducerFromSparseBloomFilterTest extends AbstractIndexProduce
+ 
+     @Override
+     protected IndexProducer createProducer() {
+-        Hasher hasher = new SimpleHasher(0, 1);
++        Hasher hasher = new IncrementingHasher(0, 1);
+         return new SimpleBloomFilter(shape, hasher);
+     }
+ 
+diff --git a/src/test/java/org/apache/commons/collections4/bloomfilter/SetOperationsTest.java b/src/test/java/org/apache/commons/collections4/bloomfilter/SetOperationsTest.java
+index 9d7659d1fa..f958cdcc96 100644
+--- a/src/test/java/org/apache/commons/collections4/bloomfilter/SetOperationsTest.java
++++ b/src/test/java/org/apache/commons/collections4/bloomfilter/SetOperationsTest.java
+@@ -25,9 +25,9 @@
+  */
+ public class SetOperationsTest {
+ 
+-    protected final SimpleHasher from1 = new SimpleHasher(1, 1);
++    protected final Hasher from1 = new IncrementingHasher(1, 1);
+     protected final long from1Value = 0x3FFFEL;
+-    protected final SimpleHasher from11 = new SimpleHasher(11, 1);
++    protected final Hasher from11 = new IncrementingHasher(11, 1);
+     protected final long from11Value = 0xFFFF800L;
+     protected final HasherCollection bigHasher = new HasherCollection(from1, from11);
+     protected final long bigHashValue = 0xFFFFFFEL;
+@@ -49,7 +49,7 @@ public final void testCosineDistance() {
+ 
+         Shape shape2 = Shape.fromKM(2, 72);
+         filter1 = new SimpleBloomFilter(shape2, from1);
+-        filter2 = new SimpleBloomFilter(shape2, new SimpleHasher(2, 1));
++        filter2 = new SimpleBloomFilter(shape2, new IncrementingHasher(2, 1));
+ 
+         int dotProduct = /* [1,2] & [2,3] = [2] = */ 1;
+         int cardinalityA = 2;
+diff --git a/src/test/java/org/apache/commons/collections4/bloomfilter/SimpleHasherTest.java b/src/test/java/org/apache/commons/collections4/bloomfilter/SimpleHasherTest.java
+deleted file mode 100644
+index cb52bf80a8..0000000000
+--- a/src/test/java/org/apache/commons/collections4/bloomfilter/SimpleHasherTest.java
++++ /dev/null
+@@ -1,117 +0,0 @@
+-/*
+- * Licensed to the Apache Software Foundation (ASF) under one or more
+- * contributor license agreements.  See the NOTICE file distributed with
+- * this work for additional information regarding copyright ownership.
+- * The ASF licenses this file to You under the Apache License, Version 2.0
+- * (the "License"); you may not use this file except in compliance with
+- * the License.  You may obtain a copy of the License at
+- *
+- *      http://www.apache.org/licenses/LICENSE-2.0
+- *
+- * Unless required by applicable law or agreed to in writing, software
+- * distributed under the License is distributed on an "AS IS" BASIS,
+- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+- * See the License for the specific language governing permissions and
+- * limitations under the License.
+- */
+-package org.apache.commons.collections4.bloomfilter;
+-
+-import static org.junit.jupiter.api.Assertions.assertEquals;
+-import static org.junit.jupiter.api.Assertions.assertThrows;
+-import java.util.ArrayList;
+-import java.util.List;
+-import org.junit.jupiter.api.Test;
+-
+-/**
+- * Tests the {@link SimpleHasher}.
+- */
+-public class SimpleHasherTest extends AbstractHasherTest {
+-
+-    @Override
+-    protected Hasher createHasher() {
+-        return new SimpleHasher(1, 1);
+-    }
+-
+-    @Override
+-    protected Hasher createEmptyHasher() {
+-        return NullHasher.INSTANCE;
+-    }
+-
+-    @Override
+-    protected int getHasherSize(Hasher hasher) {
+-        return 1;
+-    }
+-
+-    private void assertConstructorBuffer(Shape shape, byte[] buffer, Integer[] expected) {
+-        SimpleHasher hasher = new SimpleHasher(buffer);
+-        List<Integer> lst = new ArrayList<>();
+-        IndexProducer producer = hasher.indices(shape);
+-        producer.forEachIndex(lst::add);
+-        assertEquals(expected.length, lst.size());
+-        for (int i = 0; i < expected.length; i++) {
+-            assertEquals(expected[i], lst.get(i));
+-        }
+-    }
+-
+-    private void assertIncrement(SimpleHasher hasher, long defaultIncrement) {
+-        assertEquals(defaultIncrement, hasher.getDefaultIncrement());
+-        int[] values = hasher.indices(Shape.fromKM(2, Integer.MAX_VALUE)).asIndexArray();
+-        assertEquals(0, values[0]);
+-        assertEquals(Long.remainderUnsigned(defaultIncrement, Integer.MAX_VALUE), values[1]);
+-    }
+-
+-    @Test
+-    public void testConstructor() {
+-        Shape shape = Shape.fromKM(5, 10);
+-        assertConstructorBuffer(shape, new byte[] { 1, 1 }, new Integer[] { 1, 2, 3, 4, 5 });
+-        assertConstructorBuffer(shape, new byte[] { 1 }, new Integer[] { 0, 1, 2, 3, 4 });
+-        assertConstructorBuffer(shape, new byte[] { 1, 0, 1 }, new Integer[] { 1, 2, 3, 4, 5 });
+-        assertConstructorBuffer(shape, new byte[] { 0, 1, 0, 1 }, new Integer[] { 1, 2, 3, 4, 5 });
+-        assertConstructorBuffer(shape, new byte[] { 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1 },
+-                new Integer[] { 1, 2, 3, 4, 5 });
+-        assertConstructorBuffer(shape, new byte[] { 0, 0, 0, 0, 0, 0, 0, 1, 5, 5, 0, 0, 0, 0, 0, 0, 0, 1, 5, 5 },
+-                new Integer[] { 1, 2, 3, 4, 5 });
+-        assertConstructorBuffer(shape, new byte[] { 0, 0, 0, 0, 0, 0, 0, 1, 5, 0, 0, 0, 0, 0, 0, 0, 1, 5, 5 },
+-                new Integer[] { 1, 2, 3, 4, 5 });
+-
+-        // test empty buffer
+-        assertThrows(IllegalArgumentException.class, () -> new SimpleHasher(new byte[0]));
+-
+-        // test zero incrementer gets default
+-        // default increment from SimpleHasher.
+-        long defaultIncrement = 0x9e3779b97f4a7c15L;
+-        SimpleHasher hasher = new SimpleHasher(0, 0);
+-        assertIncrement(new SimpleHasher(0, 0), defaultIncrement);
+-        assertIncrement(new SimpleHasher(new byte[2]), defaultIncrement);
+-
+-        // test that changing default increment works
+-        defaultIncrement = 4;
+-        defaultIncrement = 4L;
+-        hasher = new SimpleHasher(0, 0) {
+-            @Override
+-            public long getDefaultIncrement() {
+-                return 4L;
+-            }
+-        };
+-        assertIncrement(hasher, defaultIncrement);
+-        hasher = new SimpleHasher(new byte[2]) {
+-            @Override
+-            public long getDefaultIncrement() {
+-                return 4L;
+-            }
+-        };
+-
+-        assertEquals(defaultIncrement, hasher.getDefaultIncrement());
+-    }
+-
+-    @Test
+-    void testModEdgeCases() {
+-        for (long dividend : new long[] { -1, -2, -3, -6378683, -23567468136887892L, Long.MIN_VALUE, 345, 678686,
+-            67868768686878924L, Long.MAX_VALUE }) {
+-            for (int divisor : new int[] { 1, 2, 3, 5, 13, Integer.MAX_VALUE }) {
+-                assertEquals((int) Long.remainderUnsigned(dividend, divisor), SimpleHasher.mod(dividend, divisor),
+-                        () -> String.format("failure with dividend=%s and divisor=%s.", dividend, divisor));
+-            }
+-        }
+-    }
+-}
+diff --git a/src/test/java/org/apache/commons/collections4/bloomfilter/UniqueIndexProducerFromHasherCollectionTest.java b/src/test/java/org/apache/commons/collections4/bloomfilter/UniqueIndexProducerFromHasherCollectionTest.java
+index 4aaf9141a0..99ef6f200a 100644
+--- a/src/test/java/org/apache/commons/collections4/bloomfilter/UniqueIndexProducerFromHasherCollectionTest.java
++++ b/src/test/java/org/apache/commons/collections4/bloomfilter/UniqueIndexProducerFromHasherCollectionTest.java
+@@ -20,7 +20,7 @@ public class UniqueIndexProducerFromHasherCollectionTest extends AbstractIndexPr
+ 
+     @Override
+     protected IndexProducer createProducer() {
+-        return new HasherCollection(new SimpleHasher(0, 1), new SimpleHasher(0, 2)).uniqueIndices(Shape.fromKM(17, 72));
++        return new HasherCollection(new IncrementingHasher(0, 1), new IncrementingHasher(0, 2)).uniqueIndices(Shape.fromKM(17, 72));
+     }
+ 
+     @Override
+diff --git a/src/test/java/org/apache/commons/collections4/bloomfilter/UniqueIndexProducerFromHasherTest.java b/src/test/java/org/apache/commons/collections4/bloomfilter/UniqueIndexProducerFromHasherTest.java
+index f711a57201..84c17b60f8 100644
+--- a/src/test/java/org/apache/commons/collections4/bloomfilter/UniqueIndexProducerFromHasherTest.java
++++ b/src/test/java/org/apache/commons/collections4/bloomfilter/UniqueIndexProducerFromHasherTest.java
+@@ -20,7 +20,7 @@ public class UniqueIndexProducerFromHasherTest extends AbstractIndexProducerTest
+ 
+     @Override
+     protected IndexProducer createProducer() {
+-        return new SimpleHasher(0, 1).uniqueIndices(Shape.fromKM(17, 72));
++        return new IncrementingHasher(0, 1).uniqueIndices(Shape.fromKM(17, 72));
+     }
+ 
+     @Override

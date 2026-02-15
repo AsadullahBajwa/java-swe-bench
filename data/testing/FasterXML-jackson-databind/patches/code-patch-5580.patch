@@ -1,0 +1,59 @@
+diff --git a/release-notes/VERSION b/release-notes/VERSION
+index 4cfe442e4f..674157f7bc 100644
+--- a/release-notes/VERSION
++++ b/release-notes/VERSION
+@@ -131,6 +131,7 @@ Versions: 3.x (for earlier see VERSION-2.x)
+ #5575: Allow configuring a default serialization and deserialization view (3.x)
+  (requested by Réda H-A)
+  (implemented by @cowtowncoder, w/ Claude code)
++#5579: Add `JsonNode.map()` method
+ 
+ 3.0.4 (not yet released)
+ 
+diff --git a/src/main/java/tools/jackson/databind/JsonNode.java b/src/main/java/tools/jackson/databind/JsonNode.java
+index 9166f7b8b6..3731cb0ced 100644
+--- a/src/main/java/tools/jackson/databind/JsonNode.java
++++ b/src/main/java/tools/jackson/databind/JsonNode.java
+@@ -4,6 +4,7 @@
+ import java.math.BigInteger;
+ import java.util.*;
+ import java.util.function.BiConsumer;
++import java.util.function.Function;
+ import java.util.stream.Stream;
+ 
+ import tools.jackson.core.*;
+@@ -2000,6 +2001,34 @@ public ArrayNode withArrayProperty(String propName) {
+                 +getClass().getName()+")`, cannot call `withArrayProperty(String)` on it");
+     }
+ 
++    /*
++    /**********************************************************************
++    /* Public API, conversions (3.1)
++    /**********************************************************************
++     */
++
++    /**
++     * Method that applies a transformation function to this node and returns the result.
++     * This enables functional-style transformations of {@link JsonNode} objects.
++     *<p>
++     * For example:
++     *<pre>
++     *   JsonNode node = ...;
++     *   String upperCaseText = node.map(n -&gt; n.asString().toUpperCase());
++     *   Integer value = node.map(n -&gt; n.asInt() * 2);
++     *</pre>
++     *
++     * @param <R> The type of the result produced by the mapper function
++     * @param mapper Function to apply to this node
++     *
++     * @return Result of applying the mapper function to this node
++     *
++     * @since 3.1
++     */
++    public <R> R map(Function<? super JsonNode, ? extends R> mapper) {
++        return mapper.apply(this);
++    }
++
+     /*
+     /**********************************************************************
+     /* Public API, comparison

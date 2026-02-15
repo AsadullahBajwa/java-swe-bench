@@ -1,0 +1,69 @@
+diff --git a/src/main/java/org/apache/commons/collections4/bloomfilter/LayerManager.java b/src/main/java/org/apache/commons/collections4/bloomfilter/LayerManager.java
+index a80d3c4ccf..b139d16ced 100644
+--- a/src/main/java/org/apache/commons/collections4/bloomfilter/LayerManager.java
++++ b/src/main/java/org/apache/commons/collections4/bloomfilter/LayerManager.java
+@@ -82,7 +82,7 @@ public LayerManager build() {
+          *
+          * @param cleanup the Consumer that will modify the list of filters removing out
+          *                dated or stale filters.
+-         * @return this for chaining.
++         * @return this
+          */
+         public Builder setCleanup(Consumer<LinkedList<BloomFilter>> cleanup) {
+             this.cleanup = cleanup;
+@@ -375,9 +375,23 @@ public final BloomFilter getTarget() {
+      * Ths method is used within {@link #getTarget()} when the configured
+      * {@code ExtendCheck} returns {@code true}.
+      * </p>
++     * @see LayerManager.Builder#setExtendCheck(Predicate)
++     * @see LayerManager.Builder#setCleanup(Consumer)
+      */
+     void next() {
+         this.filterCleanup.accept(filters);
+         addFilter();
+     }
++
++    /**
++     * Forces execution the configured cleanup without creating a new filter except in cases
++     * where the cleanup removes all the layers.
++     * @see LayerManager.Builder#setCleanup(Consumer)
++     */
++    void cleanup() {
++        this.filterCleanup.accept(filters);
++        if (filters.isEmpty()) {
++            addFilter();
++        }
++    }
+ }
+diff --git a/src/main/java/org/apache/commons/collections4/bloomfilter/LayeredBloomFilter.java b/src/main/java/org/apache/commons/collections4/bloomfilter/LayeredBloomFilter.java
+index 01e32d8b6d..9ed2688bbc 100644
+--- a/src/main/java/org/apache/commons/collections4/bloomfilter/LayeredBloomFilter.java
++++ b/src/main/java/org/apache/commons/collections4/bloomfilter/LayeredBloomFilter.java
+@@ -369,12 +369,24 @@ public boolean merge(IndexProducer indexProducer) {
+     }
+ 
+     /**
+-     * Forces and advance to the next layer. Executes the same logic as when
+-     * LayerManager.extendCheck returns {@code true}
++     * Forces and advance to the next layer. This method will clean-up the current
++     * layers and generate a new filter layer. In most cases is it unnecessary to
++     * call this method directly.
+      *
+-     * @see LayerManager
++     * @see LayerManager.Builder#setCleanup(java.util.function.Consumer)
++     * @see LayerManager.Builder#setExtendCheck(Predicate)
+      */
+     public void next() {
+         layerManager.next();
+     }
++
++    /**
++     * Forces the execution of the cleanup Consumer that was provided when the associated LayerManager
++     * was built.
++     *
++     * @see LayerManager.Builder#setCleanup(java.util.function.Consumer)
++     */
++    public void cleanup() {
++        layerManager.cleanup();
++    }
+ }

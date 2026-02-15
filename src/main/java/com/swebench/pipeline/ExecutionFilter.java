@@ -104,6 +104,109 @@ public class ExecutionFilter {
     private boolean validateTask(TaskInstance task) {
         logger.debug("Setting up environment for {}", task.getInstanceId());
 
+        // Check if this task has split patches (test_patch + code_patch)
+        boolean useSplitPatch = task.getTestPatch() != null && !task.getTestPatch().isEmpty();
+
+        if (useSplitPatch) {
+            return validateTaskWithSplitPatch(task);
+        } else {
+            return validateTaskLegacy(task);
+        }
+    }
+
+    /**
+     * NEW: Split-patch validation approach.
+     * 1. Apply test_patch at base commit
+     * 2. Run tests → expect FAIL (new tests, old buggy code)
+     * 3. Apply code_patch
+     * 4. Run tests → expect PASS (new tests, fixed code)
+     */
+    private boolean validateTaskWithSplitPatch(TaskInstance task) {
+        logger.info("Using SPLIT-PATCH validation for {}", task.getInstanceId());
+
+        // Clone repository and checkout base commit
+        File repoDir = testRunner.setupRepository(task);
+        if (repoDir == null) {
+            logger.warn("Failed to setup repository for {}", task.getInstanceId());
+            return false;
+        }
+
+        try {
+            // Step 1: Apply TEST patch at base commit
+            logger.info("Step 1: Applying TEST patch for {}", task.getInstanceId());
+            if (!patchApplier.applyPatch(repoDir, task.getTestPatch())) {
+                logger.warn("❌ Task {} REJECTED: Failed to apply test patch", task.getInstanceId());
+                return false;
+            }
+            logger.info("✓ Test patch applied successfully");
+
+            // Step 2: Run tests - should FAIL (new tests + old buggy code)
+            logger.info("Step 2: Running tests (expect FAIL) for {}", task.getInstanceId());
+            TestRunner.TestResult testPatchResult = testRunner.runTests(
+                repoDir,
+                task.getTestCommand(),
+                task.getFailToPass()
+            );
+
+            if (!testPatchResult.hasFailing()) {
+                logger.warn("❌ Task {} REJECTED: Tests did NOT fail after test patch (expected failure)",
+                    task.getInstanceId());
+                return false;
+            }
+            logger.info("✓ Tests correctly FAIL after test patch (new tests expose bug)");
+
+            // Step 3: Apply CODE patch (the fix)
+            logger.info("Step 3: Applying CODE patch for {}", task.getInstanceId());
+            if (!patchApplier.applyPatch(repoDir, task.getPatch())) {
+                logger.warn("❌ Task {} REJECTED: Failed to apply code patch", task.getInstanceId());
+                return false;
+            }
+            logger.info("✓ Code patch applied successfully");
+
+            // Step 4: Run tests - should PASS (new tests + fixed code)
+            logger.info("Step 4: Running tests (expect PASS) for {}", task.getInstanceId());
+            TestRunner.TestResult codePatchResult = testRunner.runTests(
+                repoDir,
+                task.getTestCommand(),
+                task.getFailToPass()
+            );
+
+            if (!codePatchResult.allPassing()) {
+                logger.warn("❌ Task {} REJECTED: Tests still failing after code patch", task.getInstanceId());
+                logger.warn("Test output: {}", codePatchResult.getSummary());
+                return false;
+            }
+            logger.info("✓ Tests PASS after code patch (FAIL → PASS verified)");
+
+            // Step 5: Stability check - run tests again
+            logger.info("Step 5: Stability check for {}", task.getInstanceId());
+            TestRunner.TestResult stabilityCheck = testRunner.runTests(
+                repoDir,
+                task.getTestCommand(),
+                task.getFailToPass()
+            );
+
+            if (!stabilityCheck.allPassing()) {
+                logger.warn("❌ Task {} REJECTED: Tests are flaky", task.getInstanceId());
+                return false;
+            }
+            logger.info("✓ Tests are stable");
+
+            logger.info("✅ Task {} VALIDATED with split-patch approach", task.getInstanceId());
+            return true;
+
+        } finally {
+            testRunner.cleanup(repoDir);
+        }
+    }
+
+    /**
+     * Legacy validation (original approach).
+     * Used when task doesn't have split patches.
+     */
+    private boolean validateTaskLegacy(TaskInstance task) {
+        logger.info("Using LEGACY validation for {}", task.getInstanceId());
+
         // Pre-validation: Check fail-to-pass test structure
         if (!qualityValidator.hasValidFailToPassTests(task)) {
             logger.warn("Task {} has invalid FAIL_TO_PASS structure", task.getInstanceId());
