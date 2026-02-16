@@ -1,60 +1,102 @@
 # Java SWE-Bench
 
-A Java adaptation of SWE-bench benchmark for evaluating language models on real-world software engineering tasks from GitHub.
+A Java adaptation of the [SWE-bench](https://www.swebench.com/) benchmark for evaluating language models on real-world software engineering tasks extracted from GitHub.
 
-## Project Overview
+## Overview
 
-This project implements a benchmark suite for testing language models' ability to solve real-world Java software engineering issues. It follows a three-stage pipeline:
+This project builds a benchmark dataset of real-world Java bug-fixing tasks. Each task consists of a failing test, a code patch that fixes the bug, and the repository context -- enabling evaluation of how well language models can resolve actual software issues.
 
-1. **Repository Discovery**: Identify high-quality Java repositories
-2. **Attribute Filtering**: Extract and validate issue-PR-test triplets
-3. **Execution Filtering**: Verify patches through test execution
+The pipeline discovers repositories, extracts bug-fixing pull requests, splits them into separate test and code patches, and validates that they follow the **fail-to-pass** pattern required by SWE-bench.
+
+## Pipeline
+
+```
+Discovery  -->  Attribute Filter  -->  Testing Setup  -->  Execution Filter
+(find repos)    (extract PRs,         (generate patch     (validate fail-
+                 split patches)        files & scripts)     to-pass)
+```
+
+Each PR is split into:
+- **test_patch**: Test file changes only (exposes the bug)
+- **code_patch**: Source file changes only (fixes the bug)
+
+A task is valid when: apply `test_patch` -> tests FAIL, then apply `code_patch` -> tests PASS.
 
 ## Project Structure
 
 ```
 java-swe-bench/
-├── src/main/java/com/swebench/     # Core implementation
-├── src/test/java/com/swebench/     # Test suite
-├── scripts/                         # Pipeline automation scripts
+├── src/main/java/com/swebench/
+│   ├── Main.java                          # Entry point (CLI)
+│   ├── model/                             # Data models
+│   ├── pipeline/                          # Pipeline stages
+│   │   ├── RepositoryDiscovery.java
+│   │   ├── AttributeFilter.java
+│   │   ├── TestingSetup.java
+│   │   └── ExecutionFilter.java
+│   ├── service/                           # Core services
+│   │   ├── GitHubService.java
+│   │   ├── PatchExtractor.java
+│   │   ├── PatchApplier.java
+│   │   ├── TestRunner.java
+│   │   └── QualityValidator.java
+│   └── util/                              # Utilities
+├── config/
+│   ├── application.properties             # Pipeline configuration
+│   └── curated_repos.json                 # Curated repository list
 ├── data/
-│   ├── tasks/                      # Task instance specifications
-│   ├── workspaces/                 # Evaluation results
-│   ├── raw/                        # Raw collection artifacts
-│   └── processed/                  # Processed data
-├── config/                         # Configuration files
-└── pom.xml                         # Maven build configuration
+│   ├── processed/                         # Collected candidate tasks
+│   ├── testing/                           # Validation workspace
+│   │   └── {repo-name}/
+│   │       ├── patches/                   # test-patch and code-patch files
+│   │       ├── tasks.json
+│   │       ├── run-validation.sh
+│   │       └── run-validation.ps1
+│   ├── tasks/                             # Final validated tasks
+│   └── raw/                               # Discovered repositories
+└── pom.xml
 ```
 
-## Target Metrics (Phase 2)
+## Prerequisites
 
-- **Target repositories**: 20-30 high-quality Java projects
-- **Task instances**: 200+ valid issue-PR-test triplets
-- **Validation**: All tasks must pass fail-to-pass test criteria
-- **Quality**: Issues with clear problem statements and reproducible tests
+- Java 17+
+- Maven 3.8+
+- Git
+- GitHub Personal Access Token
+
+## Usage
+
+```bash
+# Set your GitHub token
+export GITHUB_TOKEN=<your-token>
+
+# Build
+mvn clean compile
+
+# Run individual stages
+mvn exec:java -Dexec.mainClass="com.swebench.Main" -Dexec.args="discover"
+mvn exec:java -Dexec.mainClass="com.swebench.Main" -Dexec.args="filter"
+mvn exec:java -Dexec.mainClass="com.swebench.Main" -Dexec.args="setup-testing"
+mvn exec:java -Dexec.mainClass="com.swebench.Main" -Dexec.args="validate"
+
+# Or run the full pipeline
+mvn exec:java -Dexec.mainClass="com.swebench.Main" -Dexec.args="pipeline"
+```
+
+After `setup-testing`, run validation per repository:
+
+```bash
+cd data/testing/apache-commons-lang
+bash run-validation.sh
+```
 
 ## Technologies
 
-- Java 17 (primary development)
-- Maven for build management
-- JUnit 5 for testing framework
+- Java 17, Maven, JUnit 5
 - JGit for Git operations
-- GitHub API for repository interaction
-- SDKMAN for Java version management (Java 8, 11, 17)
+- GitHub API (`org.kohsuke:github-api`)
+- Jackson for JSON processing
 
-## Repository Selection Criteria
+## License
 
-- **Primary Language**: Java (at least 90% of codebase - VERY STRICT)
-- **Not Forked**: Original repositories only
-- **Popularity**: More than 50 stars
-- **Active**: Updated within the last 1-2 years
-- **Has Issues & PRs**: Active issue tracking and pull requests
-- **Test Coverage**: Includes comprehensive test files
-- **Build System**: Uses Maven or Gradle
-- **Quality**: Well-maintained with clean commit history
-
-## Development Status
-
-Currently implementing Phase 2: Data Extraction & Benchmark Design
-
-See project plan for detailed timeline and milestones.
+Developed as part of the Integrated Project course at the University of Hildesheim (SoSe 2025).
