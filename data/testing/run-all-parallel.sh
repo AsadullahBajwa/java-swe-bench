@@ -141,22 +141,39 @@ TOTAL_VALID=0
 TOTAL_INVALID_PP=0
 TOTAL_INVALID_FF=0
 TOTAL_TASKS=0
+COMPLETED_REPOS=0
+FAILED_REPOS=0
+SUMMARY_ROWS=""
 
 for repo_dir in $ALL_REPOS; do
     repo_name=$(basename "$repo_dir")
     status_file="$repo_dir/TASKS_STATUS.md"
 
     if [ -f "$status_file" ] && grep -q "VALIDATION_COMPLETE" "$status_file"; then
-        total=$(grep -o "Total Tasks:.*[0-9]*" "$status_file" | grep -o "[0-9]*$" || echo "0")
-        valid=$(grep -o "VALID:.*[0-9]*" "$status_file" | head -1 | grep -o "[0-9]*" | head -1 || echo "0")
+        total=$(grep "Total Tasks:" "$status_file" | grep -o "[0-9]*" | head -1 || echo "0")
+        valid=$(grep "VALID:" "$status_file" | head -1 | grep -o "[0-9]*" | head -1 || echo "0")
+        invalid_pp=$(grep "INVALID-PASS-PASS:" "$status_file" | grep -o "[0-9]*" | head -1 || echo "0")
+        invalid_ff=$(grep "INVALID-FAIL-FAIL:" "$status_file" | grep -o "[0-9]*" | head -1 || echo "0")
 
         TOTAL_VALID=$((TOTAL_VALID + valid))
+        TOTAL_INVALID_PP=$((TOTAL_INVALID_PP + invalid_pp))
+        TOTAL_INVALID_FF=$((TOTAL_INVALID_FF + invalid_ff))
         TOTAL_TASKS=$((TOTAL_TASKS + total))
+        ((COMPLETED_REPOS++))
 
         if [ $total -gt 0 ]; then
             percentage=$((valid * 100 / total))
             printf "%-35s: %2d/%2d valid (%3d%%)\n" "$repo_name" "$valid" "$total" "$percentage"
+            SUMMARY_ROWS="${SUMMARY_ROWS}| ${repo_name} | ${total} | ${valid} | ${invalid_pp} | ${invalid_ff} | ${percentage}% | COMPLETE |\n"
         fi
+    else
+        ((FAILED_REPOS++))
+        # Get task count from tasks.json if available
+        task_count="-"
+        if [ -f "$repo_dir/tasks.json" ]; then
+            task_count=$(grep -c '"pr_number"' "$repo_dir/tasks.json" 2>/dev/null || echo "-")
+        fi
+        SUMMARY_ROWS="${SUMMARY_ROWS}| ${repo_name} | ${task_count} | - | - | - | - | PENDING |\n"
     fi
 done
 
@@ -165,7 +182,9 @@ echo "========================================="
 echo "Overall Summary"
 echo "========================================="
 echo "Total Tasks:           $TOTAL_TASKS"
-echo "Valid (FAIL→PASS):     $TOTAL_VALID"
+echo "Valid (FAIL->PASS):    $TOTAL_VALID"
+echo "Invalid (PASS-PASS):   $TOTAL_INVALID_PP"
+echo "Invalid (FAIL-FAIL):   $TOTAL_INVALID_FF"
 
 if [ $TOTAL_TASKS -gt 0 ]; then
     SUCCESS_RATE=$((TOTAL_VALID * 100 / TOTAL_TASKS))
@@ -173,7 +192,73 @@ if [ $TOTAL_TASKS -gt 0 ]; then
 fi
 
 echo ""
+echo "Repos completed:       $COMPLETED_REPOS"
+echo "Repos not validated:   $FAILED_REPOS"
+
+# ==========================================
+# UPDATE TESTING_SUMMARY.MD
+# ==========================================
+if [ $TOTAL_TASKS -gt 0 ]; then
+    SUCCESS_RATE=$((TOTAL_VALID * 100 / TOTAL_TASKS))
+else
+    SUCCESS_RATE=0
+fi
+
+cat > "$SCRIPT_DIR/TESTING_SUMMARY.md" << SUMMARYEOF
+# Testing Directory Summary
+
+**Last Updated:** $(date '+%Y-%m-%d %H:%M:%S')
+
+## Overall Results
+
+- **Total Repositories:** $TOTAL_REPOS
+- **Completed:** $COMPLETED_REPOS
+- **Not Validated:** $FAILED_REPOS
+- **Total Tasks:** $TOTAL_TASKS
+- **VALID (FAIL->PASS):** $TOTAL_VALID (${SUCCESS_RATE}%)
+- **INVALID-PASS-PASS:** $TOTAL_INVALID_PP
+- **INVALID-FAIL-FAIL:** $TOTAL_INVALID_FF
+
+---
+
+## Repositories
+
+| Repository | Tasks | Valid | Pass-Pass | Fail-Fail | Rate | Status |
+|------------|-------|-------|-----------|-----------|------|--------|
+$(echo -e "$SUMMARY_ROWS")
+
+---
+
+## Legend
+
+- **VALID**: Tests FAIL after test_patch, PASS after code_patch (good for SWE-bench)
+- **INVALID-PASS-PASS**: Tests pass both before and after (test doesn't expose bug)
+- **INVALID-FAIL-FAIL**: Tests fail both before and after (patch doesn't fix)
+
+---
+
+## How to Run
+
+\`\`\`bash
+# Run all validations (skip already completed)
+./run-all-parallel.sh 2
+
+# Force re-run everything
+./run-all-parallel.sh 2 --force
+
+# Check individual repo status
+cat <repo-name>/TASKS_STATUS.md
+\`\`\`
+
+---
+
+**Total time:** ${MINUTES}m ${SECONDS}s
+SUMMARYEOF
+
+echo ""
+echo "TESTING_SUMMARY.md updated in: $SCRIPT_DIR"
+echo ""
 echo "Logs saved to: $LOG_DIR/"
 echo "Status files: */TASKS_STATUS.md"
 echo ""
-echo "Done! 🎉"
+echo "Done!"
