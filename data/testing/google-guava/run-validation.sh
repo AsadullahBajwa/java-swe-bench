@@ -4,6 +4,9 @@
 
 set +e  # Don't exit on error
 
+# Save script directory as absolute path (before cd repo)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
 # Clone repository if not exists
 if [ ! -d 'repo' ]; then
     echo 'Cloning google/guava...'
@@ -14,6 +17,9 @@ cd repo
 
 VALID_COUNT=0
 TOTAL_COUNT=0
+INVALID_PP_COUNT=0
+INVALID_FF_COUNT=0
+TASK_ROWS=""
 
 # PR-8188
 echo '=== Validating PR-8188 ==='
@@ -38,10 +44,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8188: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8188 | 8138afb... | UninterruptiblesTest | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8188: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8188 | 8138afb... | UninterruptiblesTest | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8188: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8188 | 8138afb... | UninterruptiblesTest | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -68,10 +79,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8187: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8187 | 175bac9... | PreconditionsTest,MacHashFunctionTest,FluentIterableTest,... | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8187: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8187 | 175bac9... | PreconditionsTest,MacHashFunctionTest,FluentIterableTest,... | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8187: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8187 | 175bac9... | PreconditionsTest,MacHashFunctionTest,FluentIterableTest,... | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -98,10 +114,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8184: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8184 | a63e360... | CacheLoadingTest,FuturesTest,JSR166TestCase,Uninterruptib... | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8184: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8184 | a63e360... | CacheLoadingTest,FuturesTest,JSR166TestCase,Uninterruptib... | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8184: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8184 | a63e360... | CacheLoadingTest,FuturesTest,JSR166TestCase,Uninterruptib... | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -128,10 +149,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8166: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8166 | 0bf8704... | OrderingTest | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8166: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8166 | 0bf8704... | OrderingTest | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8166: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8166 | 0bf8704... | OrderingTest | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -158,10 +184,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8155: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8155 | 64d70b9... | AbstractImmutableSortedMapMapInterfaceTest,AbstractImmuta... | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8155: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8155 | 64d70b9... | AbstractImmutableSortedMapMapInterfaceTest,AbstractImmuta... | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8155: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8155 | 64d70b9... | AbstractImmutableSortedMapMapInterfaceTest,AbstractImmuta... | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -188,10 +219,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8153: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8153 | cf92c28... | ImmutableSortedMapTest,ContiguousSetTest | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8153: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8153 | cf92c28... | ImmutableSortedMapTest,ContiguousSetTest | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8153: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8153 | cf92c28... | ImmutableSortedMapTest,ContiguousSetTest | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -218,10 +254,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8150: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8150 | 8df9232... | ContiguousSetTest | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8150: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8150 | 8df9232... | ContiguousSetTest | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8150: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8150 | 8df9232... | ContiguousSetTest | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -248,10 +289,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8149: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8149 | fb02c34... | ListsTest,CharSequenceReaderTest,SpecialRandom | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8149: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8149 | fb02c34... | ListsTest,CharSequenceReaderTest,SpecialRandom | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8149: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8149 | fb02c34... | ListsTest,CharSequenceReaderTest,SpecialRandom | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -278,10 +324,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8139: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8139 | d8aef62... | DoubleUtilsTest,ThreadFactoryBuilderTest,NullPointerTeste... | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8139: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8139 | d8aef62... | DoubleUtilsTest,ThreadFactoryBuilderTest,NullPointerTeste... | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8139: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8139 | d8aef62... | DoubleUtilsTest,ThreadFactoryBuilderTest,NullPointerTeste... | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -308,10 +359,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8134: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8134 | 071ab9f... | MoreExecutorsTest,AbstractClosingFutureTest,ImmutableEnum... | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8134: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8134 | 071ab9f... | MoreExecutorsTest,AbstractClosingFutureTest,ImmutableEnum... | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8134: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8134 | 071ab9f... | MoreExecutorsTest,AbstractClosingFutureTest,ImmutableEnum... | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -338,10 +394,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8128: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8128 | 32ee2f6... | ForwardingNavigableMapTest | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8128: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8128 | 32ee2f6... | ForwardingNavigableMapTest | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8128: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8128 | 32ee2f6... | ForwardingNavigableMapTest | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -368,10 +429,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8125: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8125 | 98107f9... | ImmutableDoubleArrayTest,ImmutableLongArrayTest,Immutable... | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8125: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8125 | 98107f9... | ImmutableDoubleArrayTest,ImmutableLongArrayTest,Immutable... | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8125: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8125 | 98107f9... | ImmutableDoubleArrayTest,ImmutableLongArrayTest,Immutable... | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -398,10 +464,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8118: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8118 | db23a83... | UnsignedBytesTest | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8118: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8118 | db23a83... | UnsignedBytesTest | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8118: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8118 | db23a83... | UnsignedBytesTest | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -428,10 +499,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8114: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8114 | 0011c01... | ConcurrentHashMultisetBasherTest,ConcurrentHashMultisetTest | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8114: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8114 | 0011c01... | ConcurrentHashMultisetBasherTest,ConcurrentHashMultisetTest | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8114: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8114 | 0011c01... | ConcurrentHashMultisetBasherTest,ConcurrentHashMultisetTest | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -458,10 +534,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8091: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8091 | a6110d3... | ImmutableListMultimapTest,CollectSpliteratorsTest,Immutab... | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8091: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8091 | a6110d3... | ImmutableListMultimapTest,CollectSpliteratorsTest,Immutab... | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8091: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8091 | a6110d3... | ImmutableListMultimapTest,CollectSpliteratorsTest,Immutab... | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -488,10 +569,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8081: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8081 | 12878d7... | InternetDomainNameTest | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8081: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8081 | 12878d7... | InternetDomainNameTest | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8081: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8081 | 12878d7... | InternetDomainNameTest | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -518,10 +604,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8080: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8080 | 8cfa76f... | QueuesTest | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8080: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8080 | 8cfa76f... | QueuesTest | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8080: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8080 | 8cfa76f... | QueuesTest | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -548,10 +639,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8067: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8067 | fb862e5... | FileBackedOutputStreamTest | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8067: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8067 | fb862e5... | FileBackedOutputStreamTest | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8067: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8067 | fb862e5... | FileBackedOutputStreamTest | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -578,10 +674,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8052: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8052 | 83869af... | OrderingTest,LinkedHashMultimapTest | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8052: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8052 | 83869af... | OrderingTest,LinkedHashMultimapTest | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8052: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8052 | 83869af... | OrderingTest,LinkedHashMultimapTest | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -608,10 +709,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8045: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8045 | b53231b... | AbstractGraphTest,ValueGraphTest | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8045: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8045 | b53231b... | AbstractGraphTest,ValueGraphTest | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8045: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8045 | b53231b... | AbstractGraphTest,ValueGraphTest | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -622,7 +728,7 @@ echo "Valid tasks: $VALID_COUNT / $TOTAL_COUNT"
 # ==========================================
 # AUTO-UPDATE TASKS_STATUS.MD
 # ==========================================
-cd "$(dirname "$0")"
+cd "$SCRIPT_DIR"
 
 # Get repo full name
 if [ -f "tasks.json" ]; then
@@ -631,34 +737,56 @@ else
     REPO_FULLNAME=$(basename "$(pwd)" | sed 's/-/\//')
 fi
 
-# Count results from console output (last run)
-# Note: This assumes variables VALID_COUNT, etc. are set from the script
+# Calculate percentage
+if [ $TOTAL_COUNT -gt 0 ]; then
+    VALID_PCT=$((VALID_COUNT * 100 / TOTAL_COUNT))
+    PP_PCT=$((INVALID_PP_COUNT * 100 / TOTAL_COUNT))
+    FF_PCT=$((INVALID_FF_COUNT * 100 / TOTAL_COUNT))
+else
+    VALID_PCT=0
+    PP_PCT=0
+    FF_PCT=0
+fi
 
-cat > TASKS_STATUS.md << EOF
+cat > "$SCRIPT_DIR/TASKS_STATUS.md" << STATUSEOF
 # Task Validation Status: $REPO_FULLNAME
 
-**✅ VALIDATION_COMPLETE: $(date '+%Y-%m-%d %H:%M:%S')**
+**VALIDATION_COMPLETE: $(date '+%Y-%m-%d %H:%M:%S')**
 
 ## Summary
-- **Total Tasks:** ${TOTAL_COUNT:-0}
-- **VALID:** ${VALID_COUNT:-0} ($((TOTAL_COUNT > 0 ? VALID_COUNT * 100 / TOTAL_COUNT : 0))%)
-- **INVALID-PASS-PASS:** ${INVALID_PP_COUNT:-0}
-- **INVALID-FAIL-FAIL:** ${INVALID_FF_COUNT:-0}
+- **Total Tasks:** $TOTAL_COUNT
+- **VALID:** $VALID_COUNT (${VALID_PCT}%)
+- **INVALID-PASS-PASS:** $INVALID_PP_COUNT (${PP_PCT}%)
+- **INVALID-FAIL-FAIL:** $INVALID_FF_COUNT (${FF_PCT}%)
 
 ## Legend
 - **VALID**: Tests FAIL after test_patch, PASS after code_patch (good for SWE-bench)
 - **INVALID-PASS-PASS**: Tests pass both before and after (test doesn't expose bug)
 - **INVALID-FAIL-FAIL**: Tests fail both before and after (patch doesn't fix)
+- **ERROR**: Could not run validation
+
+---
+
+## Tasks
+
+| PR # | Base Commit | Test Class(es) | After test_patch | After code_patch | Status | Notes |
+|------|-------------|----------------|------------------|------------------|--------|-------|
+$(echo -e "$TASK_ROWS")
 
 ---
 
 **Validation completed:** $(date)
-**Status:** ✅ COMPLETE - Ready for SWE-bench use
+**Status:** COMPLETE - Ready for SWE-bench use
 
 ---
 
-For detailed per-task results, check the console output or logs.
-EOF
+## Reproduction
+
+\`\`\`bash
+cd $(basename "$SCRIPT_DIR")
+bash run-validation.sh
+\`\`\`
+STATUSEOF
 
 echo ""
-echo "✓ TASKS_STATUS.md updated with completion marker"
+echo "TASKS_STATUS.md updated with completion marker in: $SCRIPT_DIR"

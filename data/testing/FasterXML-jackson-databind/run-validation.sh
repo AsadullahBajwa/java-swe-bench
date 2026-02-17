@@ -4,6 +4,9 @@
 
 set +e  # Don't exit on error
 
+# Save script directory as absolute path (before cd repo)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
 # Clone repository if not exists
 if [ ! -d 'repo' ]; then
     echo 'Cloning FasterXML/jackson-databind...'
@@ -14,6 +17,9 @@ cd repo
 
 VALID_COUNT=0
 TOTAL_COUNT=0
+INVALID_PP_COUNT=0
+INVALID_FF_COUNT=0
+TASK_ROWS=""
 
 # PR-5622
 echo '=== Validating PR-5622 ==='
@@ -38,10 +44,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5622: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5622 | 3db1dbb... | DefaultTypingOverride1391Test | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5622: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5622 | 3db1dbb... | DefaultTypingOverride1391Test | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-5622: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5622 | 3db1dbb... | DefaultTypingOverride1391Test | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -68,10 +79,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5621: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5621 | 3db1dbb... | JacksonInject1381Test,JacksonInject3072Test | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5621: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5621 | 3db1dbb... | JacksonInject1381Test,JacksonInject3072Test | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-5621: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5621 | 3db1dbb... | JacksonInject1381Test,JacksonInject3072Test | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -98,10 +114,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5620: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5620 | 8c8bd3d... | AtomicTypeSerializationTest | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5620: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5620 | 8c8bd3d... | AtomicTypeSerializationTest | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-5620: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5620 | 8c8bd3d... | AtomicTypeSerializationTest | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -128,10 +149,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5619: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5619 | e7d051a... | OptionalSubtypeSerializationTest | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5619: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5619 | e7d051a... | OptionalSubtypeSerializationTest | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-5619: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5619 | e7d051a... | OptionalSubtypeSerializationTest | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -158,10 +184,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5614: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5614 | 0c4c8f9... | FunctionalScalarDeserializer4004Test | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5614: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5614 | 0c4c8f9... | FunctionalScalarDeserializer4004Test | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-5614: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5614 | 0c4c8f9... | FunctionalScalarDeserializer4004Test | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -188,10 +219,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5613: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5613 | 19c42ea... | JavaUtilDateSerializationTest | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5613: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5613 | 19c42ea... | JavaUtilDateSerializationTest | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-5613: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5613 | 19c42ea... | JavaUtilDateSerializationTest | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -218,10 +254,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5612: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5612 | fe73c27... | OffsetTimeDeserTest,MonthDeserializerTest | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5612: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5612 | fe73c27... | OffsetTimeDeserTest,MonthDeserializerTest | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-5612: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5612 | fe73c27... | OffsetTimeDeserTest,MonthDeserializerTest | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -248,10 +289,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5611: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5611 | 5407220... | JsonNodeAsContainerTest,JsonNodeConversionsTest | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5611: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5611 | 5407220... | JsonNodeAsContainerTest,JsonNodeConversionsTest | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-5611: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5611 | 5407220... | JsonNodeAsContainerTest,JsonNodeConversionsTest | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -278,10 +324,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5606: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5606 | e5dfb2e... | ObjectNodeTest | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5606: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5606 | e5dfb2e... | ObjectNodeTest | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-5606: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5606 | e5dfb2e... | ObjectNodeTest | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -308,10 +359,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5604: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5604 | a2aa480... | AccessorNamingForBuilderTest | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5604: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5604 | a2aa480... | AccessorNamingForBuilderTest | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-5604: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5604 | a2aa480... | AccessorNamingForBuilderTest | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -338,10 +394,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5603: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5603 | ddc955d... | ConverterFromInterface2617Test | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5603: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5603 | ddc955d... | ConverterFromInterface2617Test | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-5603: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5603 | ddc955d... | ConverterFromInterface2617Test | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -368,10 +429,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5600: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5600 | b2463a2... | FormatVisitor5393Test,NewSchemaTest,ViewsWithSchemaTest | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5600: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5600 | b2463a2... | FormatVisitor5393Test,NewSchemaTest,ViewsWithSchemaTest | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-5600: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5600 | b2463a2... | FormatVisitor5393Test,NewSchemaTest,ViewsWithSchemaTest | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -398,10 +464,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5595: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5595 | bd24fa5... | FunctionalScalarDeserializer4004Test | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5595: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5595 | bd24fa5... | FunctionalScalarDeserializer4004Test | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-5595: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5595 | bd24fa5... | FunctionalScalarDeserializer4004Test | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -428,10 +499,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5591: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5591 | 96679ae... | ObjectIdInObjectArray5413Test,Base64DecodingTest,ObjectId... | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5591: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5591 | 96679ae... | ObjectIdInObjectArray5413Test,Base64DecodingTest,ObjectId... | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-5591: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5591 | 96679ae... | ObjectIdInObjectArray5413Test,Base64DecodingTest,ObjectId... | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -458,10 +534,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5587: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5587 | 182b3bd... | ArrayNodeTest,TreeTraversingParserTest | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5587: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5587 | 182b3bd... | ArrayNodeTest,TreeTraversingParserTest | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-5587: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5587 | 182b3bd... | ArrayNodeTest,TreeTraversingParserTest | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -488,10 +569,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5584: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5584 | 5708c4d... | JsonNodeLongValueTest,POJONodeTest,JsonNodeDecimalValueTe... | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5584: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5584 | 5708c4d... | JsonNodeLongValueTest,POJONodeTest,JsonNodeDecimalValueTe... | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-5584: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5584 | 5708c4d... | JsonNodeLongValueTest,POJONodeTest,JsonNodeDecimalValueTe... | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -518,10 +604,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5582: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5582 | 6144f64... | JsonNodeMapTest | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5582: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5582 | 6144f64... | JsonNodeMapTest | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-5582: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5582 | 6144f64... | JsonNodeMapTest | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -548,10 +639,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5580: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5580 | 52aeb0a... | JsonNodeMapTest | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5580: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5580 | 52aeb0a... | JsonNodeMapTest | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-5580: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5580 | 52aeb0a... | JsonNodeMapTest | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -578,10 +674,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5577: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5577 | 6eb4224... | JsonNodeLongValueTest,JsonNodeDecimalValueTest,JsonNodeFl... | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-5577: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5577 | 6eb4224... | JsonNodeLongValueTest,JsonNodeDecimalValueTest,JsonNodeFl... | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-5577: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 5577 | 6eb4224... | JsonNodeLongValueTest,JsonNodeDecimalValueTest,JsonNodeFl... | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -592,7 +693,7 @@ echo "Valid tasks: $VALID_COUNT / $TOTAL_COUNT"
 # ==========================================
 # AUTO-UPDATE TASKS_STATUS.MD
 # ==========================================
-cd "$(dirname "$0")"
+cd "$SCRIPT_DIR"
 
 # Get repo full name
 if [ -f "tasks.json" ]; then
@@ -601,34 +702,56 @@ else
     REPO_FULLNAME=$(basename "$(pwd)" | sed 's/-/\//')
 fi
 
-# Count results from console output (last run)
-# Note: This assumes variables VALID_COUNT, etc. are set from the script
+# Calculate percentage
+if [ $TOTAL_COUNT -gt 0 ]; then
+    VALID_PCT=$((VALID_COUNT * 100 / TOTAL_COUNT))
+    PP_PCT=$((INVALID_PP_COUNT * 100 / TOTAL_COUNT))
+    FF_PCT=$((INVALID_FF_COUNT * 100 / TOTAL_COUNT))
+else
+    VALID_PCT=0
+    PP_PCT=0
+    FF_PCT=0
+fi
 
-cat > TASKS_STATUS.md << EOF
+cat > "$SCRIPT_DIR/TASKS_STATUS.md" << STATUSEOF
 # Task Validation Status: $REPO_FULLNAME
 
-**✅ VALIDATION_COMPLETE: $(date '+%Y-%m-%d %H:%M:%S')**
+**VALIDATION_COMPLETE: $(date '+%Y-%m-%d %H:%M:%S')**
 
 ## Summary
-- **Total Tasks:** ${TOTAL_COUNT:-0}
-- **VALID:** ${VALID_COUNT:-0} ($((TOTAL_COUNT > 0 ? VALID_COUNT * 100 / TOTAL_COUNT : 0))%)
-- **INVALID-PASS-PASS:** ${INVALID_PP_COUNT:-0}
-- **INVALID-FAIL-FAIL:** ${INVALID_FF_COUNT:-0}
+- **Total Tasks:** $TOTAL_COUNT
+- **VALID:** $VALID_COUNT (${VALID_PCT}%)
+- **INVALID-PASS-PASS:** $INVALID_PP_COUNT (${PP_PCT}%)
+- **INVALID-FAIL-FAIL:** $INVALID_FF_COUNT (${FF_PCT}%)
 
 ## Legend
 - **VALID**: Tests FAIL after test_patch, PASS after code_patch (good for SWE-bench)
 - **INVALID-PASS-PASS**: Tests pass both before and after (test doesn't expose bug)
 - **INVALID-FAIL-FAIL**: Tests fail both before and after (patch doesn't fix)
+- **ERROR**: Could not run validation
+
+---
+
+## Tasks
+
+| PR # | Base Commit | Test Class(es) | After test_patch | After code_patch | Status | Notes |
+|------|-------------|----------------|------------------|------------------|--------|-------|
+$(echo -e "$TASK_ROWS")
 
 ---
 
 **Validation completed:** $(date)
-**Status:** ✅ COMPLETE - Ready for SWE-bench use
+**Status:** COMPLETE - Ready for SWE-bench use
 
 ---
 
-For detailed per-task results, check the console output or logs.
-EOF
+## Reproduction
+
+\`\`\`bash
+cd $(basename "$SCRIPT_DIR")
+bash run-validation.sh
+\`\`\`
+STATUSEOF
 
 echo ""
-echo "✓ TASKS_STATUS.md updated with completion marker"
+echo "TASKS_STATUS.md updated with completion marker in: $SCRIPT_DIR"

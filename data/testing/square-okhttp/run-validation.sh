@@ -4,6 +4,9 @@
 
 set +e  # Don't exit on error
 
+# Save script directory as absolute path (before cd repo)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
 # Clone repository if not exists
 if [ ! -d 'repo' ]; then
     echo 'Cloning square/okhttp...'
@@ -14,6 +17,9 @@ cd repo
 
 VALID_COUNT=0
 TOTAL_COUNT=0
+INVALID_PP_COUNT=0
+INVALID_FF_COUNT=0
+TASK_ROWS=""
 
 # PR-9269
 echo '=== Validating PR-9269 ==='
@@ -38,10 +44,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-9269: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9269 | bb420b2... |  | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-9269: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9269 | bb420b2... |  | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-9269: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9269 | bb420b2... |  | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -68,10 +79,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-9268: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9268 | 2b1b18d... |  | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-9268: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9268 | 2b1b18d... |  | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-9268: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9268 | 2b1b18d... |  | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -98,10 +114,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-9207: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9207 | 5b23df7... |  | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-9207: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9207 | 5b23df7... |  | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-9207: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9207 | 5b23df7... |  | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -128,10 +149,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-9129: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9129 | 2f3491c... |  | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-9129: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9129 | 2f3491c... |  | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-9129: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9129 | 2f3491c... |  | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -158,10 +184,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-9118: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9118 | 8eca8a8... |  | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-9118: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9118 | 8eca8a8... |  | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-9118: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9118 | 8eca8a8... |  | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -188,10 +219,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-9115: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9115 | d4a5be1... |  | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-9115: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9115 | d4a5be1... |  | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-9115: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9115 | d4a5be1... |  | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -218,10 +254,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-9112: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9112 | fa84a6e... |  | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-9112: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9112 | fa84a6e... |  | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-9112: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9112 | fa84a6e... |  | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -248,10 +289,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-9098: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9098 | fa783c3... | EventSourceFactoryTest | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-9098: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9098 | fa783c3... | EventSourceFactoryTest | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-9098: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9098 | fa783c3... | EventSourceFactoryTest | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -278,10 +324,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-9044: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9044 | 8fde16d... |  | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-9044: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9044 | 8fde16d... |  | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-9044: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9044 | 8fde16d... |  | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -308,10 +359,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-9031: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9031 | 929a41c... |  | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-9031: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9031 | 929a41c... |  | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-9031: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9031 | 929a41c... |  | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -338,10 +394,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-9030: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9030 | d7851de... |  | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-9030: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9030 | d7851de... |  | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-9030: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9030 | d7851de... |  | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -368,10 +429,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-9010: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9010 | 8b74eb4... | EventSourceFactoryTest | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-9010: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9010 | 8b74eb4... | EventSourceFactoryTest | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-9010: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 9010 | 8b74eb4... | EventSourceFactoryTest | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -398,10 +464,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8972: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8972 | 7c7d404... |  | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8972: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8972 | 7c7d404... |  | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8972: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8972 | 7c7d404... |  | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -428,10 +499,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8967: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8967 | 88593f8... |  | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8967: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8967 | 88593f8... |  | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8967: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8967 | 88593f8... |  | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -458,10 +534,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8965: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8965 | 0984bc3... |  | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8965: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8965 | 0984bc3... |  | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8965: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8965 | 0984bc3... |  | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -488,10 +569,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8954: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8954 | 0ef99d6... |  | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8954: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8954 | 0ef99d6... |  | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8954: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8954 | 0ef99d6... |  | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -518,10 +604,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8947: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8947 | d51c177... |  | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8947: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8947 | d51c177... |  | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8947: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8947 | d51c177... |  | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -548,10 +639,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8943: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8943 | add175b... |  | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8943: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8943 | add175b... |  | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8943: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8943 | add175b... |  | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -578,10 +674,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8939: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8939 | 9eb967f... |  | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8939: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8939 | 9eb967f... |  | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8939: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8939 | 9eb967f... |  | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -608,10 +709,15 @@ AFTER_CODE=$?
 if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8917: VALID'
     ((VALID_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8917 | f65e3e2... | AppTest | FAIL ($AFTER_TEST) | PASS ($AFTER_CODE) | **VALID** | |\n"
 elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then
     echo 'PR-8917: INVALID-PASS-PASS'
+    ((INVALID_PP_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8917 | f65e3e2... | AppTest | PASS ($AFTER_TEST) | PASS ($AFTER_CODE) | INVALID-PASS-PASS | Test does not expose bug |\n"
 else
     echo 'PR-8917: INVALID-FAIL-FAIL'
+    ((INVALID_FF_COUNT++))
+    TASK_ROWS="${TASK_ROWS}| 8917 | f65e3e2... | AppTest | FAIL ($AFTER_TEST) | FAIL ($AFTER_CODE) | INVALID-FAIL-FAIL | Code patch does not fix |\n"
 fi
 ((TOTAL_COUNT++))
 
@@ -622,7 +728,7 @@ echo "Valid tasks: $VALID_COUNT / $TOTAL_COUNT"
 # ==========================================
 # AUTO-UPDATE TASKS_STATUS.MD
 # ==========================================
-cd "$(dirname "$0")"
+cd "$SCRIPT_DIR"
 
 # Get repo full name
 if [ -f "tasks.json" ]; then
@@ -631,34 +737,56 @@ else
     REPO_FULLNAME=$(basename "$(pwd)" | sed 's/-/\//')
 fi
 
-# Count results from console output (last run)
-# Note: This assumes variables VALID_COUNT, etc. are set from the script
+# Calculate percentage
+if [ $TOTAL_COUNT -gt 0 ]; then
+    VALID_PCT=$((VALID_COUNT * 100 / TOTAL_COUNT))
+    PP_PCT=$((INVALID_PP_COUNT * 100 / TOTAL_COUNT))
+    FF_PCT=$((INVALID_FF_COUNT * 100 / TOTAL_COUNT))
+else
+    VALID_PCT=0
+    PP_PCT=0
+    FF_PCT=0
+fi
 
-cat > TASKS_STATUS.md << EOF
+cat > "$SCRIPT_DIR/TASKS_STATUS.md" << STATUSEOF
 # Task Validation Status: $REPO_FULLNAME
 
-**✅ VALIDATION_COMPLETE: $(date '+%Y-%m-%d %H:%M:%S')**
+**VALIDATION_COMPLETE: $(date '+%Y-%m-%d %H:%M:%S')**
 
 ## Summary
-- **Total Tasks:** ${TOTAL_COUNT:-0}
-- **VALID:** ${VALID_COUNT:-0} ($((TOTAL_COUNT > 0 ? VALID_COUNT * 100 / TOTAL_COUNT : 0))%)
-- **INVALID-PASS-PASS:** ${INVALID_PP_COUNT:-0}
-- **INVALID-FAIL-FAIL:** ${INVALID_FF_COUNT:-0}
+- **Total Tasks:** $TOTAL_COUNT
+- **VALID:** $VALID_COUNT (${VALID_PCT}%)
+- **INVALID-PASS-PASS:** $INVALID_PP_COUNT (${PP_PCT}%)
+- **INVALID-FAIL-FAIL:** $INVALID_FF_COUNT (${FF_PCT}%)
 
 ## Legend
 - **VALID**: Tests FAIL after test_patch, PASS after code_patch (good for SWE-bench)
 - **INVALID-PASS-PASS**: Tests pass both before and after (test doesn't expose bug)
 - **INVALID-FAIL-FAIL**: Tests fail both before and after (patch doesn't fix)
+- **ERROR**: Could not run validation
+
+---
+
+## Tasks
+
+| PR # | Base Commit | Test Class(es) | After test_patch | After code_patch | Status | Notes |
+|------|-------------|----------------|------------------|------------------|--------|-------|
+$(echo -e "$TASK_ROWS")
 
 ---
 
 **Validation completed:** $(date)
-**Status:** ✅ COMPLETE - Ready for SWE-bench use
+**Status:** COMPLETE - Ready for SWE-bench use
 
 ---
 
-For detailed per-task results, check the console output or logs.
-EOF
+## Reproduction
+
+\`\`\`bash
+cd $(basename "$SCRIPT_DIR")
+bash run-validation.sh
+\`\`\`
+STATUSEOF
 
 echo ""
-echo "✓ TASKS_STATUS.md updated with completion marker"
+echo "TASKS_STATUS.md updated with completion marker in: $SCRIPT_DIR"
