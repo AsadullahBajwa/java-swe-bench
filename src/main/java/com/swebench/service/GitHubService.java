@@ -131,8 +131,14 @@ public class GitHubService {
                     TaskInstance task = extractTaskFromPR(ghRepo, pr);
                     if (task != null) {
                         withLinkedIssues++;
+                        // If the Repository model has a curated java_version, it takes priority
+                        if (repo.getJavaVersion() != null && !repo.getJavaVersion().isEmpty()) {
+                            task.setJavaVersion(repo.getJavaVersion());
+                        }
                         tasks.add(task);
-                        logger.info("✓ Extracted task from PR #{} linked to issue #{}", pr.getNumber(), task.getIssueNumber());
+                        logger.info("✓ Extracted task from PR #{} linked to issue #{} (java={}, build={})",
+                                   pr.getNumber(), task.getIssueNumber(),
+                                   task.getJavaVersion(), task.getBuildTool());
                     }
                 }
                 prCount++;
@@ -191,9 +197,14 @@ public class GitHubService {
                             withTestsFound++;
                             TaskInstance task = extractCodeOnlyTaskFromPR(ghRepo, pr, patch, existingTestClasses);
                             if (task != null) {
+                                // If the Repository model has a curated java_version, it takes priority
+                                if (repo.getJavaVersion() != null && !repo.getJavaVersion().isEmpty()) {
+                                    task.setJavaVersion(repo.getJavaVersion());
+                                }
                                 tasks.add(task);
-                                logger.info("✓ Extracted code-only task from PR #{} with {} existing test classes",
-                                           pr.getNumber(), existingTestClasses.size());
+                                logger.info("✓ Extracted code-only task from PR #{} with {} test classes (java={}, build={})",
+                                           pr.getNumber(), existingTestClasses.size(),
+                                           task.getJavaVersion(), task.getBuildTool());
                             }
                         } else {
                             logger.debug("No existing test classes found for PR #{}", pr.getNumber());
@@ -830,9 +841,14 @@ public class GitHubService {
 
                         TaskInstance task = extractSplitPatchTaskFromPR(ghRepo, pr, splitPatch);
                         if (task != null) {
+                            // If the Repository model has a curated java_version, it takes priority
+                            if (repo.getJavaVersion() != null && !repo.getJavaVersion().isEmpty()) {
+                                task.setJavaVersion(repo.getJavaVersion());
+                            }
                             tasks.add(task);
-                            logger.info("✓ Extracted split-patch task from PR #{}: {}",
-                                       pr.getNumber(), task.getInstanceId());
+                            logger.info("✓ Extracted split-patch task from PR #{}: {} (java={}, build={})",
+                                       pr.getNumber(), task.getInstanceId(),
+                                       task.getJavaVersion(), task.getBuildTool());
                         }
                     }
                 }
@@ -1037,36 +1053,111 @@ public class GitHubService {
                 repo.getFileContent("pom.xml");
                 task.setBuildTool("maven");
                 logger.debug("Detected Maven build system");
-                return;
             } catch (IOException e) {
-                // Not Maven
+                // Check for Gradle
+                try {
+                    repo.getFileContent("build.gradle");
+                    task.setBuildTool("gradle");
+                    logger.debug("Detected Gradle build system");
+                } catch (IOException e2) {
+                    // Check for Gradle Kotlin DSL
+                    try {
+                        repo.getFileContent("build.gradle.kts");
+                        task.setBuildTool("gradle");
+                        logger.debug("Detected Gradle (Kotlin DSL) build system");
+                    } catch (IOException e3) {
+                        logger.debug("Could not detect build system");
+                    }
+                }
             }
 
-            // Check for Gradle
-            try {
-                repo.getFileContent("build.gradle");
-                task.setBuildTool("gradle");
-                logger.debug("Detected Gradle build system");
-                return;
-            } catch (IOException e) {
-                // Not Gradle
-            }
-
-            // Check for Gradle Kotlin DSL
-            try {
-                repo.getFileContent("build.gradle.kts");
-                task.setBuildTool("gradle");
-                logger.debug("Detected Gradle (Kotlin DSL) build system");
-                return;
-            } catch (IOException e) {
-                // Not Gradle Kotlin
-            }
-
-            logger.debug("Could not detect build system");
+            // Always also detect Java version
+            String javaVersion = detectJavaVersion(repo);
+            task.setJavaVersion(javaVersion);
+            logger.debug("Detected Java version: {}", javaVersion);
 
         } catch (Exception e) {
-            logger.debug("Error detecting build system: {}", e.getMessage());
+            logger.debug("Error detecting build environment: {}", e.getMessage());
         }
+    }
+
+    /**
+     * Auto-detects the required Java version from repository configuration files.
+     *
+     * Detection priority:
+     * 1. .mvn/jvm.config  (--release N)
+     * 2. pom.xml          (<maven.compiler.release>, <maven.compiler.source>, <java.version>)
+     * 3. build.gradle     (sourceCompatibility, java toolchain)
+     * 4. build.gradle.kts (same patterns)
+     * 5. Default: "17"
+     */
+    private String detectJavaVersion(GHRepository repo) {
+        // 1. Check .mvn/jvm.config
+        try {
+            String content = new String(
+                java.util.Base64.getMimeDecoder().decode(
+                    repo.getFileContent(".mvn/jvm.config").getContent()));
+            Matcher m = Pattern.compile("--release\\s+(\\d+)").matcher(content);
+            if (m.find()) return m.group(1);
+            m = Pattern.compile("-source\\s+(\\d+)").matcher(content);
+            if (m.find()) return m.group(1);
+        } catch (Exception e) {
+            // file not present or unreadable
+        }
+
+        // 2. Check pom.xml
+        try {
+            String content = new String(
+                java.util.Base64.getMimeDecoder().decode(
+                    repo.getFileContent("pom.xml").getContent()));
+            // <maven.compiler.release>17</maven.compiler.release>
+            Matcher m = Pattern.compile(
+                "<maven\\.compiler\\.release>\\s*(\\d+)\\s*</maven\\.compiler\\.release>").matcher(content);
+            if (m.find()) return m.group(1);
+            // <maven.compiler.source>17</maven.compiler.source>
+            m = Pattern.compile(
+                "<maven\\.compiler\\.source>\\s*(\\d+)\\s*</maven\\.compiler\\.source>").matcher(content);
+            if (m.find()) return m.group(1);
+            // <java.version>17</java.version>
+            m = Pattern.compile("<java\\.version>\\s*(\\d+)\\s*</java\\.version>").matcher(content);
+            if (m.find()) return m.group(1);
+        } catch (Exception e) {
+            // file not present or unreadable
+        }
+
+        // 3. Check build.gradle
+        try {
+            String content = new String(
+                java.util.Base64.getMimeDecoder().decode(
+                    repo.getFileContent("build.gradle").getContent()));
+            // sourceCompatibility = 17 or sourceCompatibility = JavaVersion.VERSION_17
+            Matcher m = Pattern.compile(
+                "sourceCompatibility\\s*=\\s*['\"]?(?:JavaVersion\\.VERSION_)?(\\d+)['\"]?").matcher(content);
+            if (m.find()) return m.group(1);
+            // java { toolchain { languageVersion = JavaLanguageVersion.of(17) } }
+            m = Pattern.compile("JavaLanguageVersion\\.of\\((\\d+)\\)").matcher(content);
+            if (m.find()) return m.group(1);
+        } catch (Exception e) {
+            // file not present or unreadable
+        }
+
+        // 4. Check build.gradle.kts
+        try {
+            String content = new String(
+                java.util.Base64.getMimeDecoder().decode(
+                    repo.getFileContent("build.gradle.kts").getContent()));
+            Matcher m = Pattern.compile(
+                "sourceCompatibility\\s*=\\s*JavaVersion\\.VERSION_(\\d+)").matcher(content);
+            if (m.find()) return m.group(1);
+            m = Pattern.compile("JavaLanguageVersion\\.of\\((\\d+)\\)").matcher(content);
+            if (m.find()) return m.group(1);
+        } catch (Exception e) {
+            // file not present or unreadable
+        }
+
+        // Default to Java 17 (LTS, widely supported)
+        logger.debug("Could not detect Java version for {}, defaulting to 17", repo.getFullName());
+        return "17";
     }
 
     /**
@@ -1113,6 +1204,9 @@ public class GitHubService {
 
         // Detect build tool
         detectBuildTool(ghRepo, repo);
+
+        // Auto-detect Java version from repo config files
+        repo.setJavaVersion(detectJavaVersion(ghRepo));
 
         return repo;
     }

@@ -54,6 +54,9 @@ public class Repository {
     @JsonProperty("java_percentage")
     private double javaPercentage;
 
+    @JsonProperty("java_version")
+    private String javaVersion;
+
     // Constructors
     public Repository() {}
 
@@ -185,6 +188,14 @@ public class Repository {
 
     public void setJavaPercentage(double javaPercentage) {
         this.javaPercentage = javaPercentage;
+    }
+
+    public String getJavaVersion() {
+        return javaVersion;
+    }
+
+    public void setJavaVersion(String javaVersion) {
+        this.javaVersion = javaVersion;
     }
 
     /**
