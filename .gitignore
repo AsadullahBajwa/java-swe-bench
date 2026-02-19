@@ -59,6 +59,9 @@ data/manual-test/*
 !data/testing/.gitkeep
 !data/tasks/.gitkeep
 
+# Keep orchestration scripts (hand-written, not pipeline-generated)
+!data/testing/run-all-parallel.sh
+
 # Environment
 .env
 .env.local
