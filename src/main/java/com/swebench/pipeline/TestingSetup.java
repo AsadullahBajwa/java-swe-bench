@@ -286,7 +286,7 @@ public class TestingSetup {
             writer.println();
             writer.println("$timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'");
             writer.println("$resultsText = \"");
-            writer.println("\");
+            writer.println("\\\");");
             writer.println("## Validation Results");
             writer.println();
             writer.println("- **Timestamp:** $timestamp");
@@ -296,21 +296,21 @@ public class TestingSetup {
             writer.println("- **INVALID-FAIL-FAIL:** $invalidFFCount");
             writer.println();
             writer.println("if ($totalCount -gt 0) {");
-            writer.println("    \$resultsText += \"- **Success Rate:** $successRate%`n`n\"");
+            writer.println("    \\$resultsText += \\\"- **Success Rate:** $successRate%`n`n\\\"");
             writer.println("}");
             writer.println();
             writer.println("### Detailed Results");
             writer.println();
-            writer.println("| PR # | Status | After test_patch | After code_patch |`n\");
-            writer.println("|------|--------|------------------|------------------|`n\");
+            writer.println("| PR # | Status | After test_patch | After code_patch |`n\\");
+            writer.println("|------|--------|------------------|------------------|`n\\");
             writer.println();
-            writer.println("foreach (\$result in \$results) {");
-            writer.println("    \$resultsText += \"| \$(\$result.PR) | \$(\$result.Status) | \$(\$result.AfterTest) | \$(\$result.AfterCode) |`n\"");
+            writer.println("foreach (\\$result in \\$results) {");
+            writer.println("    \\$resultsText += \\\"| \\$(\\$result.PR) | \\$(\\$result.Status) | \\$(\\$result.AfterTest) | \\$(\\$result.AfterCode) |`n\\\"");
             writer.println("}");
             writer.println();
-            writer.println("\$resultsText += \"`nVALIDATION_COMPLETE`n\"");
+            writer.println("\\$resultsText += \\\"`nVALIDATION_COMPLETE`n\\\"");
             writer.println();
-            writer.println("Add-Content -Path \$statusFile -Value \$resultsText");
+            writer.println("Add-Content -Path \\$statusFile -Value \\$resultsText");
             writer.println();
             writer.println("Write-Host 'Results saved to TASKS_STATUS.md' -ForegroundColor Green");
         }
