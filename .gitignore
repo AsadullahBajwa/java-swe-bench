@@ -61,6 +61,7 @@ data/manual-test/*
 
 # Keep orchestration scripts (hand-written, not pipeline-generated)
 !data/testing/run-all-parallel.sh
+!data/testing/stop-validation.sh
 
 # Environment
 .env
