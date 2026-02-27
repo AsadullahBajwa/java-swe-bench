@@ -194,21 +194,35 @@ public class TestingSetup {
             writer.println();
             writer.println("$ErrorActionPreference = 'Continue'");
             writer.println();
+            writer.println("# Get script directory for proper relative paths");
+            writer.println("$SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path");
+            writer.println("$REPO_DIR = Join-Path $SCRIPT_DIR 'repo'");
+            writer.println("$PATCHES_DIR = Join-Path $SCRIPT_DIR 'patches'");
+            writer.println();
             writer.println("# Clone repository if not exists");
-            writer.println("if (-not (Test-Path 'repo')) {");
+            writer.println("if (-not (Test-Path $REPO_DIR)) {");
             writer.println("    Write-Host 'Cloning " + repo + "...'");
-            writer.println("    git clone https://github.com/" + repo + ".git repo");
+            writer.println("    git clone https://github.com/" + repo + ".git $REPO_DIR");
             writer.println("}");
             writer.println();
-            writer.println("cd repo");
+            writer.println("Push-Location $REPO_DIR");
             writer.println();
             writer.println("$results = @()");
+            writer.println("$validCount = 0");
+            writer.println("$invalidPPCount = 0");
+            writer.println("$invalidFFCount = 0");
             writer.println();
 
             for (TaskInstance task : tasks) {
                 int pr = task.getPullNumber();
                 String baseCommit = task.getBaseCommit();
-                String testCommand = task.getTestCommand() != null ? task.getTestCommand() : "mvn test";
+                String buildTool = task.getBuildTool() != null ? task.getBuildTool().toLowerCase() : "maven";
+                String testCommand = task.getTestCommand();
+
+                // Use build-tool-aware default if testCommand is null
+                if (testCommand == null) {
+                    testCommand = buildTool.equals("gradle") ? ".\\gradlew.bat test" : "mvn test";
+                }
                 // Escape quotes for PowerShell cmd /c wrapper
                 String escapedTestCommand = testCommand.replace("\"", "\\\"");
 
@@ -218,16 +232,14 @@ public class TestingSetup {
                 writer.println("git clean -fd 2>$null");
                 writer.println();
                 writer.println("# Apply test patch");
-                writer.println("git apply ../patches/test-patch-" + pr + ".patch 2>$null");
-                writer.println("$testPatchResult = $LASTEXITCODE");
+                writer.println("git apply '$PATCHES_DIR/test-patch-" + pr + ".patch' 2>$null");
                 writer.println();
                 writer.println("# Run tests (expect FAIL)");
                 writer.println("& cmd /c \"" + escapedTestCommand + "\" 2>&1 | Out-Null");
                 writer.println("$afterTestPatch = $LASTEXITCODE");
                 writer.println();
                 writer.println("# Apply code patch");
-                writer.println("git apply ../patches/code-patch-" + pr + ".patch 2>$null");
-                writer.println("$codePatchResult = $LASTEXITCODE");
+                writer.println("git apply '$PATCHES_DIR/code-patch-" + pr + ".patch' 2>$null");
                 writer.println();
                 writer.println("# Run tests (expect PASS)");
                 writer.println("& cmd /c \"" + escapedTestCommand + "\" 2>&1 | Out-Null");
@@ -235,22 +247,72 @@ public class TestingSetup {
                 writer.println();
                 writer.println("# Determine status");
                 writer.println("$status = 'UNKNOWN'");
-                writer.println("if ($afterTestPatch -ne 0 -and $afterCodePatch -eq 0) { $status = 'VALID' }");
-                writer.println("elseif ($afterTestPatch -eq 0 -and $afterCodePatch -eq 0) { $status = 'INVALID-PASS-PASS' }");
-                writer.println("elseif ($afterTestPatch -ne 0 -and $afterCodePatch -ne 0) { $status = 'INVALID-FAIL-FAIL' }");
-                writer.println();
-                writer.println("Write-Host \"PR-" + pr + ": $status (test_patch: $afterTestPatch, code_patch: $afterCodePatch)\"");
+                writer.println("if ($afterTestPatch -ne 0 -and $afterCodePatch -eq 0) {");
+                writer.println("    $status = 'VALID'");
+                writer.println("    $validCount++");
+                writer.println("    Write-Host \"PR-" + pr + ": ✓ $status\" -ForegroundColor Green");
+                writer.println("} elseif ($afterTestPatch -eq 0 -and $afterCodePatch -eq 0) {");
+                writer.println("    $status = 'INVALID-PASS-PASS'");
+                writer.println("    $invalidPPCount++");
+                writer.println("    Write-Host \"PR-" + pr + ": ✗ $status\" -ForegroundColor Yellow");
+                writer.println("} else {");
+                writer.println("    $status = 'INVALID-FAIL-FAIL'");
+                writer.println("    $invalidFFCount++");
+                writer.println("    Write-Host \"PR-" + pr + ": ✗ $status\" -ForegroundColor Red");
+                writer.println("}");
                 writer.println("$results += [PSCustomObject]@{ PR=" + pr + "; Status=$status; AfterTest=$afterTestPatch; AfterCode=$afterCodePatch }");
                 writer.println();
             }
 
             writer.println("# Summary");
             writer.println("Write-Host ''");
-            writer.println("Write-Host '=== SUMMARY ===' -ForegroundColor Green");
-            writer.println("$results | Format-Table -AutoSize");
+            writer.println("Write-Host '=========================================' -ForegroundColor Green");
+            writer.println("Write-Host 'VALIDATION COMPLETE' -ForegroundColor Green");
+            writer.println("Write-Host '=========================================' -ForegroundColor Green");
+            writer.println("$totalCount = $results.Count");
+            writer.println("Write-Host \"Total Tasks:           $totalCount\"");
+            writer.println("Write-Host \"VALID (FAIL→PASS):     $validCount\"");
+            writer.println("Write-Host \"INVALID (PASS-PASS):   $invalidPPCount\"");
+            writer.println("Write-Host \"INVALID (FAIL-FAIL):   $invalidFFCount\"");
             writer.println();
-            writer.println("$valid = ($results | Where-Object { $_.Status -eq 'VALID' }).Count");
-            writer.println("Write-Host \"Valid tasks: $valid / \" + $results.Count");
+            writer.println("if ($totalCount -gt 0) {");
+            writer.println("    $successRate = [math]::Round(($validCount / $totalCount) * 100)");
+            writer.println("    Write-Host \"Success Rate:          $successRate%\"");
+            writer.println("}");
+            writer.println();
+            writer.println("# Update TASKS_STATUS.md with results");
+            writer.println("Pop-Location");
+            writer.println("$statusFile = Join-Path $SCRIPT_DIR 'TASKS_STATUS.md'");
+            writer.println();
+            writer.println("$timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'");
+            writer.println("$resultsText = \"");
+            writer.println("\\\");");
+            writer.println("## Validation Results");
+            writer.println();
+            writer.println("- **Timestamp:** $timestamp");
+            writer.println("- **Total Tasks:** $totalCount");
+            writer.println("- **VALID:** $validCount");
+            writer.println("- **INVALID-PASS-PASS:** $invalidPPCount");
+            writer.println("- **INVALID-FAIL-FAIL:** $invalidFFCount");
+            writer.println();
+            writer.println("if ($totalCount -gt 0) {");
+            writer.println("    \\$resultsText += \\\"- **Success Rate:** $successRate%`n`n\\\"");
+            writer.println("}");
+            writer.println();
+            writer.println("### Detailed Results");
+            writer.println();
+            writer.println("| PR # | Status | After test_patch | After code_patch |`n\\");
+            writer.println("|------|--------|------------------|------------------|`n\\");
+            writer.println();
+            writer.println("foreach (\\$result in \\$results) {");
+            writer.println("    \\$resultsText += \\\"| \\$(\\$result.PR) | \\$(\\$result.Status) | \\$(\\$result.AfterTest) | \\$(\\$result.AfterCode) |`n\\\"");
+            writer.println("}");
+            writer.println();
+            writer.println("\\$resultsText += \\\"`nVALIDATION_COMPLETE`n\\\"");
+            writer.println();
+            writer.println("Add-Content -Path \\$statusFile -Value \\$resultsText");
+            writer.println();
+            writer.println("Write-Host 'Results saved to TASKS_STATUS.md' -ForegroundColor Green");
         }
 
         // Also generate bash script for Linux/Mac
@@ -262,22 +324,39 @@ public class TestingSetup {
             writer.println();
             writer.println("set +e  # Don't exit on error");
             writer.println();
+            writer.println("# Get script directory for proper relative paths");
+            writer.println("SCRIPT_DIR=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")\" && pwd)\"");
+            writer.println("REPO_DIR=\"$SCRIPT_DIR/repo\"");
+            writer.println("PATCHES_DIR=\"$SCRIPT_DIR/patches\"");
+            writer.println();
             writer.println("# Clone repository if not exists");
-            writer.println("if [ ! -d 'repo' ]; then");
+            writer.println("if [ ! -d \"$REPO_DIR\" ]; then");
             writer.println("    echo 'Cloning " + repo + "...'");
-            writer.println("    git clone https://github.com/" + repo + ".git repo");
+            writer.println("    git clone https://github.com/" + repo + ".git \"$REPO_DIR\"");
             writer.println("fi");
             writer.println();
-            writer.println("cd repo");
+            writer.println("cd \"$REPO_DIR\"");
             writer.println();
+            writer.println("# Result tracking");
             writer.println("VALID_COUNT=0");
+            writer.println("INVALID_PP_COUNT=0");
+            writer.println("INVALID_FF_COUNT=0");
             writer.println("TOTAL_COUNT=0");
+            writer.println();
+            writer.println("# Detailed results for markdown");
+            writer.println("RESULTS_TABLE=\"\"");
             writer.println();
 
             for (TaskInstance task : tasks) {
                 int pr = task.getPullNumber();
                 String baseCommit = task.getBaseCommit();
-                String testCommand = task.getTestCommand() != null ? task.getTestCommand() : "mvn test";
+                String buildTool = task.getBuildTool() != null ? task.getBuildTool().toLowerCase() : "maven";
+                String testCommand = task.getTestCommand();
+
+                // Use build-tool-aware default if testCommand is null
+                if (testCommand == null) {
+                    testCommand = buildTool.equals("gradle") ? "./gradlew test" : "mvn test";
+                }
 
                 writer.println("# PR-" + pr);
                 writer.println("echo '=== Validating PR-" + pr + " ==='");
@@ -285,14 +364,14 @@ public class TestingSetup {
                 writer.println("git clean -fd 2>/dev/null");
                 writer.println();
                 writer.println("# Apply test patch");
-                writer.println("git apply ../patches/test-patch-" + pr + ".patch 2>/dev/null");
+                writer.println("git apply \"$PATCHES_DIR/test-patch-" + pr + ".patch\" 2>/dev/null");
                 writer.println();
                 writer.println("# Run tests (expect FAIL)");
                 writer.println(testCommand + " > /dev/null 2>&1");
                 writer.println("AFTER_TEST=$?");
                 writer.println();
                 writer.println("# Apply code patch");
-                writer.println("git apply ../patches/code-patch-" + pr + ".patch 2>/dev/null");
+                writer.println("git apply \"$PATCHES_DIR/code-patch-" + pr + ".patch\" 2>/dev/null");
                 writer.println();
                 writer.println("# Run tests (expect PASS)");
                 writer.println(testCommand + " > /dev/null 2>&1");
@@ -300,20 +379,86 @@ public class TestingSetup {
                 writer.println();
                 writer.println("# Determine status");
                 writer.println("if [ $AFTER_TEST -ne 0 ] && [ $AFTER_CODE -eq 0 ]; then");
-                writer.println("    echo 'PR-" + pr + ": VALID'");
+                writer.println("    STATUS=\"VALID\"");
                 writer.println("    ((VALID_COUNT++))");
+                writer.println("    echo 'PR-" + pr + ": ✓ VALID'");
                 writer.println("elif [ $AFTER_TEST -eq 0 ] && [ $AFTER_CODE -eq 0 ]; then");
-                writer.println("    echo 'PR-" + pr + ": INVALID-PASS-PASS'");
+                writer.println("    STATUS=\"INVALID-PASS-PASS\"");
+                writer.println("    ((INVALID_PP_COUNT++))");
+                writer.println("    echo 'PR-" + pr + ": ✗ INVALID-PASS-PASS'");
                 writer.println("else");
-                writer.println("    echo 'PR-" + pr + ": INVALID-FAIL-FAIL'");
+                writer.println("    STATUS=\"INVALID-FAIL-FAIL\"");
+                writer.println("    ((INVALID_FF_COUNT++))");
+                writer.println("    echo 'PR-" + pr + ": ✗ INVALID-FAIL-FAIL'");
                 writer.println("fi");
+                writer.println("RESULTS_TABLE=\"${RESULTS_TABLE}| " + pr + " | ${STATUS} | ${AFTER_TEST} | ${AFTER_CODE} |\\n\"");
                 writer.println("((TOTAL_COUNT++))");
                 writer.println();
             }
 
+            writer.println("# Generate summary");
             writer.println("echo ''");
-            writer.println("echo '=== SUMMARY ==='");
-            writer.println("echo \"Valid tasks: $VALID_COUNT / $TOTAL_COUNT\"");
+            writer.println("echo '========================================='");
+            writer.println("echo 'VALIDATION COMPLETE'");
+            writer.println("echo '========================================='");
+            writer.println("echo \"Total Tasks:           $TOTAL_COUNT\"");
+            writer.println("echo \"VALID (FAIL→PASS):     $VALID_COUNT\"");
+            writer.println("echo \"INVALID (PASS-PASS):   $INVALID_PP_COUNT\"");
+            writer.println("echo \"INVALID (FAIL-FAIL):   $INVALID_FF_COUNT\"");
+            writer.println();
+            writer.println("if [ $TOTAL_COUNT -gt 0 ]; then");
+            writer.println("    SUCCESS_RATE=$((VALID_COUNT * 100 / TOTAL_COUNT))");
+            writer.println("    echo \"Success Rate:          ${SUCCESS_RATE}%\"");
+            writer.println("fi");
+            writer.println();
+            // Calculate percentages BEFORE the heredoc — they are bash vars inside heredoc,
+            // and the if/fi logic cannot run inside a heredoc body (it would be literal text).
+            writer.println("# Calculate summary percentages");
+            writer.println("if [ $TOTAL_COUNT -gt 0 ]; then");
+            writer.println("    VALID_PCT=$((VALID_COUNT * 100 / TOTAL_COUNT))");
+            writer.println("    PP_PCT=$((INVALID_PP_COUNT * 100 / TOTAL_COUNT))");
+            writer.println("    FF_PCT=$((INVALID_FF_COUNT * 100 / TOTAL_COUNT))");
+            writer.println("else");
+            writer.println("    VALID_PCT=0; PP_PCT=0; FF_PCT=0");
+            writer.println("fi");
+            writer.println();
+            // Overwrite the whole file (cat >) so results are self-contained.
+            // Unquoted delimiter STATUSEOF so $VAR references expand to real values.
+            // printf '%b' converts the literal \n in RESULTS_TABLE into real newlines.
+            writer.println("# Write complete results to TASKS_STATUS.md");
+            writer.println("cd \"$SCRIPT_DIR\"");
+            writer.println("cat > TASKS_STATUS.md << STATUSEOF");
+            writer.println("# Task Validation Status: " + repo);
+            writer.println();
+            writer.println("**VALIDATION_COMPLETE: $(date '+%Y-%m-%d %H:%M:%S')**");
+            writer.println();
+            writer.println("## Summary");
+            writer.println();
+            writer.println("- **Total Tasks:** $TOTAL_COUNT");
+            writer.println("- **VALID:** $VALID_COUNT (${VALID_PCT}%)");
+            writer.println("- **INVALID-PASS-PASS:** $INVALID_PP_COUNT (${PP_PCT}%)");
+            writer.println("- **INVALID-FAIL-FAIL:** $INVALID_FF_COUNT (${FF_PCT}%)");
+            writer.println();
+            writer.println("## Legend");
+            writer.println();
+            writer.println("- **VALID**: Tests FAIL after test_patch, PASS after code_patch");
+            writer.println("- **INVALID-PASS-PASS**: Tests pass both before and after");
+            writer.println("- **INVALID-FAIL-FAIL**: Tests fail both before and after");
+            writer.println();
+            writer.println("---");
+            writer.println();
+            writer.println("## Tasks");
+            writer.println();
+            writer.println("| PR # | Status | After test_patch | After code_patch |");
+            writer.println("|------|--------|------------------|------------------|");
+            writer.println("$(printf '%b' \"$RESULTS_TABLE\")");
+            writer.println();
+            writer.println("---");
+            writer.println();
+            writer.println("**Validation completed:** $(date)");
+            writer.println("STATUSEOF");
+            writer.println();
+            writer.println("echo \"TASKS_STATUS.md updated: $SCRIPT_DIR/TASKS_STATUS.md\"");
         }
     }
 
