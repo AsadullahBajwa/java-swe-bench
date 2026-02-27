@@ -391,7 +391,7 @@ public class TestingSetup {
                 writer.println("    ((INVALID_FF_COUNT++))");
                 writer.println("    echo 'PR-" + pr + ": ✗ INVALID-FAIL-FAIL'");
                 writer.println("fi");
-                writer.println("RESULTS_TABLE=\"${RESULTS_TABLE}| ${pr} | ${STATUS} | ${AFTER_TEST} | ${AFTER_CODE} |\\n\"");
+                writer.println("RESULTS_TABLE=\"${RESULTS_TABLE}| " + pr + " | ${STATUS} | ${AFTER_TEST} | ${AFTER_CODE} |\\n\"");
                 writer.println("((TOTAL_COUNT++))");
                 writer.println();
             }
@@ -411,31 +411,54 @@ public class TestingSetup {
             writer.println("    echo \"Success Rate:          ${SUCCESS_RATE}%\"");
             writer.println("fi");
             writer.println();
-            writer.println("# Update TASKS_STATUS.md with results");
-            writer.println("cd \"$SCRIPT_DIR\"");
-            writer.println("cat >> TASKS_STATUS.md << 'EOF'");
-            writer.println();
-            writer.println("## Validation Results");
-            writer.println();
-            writer.println(String.format("- **Timestamp:** $(date '+%%Y-%%m-%%d %%H:%%M:%%S')"));
-            writer.println("- **Total Tasks:** $TOTAL_COUNT");
-            writer.println("- **VALID:** $VALID_COUNT");
-            writer.println("- **INVALID-PASS-PASS:** $INVALID_PP_COUNT");
-            writer.println("- **INVALID-FAIL-FAIL:** $INVALID_FF_COUNT");
-            writer.println();
+            // Calculate percentages BEFORE the heredoc — they are bash vars inside heredoc,
+            // and the if/fi logic cannot run inside a heredoc body (it would be literal text).
+            writer.println("# Calculate summary percentages");
             writer.println("if [ $TOTAL_COUNT -gt 0 ]; then");
-            writer.println("    SUCCESS_RATE=$((VALID_COUNT * 100 / TOTAL_COUNT))");
-            writer.println("    echo \"- **Success Rate:** ${SUCCESS_RATE}%\" >> TASKS_STATUS.md");
+            writer.println("    VALID_PCT=$((VALID_COUNT * 100 / TOTAL_COUNT))");
+            writer.println("    PP_PCT=$((INVALID_PP_COUNT * 100 / TOTAL_COUNT))");
+            writer.println("    FF_PCT=$((INVALID_FF_COUNT * 100 / TOTAL_COUNT))");
+            writer.println("else");
+            writer.println("    VALID_PCT=0; PP_PCT=0; FF_PCT=0");
             writer.println("fi");
             writer.println();
-            writer.println("### Detailed Results");
+            // Overwrite the whole file (cat >) so results are self-contained.
+            // Unquoted delimiter STATUSEOF so $VAR references expand to real values.
+            // printf '%b' converts the literal \n in RESULTS_TABLE into real newlines.
+            writer.println("# Write complete results to TASKS_STATUS.md");
+            writer.println("cd \"$SCRIPT_DIR\"");
+            writer.println("cat > TASKS_STATUS.md << STATUSEOF");
+            writer.println("# Task Validation Status: " + repo);
+            writer.println();
+            writer.println("**VALIDATION_COMPLETE: $(date '+%Y-%m-%d %H:%M:%S')**");
+            writer.println();
+            writer.println("## Summary");
+            writer.println();
+            writer.println("- **Total Tasks:** $TOTAL_COUNT");
+            writer.println("- **VALID:** $VALID_COUNT (${VALID_PCT}%)");
+            writer.println("- **INVALID-PASS-PASS:** $INVALID_PP_COUNT (${PP_PCT}%)");
+            writer.println("- **INVALID-FAIL-FAIL:** $INVALID_FF_COUNT (${FF_PCT}%)");
+            writer.println();
+            writer.println("## Legend");
+            writer.println();
+            writer.println("- **VALID**: Tests FAIL after test_patch, PASS after code_patch");
+            writer.println("- **INVALID-PASS-PASS**: Tests pass both before and after");
+            writer.println("- **INVALID-FAIL-FAIL**: Tests fail both before and after");
+            writer.println();
+            writer.println("---");
+            writer.println();
+            writer.println("## Tasks");
             writer.println();
             writer.println("| PR # | Status | After test_patch | After code_patch |");
             writer.println("|------|--------|------------------|------------------|");
-            writer.println("$RESULTS_TABLE");
+            writer.println("$(printf '%b' \"$RESULTS_TABLE\")");
             writer.println();
-            writer.println("VALIDATION_COMPLETE");
-            writer.println("EOF");
+            writer.println("---");
+            writer.println();
+            writer.println("**Validation completed:** $(date)");
+            writer.println("STATUSEOF");
+            writer.println();
+            writer.println("echo \"TASKS_STATUS.md updated: $SCRIPT_DIR/TASKS_STATUS.md\"");
         }
     }
 
