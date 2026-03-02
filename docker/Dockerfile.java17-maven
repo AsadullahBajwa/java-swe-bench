@@ -1,0 +1,16 @@
+# Java 17 + Maven image
+# Covers: commons-lang, commons-io, commons-collections, commons-text,
+#         guava, gson, jackson-core, jackson-databind, assertj, lombok
+FROM maven:3.9-eclipse-temurin-17
+
+RUN apt-get update && apt-get install -y \
+    git \
+    patch \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+
+ENV MAVEN_OPTS="-Xmx2g -XX:+UseG1GC"
+
+CMD ["/bin/bash"]

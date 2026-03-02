@@ -1,0 +1,15 @@
+# Java 21 + Maven image
+# Covers: checkstyle (version 13.x+ requires Java 21)
+FROM maven:3.9-eclipse-temurin-21
+
+RUN apt-get update && apt-get install -y \
+    git \
+    patch \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+
+ENV MAVEN_OPTS="-Xmx2g -XX:+UseG1GC"
+
+CMD ["/bin/bash"]

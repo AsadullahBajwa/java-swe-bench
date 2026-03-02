@@ -1,0 +1,23 @@
+# Java 23 + Maven image
+# Covers: netty/netty (requires --sun-misc-unsafe-memory-access=allow, Java 23+)
+FROM maven:3.9-eclipse-temurin-23
+
+RUN apt-get update && apt-get install -y \
+    git \
+    patch \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+
+# Netty requires unsafe memory access flags available in Java 23+.
+# Setting via MAVEN_OPTS means every `mvn test` inside this container
+# automatically gets the right flags — no changes needed in validation scripts.
+ENV MAVEN_OPTS="--add-opens java.base/jdk.internal.misc=ALL-UNNAMED \
+                --add-opens java.base/java.nio=ALL-UNNAMED \
+                -Dio.netty.tryReflectionSetAccessible=true \
+                -XX:+UnlockDiagnosticVMOptions \
+                --sun-misc-unsafe-memory-access=allow \
+                -Xmx2g"
+
+CMD ["/bin/bash"]
