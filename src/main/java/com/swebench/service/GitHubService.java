@@ -1161,6 +1161,28 @@ public class GitHubService {
     }
 
     /**
+     * Detects and sets the Java version for a curated Repository by reading its build config
+     * files from GitHub. Only makes an API call if java_version is not already set.
+     *
+     * This is the public entry point used by RepositoryDiscovery when loading curated repos.
+     */
+    public void enrichJavaVersion(Repository repo) {
+        if (repo.getJavaVersion() != null && !repo.getJavaVersion().isEmpty()) {
+            return; // already set — respect the cached / manually curated value
+        }
+        try {
+            GHRepository ghRepo = github.getRepository(repo.getFullName());
+            String version = detectJavaVersion(ghRepo);
+            repo.setJavaVersion(version);
+            logger.info("Detected java_version={} for {}", version, repo.getFullName());
+        } catch (IOException e) {
+            logger.warn("Could not fetch repo {} for java_version detection: {}, defaulting to 17",
+                    repo.getFullName(), e.getMessage());
+            repo.setJavaVersion("17");
+        }
+    }
+
+    /**
      * Generate appropriate test command based on build tool
      */
     private void generateTestCommand(TaskInstance task) {
