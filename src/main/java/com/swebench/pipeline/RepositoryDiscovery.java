@@ -98,6 +98,21 @@ public class RepositoryDiscovery {
             }
             logger.info("Loaded {} curated repositories", repositories.size());
 
+            // Auto-detect java_version for any repo that doesn't have it yet.
+            // Result is written back to curated_repos.json so subsequent runs use the cached value.
+            boolean anyEnriched = false;
+            for (Repository repo : repositories) {
+                if (repo.getJavaVersion() == null || repo.getJavaVersion().isEmpty()) {
+                    logger.info("java_version missing for {}, detecting via GitHub API...", repo.getFullName());
+                    gitHubService.enrichJavaVersion(repo);
+                    anyEnriched = true;
+                }
+            }
+            if (anyEnriched) {
+                objectMapper.writeValue(curatedFile, repositories);
+                logger.info("Saved enriched java_version values back to {}", CURATED_REPOS_FILE);
+            }
+
         } catch (IOException e) {
             logger.error("Failed to load curated repos: {}", e.getMessage());
             return searchGitHubRepositories();
