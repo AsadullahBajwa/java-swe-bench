@@ -1,0 +1,7 @@
+# Exclude everything — Dockerfiles only install packages, they copy nothing from the host
+data/
+target/
+logs/
+.git/
+*.log
+*.md

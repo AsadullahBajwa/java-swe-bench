@@ -1,0 +1,17 @@
+# Java 17 + Gradle image
+# Covers: okhttp, mockito, junit5
+# Note: repos use their own ./gradlew wrapper — no system Gradle needed
+FROM eclipse-temurin:17-jdk-jammy
+
+RUN apt-get update && apt-get install -y \
+    git \
+    patch \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Allow git to operate on repos owned by a different user (host uid != container root)
+RUN git config --global --add safe.directory '*'
+
+WORKDIR /workspace
+
+CMD ["/bin/bash"]
