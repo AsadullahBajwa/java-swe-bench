@@ -58,6 +58,7 @@ validate_repo_docker() {
 
     docker run --rm \
         -v "${repo_dir}":/workspace \
+        -v "$HOME/.m2":/root/.m2 \
         "$image" \
         bash /workspace/run-validation.sh > "$log_file" 2>&1
     local exit_code=$?
