@@ -14,7 +14,10 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Stage 2: Attribute Filtering
@@ -34,7 +37,7 @@ public class AttributeFilter {
     private static final Logger logger = LoggerFactory.getLogger(AttributeFilter.class);
     private static final String INPUT_FILE = "data/raw/discovered_repositories.json";
     private static final String OUTPUT_DIR = "data/processed";
-    private static final int TARGET_TASK_COUNT = 200;
+    private static final int MAX_TASKS_PER_REPO = 20;  // Fair cap per repo so no repo starves others
     private static final int MAX_FILES_CHANGED = 100;
     private static final int MAX_PRS_PER_REPO = 300; // How many PRs to check per repo
 
@@ -75,7 +78,7 @@ public class AttributeFilter {
 
     public void execute() {
         logger.info("Starting attribute filtering stage");
-        logger.info("Target: {} task instances", TARGET_TASK_COUNT);
+        logger.info("Max tasks per repo: {}", MAX_TASKS_PER_REPO);
 
         try {
             List<Repository> repositories = loadRepositories();
@@ -142,12 +145,6 @@ public class AttributeFilter {
 
                 allTasks.addAll(repoTasks);
 
-                // Stop if we have enough candidates
-                if (allTasks.size() >= TARGET_TASK_COUNT * 2) {
-                    logger.info("Reached candidate threshold, stopping extraction");
-                    break;
-                }
-
             } catch (Exception e) {
                 logger.warn("Failed to process repository {}: {}",
                     repo.getFullName(), e.getMessage());
@@ -182,12 +179,6 @@ public class AttributeFilter {
 
                 allTasks.addAll(repoTasks);
 
-                // Stop if we have enough candidates
-                if (allTasks.size() >= TARGET_TASK_COUNT * 2) {
-                    logger.info("Reached candidate threshold, stopping extraction");
-                    break;
-                }
-
             } catch (Exception e) {
                 logger.warn("Failed to process repository {}: {}",
                     repo.getFullName(), e.getMessage());
@@ -218,12 +209,6 @@ public class AttributeFilter {
 
                 allTasks.addAll(repoTasks);
 
-                // Stop if we have enough candidates
-                if (allTasks.size() >= TARGET_TASK_COUNT * 2) {
-                    logger.info("Reached candidate threshold, stopping extraction");
-                    break;
-                }
-
             } catch (Exception e) {
                 logger.warn("Failed to process repository {}: {}",
                     repo.getFullName(), e.getMessage());
@@ -234,21 +219,38 @@ public class AttributeFilter {
     }
 
     private List<TaskInstance> filterTaskInstances(List<TaskInstance> tasks) {
-        logger.info("Applying attribute filters to {} tasks...", tasks.size());
+        logger.info("Applying attribute filters to {} tasks (max {} per repo)...",
+            tasks.size(), MAX_TASKS_PER_REPO);
+
+        // Group tasks by repo, preserving original order within each group
+        Map<String, List<TaskInstance>> byRepo = tasks.stream()
+            .collect(Collectors.groupingBy(TaskInstance::getRepo, LinkedHashMap::new, Collectors.toList()));
 
         List<TaskInstance> qualified = new ArrayList<>();
 
-        for (TaskInstance task : tasks) {
-            if (qualified.size() >= TARGET_TASK_COUNT) {
-                break;
+        for (Map.Entry<String, List<TaskInstance>> entry : byRepo.entrySet()) {
+            String repo = entry.getKey();
+            List<TaskInstance> repoTasks = entry.getValue();
+
+            // Skip unsupported build tools (ant has no Docker image or test runner)
+            String buildTool = repoTasks.get(0).getBuildTool();
+            if ("ant".equalsIgnoreCase(buildTool)) {
+                logger.warn("Skipping repo {} — build tool 'ant' is not supported", repo);
+                continue;
             }
 
-            if (passesAttributeFilters(task)) {
-                logger.debug("Task qualified: {}", task.getInstanceId());
-                qualified.add(task);
-            } else {
-                logger.debug("Task rejected: {}", task.getInstanceId());
+            int added = 0;
+            for (TaskInstance task : repoTasks) {
+                if (added >= MAX_TASKS_PER_REPO) break;
+                if (passesAttributeFilters(task)) {
+                    logger.debug("Task qualified: {}", task.getInstanceId());
+                    qualified.add(task);
+                    added++;
+                } else {
+                    logger.debug("Task rejected: {}", task.getInstanceId());
+                }
             }
+            logger.info("Repo {}: {}/{} tasks qualified", repo, added, repoTasks.size());
         }
 
         return qualified;
