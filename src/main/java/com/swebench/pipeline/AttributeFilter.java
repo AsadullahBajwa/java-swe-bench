@@ -232,10 +232,12 @@ public class AttributeFilter {
             String repo = entry.getKey();
             List<TaskInstance> repoTasks = entry.getValue();
 
-            // Skip unsupported build tools (ant has no Docker image or test runner)
+            // Only process repos with supported build tools (maven or gradle)
+            // Repos with ant or null build_tool have no Docker image or test runner
             String buildTool = repoTasks.get(0).getBuildTool();
-            if ("ant".equalsIgnoreCase(buildTool)) {
-                logger.warn("Skipping repo {} — build tool 'ant' is not supported", repo);
+            if (!"maven".equalsIgnoreCase(buildTool) && !"gradle".equalsIgnoreCase(buildTool)) {
+                logger.warn("Skipping repo {} — build tool '{}' is not supported (only maven/gradle)",
+                    repo, buildTool);
                 continue;
             }
 
