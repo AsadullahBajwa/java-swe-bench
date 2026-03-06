@@ -117,18 +117,102 @@ echo ""
 echo "Total time: $((DURATION/60))m $((DURATION%60))s"
 echo ""
 
-# Print per-repo summary
+# ==========================================
+# AGGREGATE RESULTS + UPDATE TESTING_SUMMARY.MD
+# ==========================================
+TOTAL_REPOS=0
+COMPLETED_REPOS=0
+FAILED_REPOS=0
+TOTAL_TASKS=0
+TOTAL_VALID=0
+TOTAL_INVALID_PP=0
+TOTAL_INVALID_FF=0
+SUMMARY_ROWS=""
+
 echo "========================================="
 echo "Results"
 echo "========================================="
+
 for repo_dir in $ALL_REPOS; do
     repo_name=$(basename "$repo_dir")
     status_file="${SCRIPT_DIR}/${repo_name}/TASKS_STATUS.md"
+    ((TOTAL_REPOS++))
+
     if [ -f "$status_file" ] && grep -q "VALIDATION_COMPLETE" "$status_file"; then
         total=$(grep "Total Tasks:" "$status_file" | grep -o "[0-9]*" | head -1)
         valid=$(grep "^\- \*\*VALID" "$status_file" | grep -o "[0-9]*" | head -1)
-        printf "%-40s %s/%s valid\n" "$repo_name" "${valid:-?}" "${total:-?}"
+        pp=$(grep "INVALID-PASS-PASS:" "$status_file" | grep -o "[0-9]*" | head -1)
+        ff=$(grep "INVALID-FAIL-FAIL:" "$status_file" | grep -o "[0-9]*" | head -1)
+        total=${total:-0}; valid=${valid:-0}; pp=${pp:-0}; ff=${ff:-0}
+        rate=0
+        [ "$total" -gt 0 ] && rate=$((valid * 100 / total))
+        printf "%-40s %s/%s valid (%s%%)\n" "$repo_name" "$valid" "$total" "$rate"
+        TOTAL_TASKS=$((TOTAL_TASKS + total))
+        TOTAL_VALID=$((TOTAL_VALID + valid))
+        TOTAL_INVALID_PP=$((TOTAL_INVALID_PP + pp))
+        TOTAL_INVALID_FF=$((TOTAL_INVALID_FF + ff))
+        SUMMARY_ROWS="${SUMMARY_ROWS}| $repo_name | $total | $valid | $pp | $ff | ${rate}% | ✓ Complete |\n"
+        ((COMPLETED_REPOS++))
+    else
+        printf "%-40s NOT VALIDATED\n" "$repo_name"
+        SUMMARY_ROWS="${SUMMARY_ROWS}| $repo_name | - | - | - | - | - | ✗ Not validated |\n"
+        ((FAILED_REPOS++))
     fi
 done
+
+SUCCESS_RATE=0
+[ "$TOTAL_TASKS" -gt 0 ] && SUCCESS_RATE=$((TOTAL_VALID * 100 / TOTAL_TASKS))
+
+cat > "$SCRIPT_DIR/TESTING_SUMMARY.md" << SUMMARYEOF
+# Testing Directory Summary
+
+**Last Updated:** $(date '+%Y-%m-%d %H:%M:%S')
+**Runner:** Docker (run-all-docker.sh)
+
+## Overall Results
+
+- **Total Repositories:** $TOTAL_REPOS
+- **Completed:** $COMPLETED_REPOS
+- **Not Validated:** $FAILED_REPOS
+- **Total Tasks:** $TOTAL_TASKS
+- **VALID (FAIL->PASS):** $TOTAL_VALID (${SUCCESS_RATE}%)
+- **INVALID-PASS-PASS:** $TOTAL_INVALID_PP
+- **INVALID-FAIL-FAIL:** $TOTAL_INVALID_FF
+
+---
+
+## Repositories
+
+| Repository | Tasks | Valid | Pass-Pass | Fail-Fail | Rate | Status |
+|------------|-------|-------|-----------|-----------|------|--------|
+$(echo -e "$SUMMARY_ROWS")
+
+---
+
+## Legend
+
+- **VALID**: Tests FAIL after test_patch, PASS after code_patch (good for SWE-bench)
+- **INVALID-PASS-PASS**: Tests pass both before and after (test doesn't expose bug)
+- **INVALID-FAIL-FAIL**: Tests fail both before and after (patch doesn't fix)
+
+---
+
+## How to Re-Run
+
+\`\`\`bash
+# Skip already-validated repos
+./run-all-docker.sh 2
+
+# Force re-run everything
+./run-all-docker.sh 2 --force
+\`\`\`
+
+---
+
+**Total Docker runtime:** ${DURATION}s ($((DURATION/60))m $((DURATION%60))s)
+SUMMARYEOF
+
+echo ""
+echo "TESTING_SUMMARY.md updated in: $SCRIPT_DIR"
 echo ""
 echo "Done! Check logs/ for details."
