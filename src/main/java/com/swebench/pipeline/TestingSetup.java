@@ -337,6 +337,9 @@ public class TestingSetup {
             writer.println();
             writer.println("cd \"$REPO_DIR\"");
             writer.println();
+            writer.println("# Normalize line endings so patches apply cleanly on Linux containers");
+            writer.println("git config --global core.autocrlf input");
+            writer.println();
             writer.println("# Result tracking");
             writer.println("VALID_COUNT=0");
             writer.println("INVALID_PP_COUNT=0");
@@ -364,14 +367,14 @@ public class TestingSetup {
                 writer.println("git clean -fd 2>/dev/null");
                 writer.println();
                 writer.println("# Apply test patch");
-                writer.println("git apply \"$PATCHES_DIR/test-patch-" + pr + ".patch\" 2>/dev/null");
+                writer.println("git apply \"$PATCHES_DIR/test-patch-" + pr + ".patch\" 2>> \"$SCRIPT_DIR/git-errors.log\"");
                 writer.println();
                 writer.println("# Run tests (expect FAIL)");
                 writer.println(testCommand + " > /dev/null 2>&1");
                 writer.println("AFTER_TEST=$?");
                 writer.println();
                 writer.println("# Apply code patch");
-                writer.println("git apply \"$PATCHES_DIR/code-patch-" + pr + ".patch\" 2>/dev/null");
+                writer.println("git apply \"$PATCHES_DIR/code-patch-" + pr + ".patch\" 2>> \"$SCRIPT_DIR/git-errors.log\"");
                 writer.println();
                 writer.println("# Run tests (expect PASS)");
                 writer.println(testCommand + " > /dev/null 2>&1");
