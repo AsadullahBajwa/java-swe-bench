@@ -117,6 +117,7 @@ echo "Starting parallel validation..."
 echo "Logs will be saved to: $LOG_DIR/"
 echo ""
 
+RUN_TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
 START_TIME=$(date +%s)
 
 echo "$REPOS_TO_RUN" | tr ' ' '\n' | xargs -n 1 -P "$PARALLEL_JOBS" -I {} bash -c 'validate_repo "{}"'
@@ -204,7 +205,8 @@ else
     SUCCESS_RATE=0
 fi
 
-cat > "$SCRIPT_DIR/TESTING_SUMMARY.md" << SUMMARYEOF
+TIMESTAMPED_SUMMARY="$SCRIPT_DIR/TESTING_SUMMARY_${RUN_TIMESTAMP}.md"
+cat > "$TIMESTAMPED_SUMMARY" << SUMMARYEOF
 # Testing Directory Summary
 
 **Last Updated:** $(date '+%Y-%m-%d %H:%M:%S')
@@ -254,8 +256,10 @@ cat <repo-name>/TASKS_STATUS.md
 
 **Total time:** ${MINUTES}m ${SECONDS}s
 SUMMARYEOF
+cp "$TIMESTAMPED_SUMMARY" "$SCRIPT_DIR/TESTING_SUMMARY.md"
 
 echo ""
+echo "TESTING_SUMMARY_${RUN_TIMESTAMP}.md written"
 echo "TESTING_SUMMARY.md updated in: $SCRIPT_DIR"
 echo ""
 echo "Logs saved to: $LOG_DIR/"
