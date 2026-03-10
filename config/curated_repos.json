@@ -193,5 +193,31 @@
     "clone_url": "https://github.com/checkstyle/checkstyle.git",
     "java_percentage": 99.0,
     "notes": "Code analysis tool, many PRs"
+  },
+  {
+    "full_name": "mybatis/mybatis-3",
+    "name": "mybatis-3",
+    "owner": "mybatis",
+    "stars": 19000,
+    "language": "Java",
+    "build_tool": "maven",
+    "has_tests": true,
+    "default_branch": "master",
+    "clone_url": "https://github.com/mybatis/mybatis-3.git",
+    "java_percentage": 99.0,
+    "notes": "SQL mapper framework, clean Maven build, good PR history"
+  },
+  {
+    "full_name": "spring-projects/spring-framework",
+    "name": "spring-framework",
+    "owner": "spring-projects",
+    "stars": 55000,
+    "language": "Java",
+    "build_tool": "gradle",
+    "has_tests": true,
+    "default_branch": "main",
+    "clone_url": "https://github.com/spring-projects/spring-framework.git",
+    "java_percentage": 99.0,
+    "notes": "Spring core framework, large active repo with many PRs"
   }
 ]
