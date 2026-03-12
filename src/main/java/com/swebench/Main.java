@@ -4,6 +4,7 @@ import com.swebench.pipeline.RepositoryDiscovery;
 import com.swebench.pipeline.AttributeFilter;
 import com.swebench.pipeline.ExecutionFilter;
 import com.swebench.pipeline.TestingSetup;
+import com.swebench.pipeline.DatasetBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +41,9 @@ public class Main {
                 case "pipeline":
                     runFullPipeline(args);
                     break;
+                case "dataset":
+                    runDatasetBuilder(args);
+                    break;
                 default:
                     logger.error("Unknown command: {}", command);
                     printUsage();
@@ -74,6 +78,12 @@ public class Main {
         setup.execute();
     }
 
+    private static void runDatasetBuilder(String[] args) throws Exception {
+        logger.info("Building validated benchmark dataset");
+        DatasetBuilder builder = new DatasetBuilder();
+        builder.execute();
+    }
+
     private static void runFullPipeline(String[] args) {
         logger.info("Running full pipeline");
         runDiscovery(args);
@@ -92,6 +102,7 @@ public class Main {
         System.out.println("  validate      - Run execution filtering stage");
         System.out.println("  setup-testing - Setup testing directory structure with patch files");
         System.out.println("  pipeline      - Run full pipeline (all stages)");
+        System.out.println("  dataset       - Build validated_tasks.json from VALID tasks in data/testing/");
         System.out.println();
         System.out.println("Examples:");
         System.out.println("  java -jar java-swe-bench.jar discover");
