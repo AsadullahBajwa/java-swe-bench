@@ -786,6 +786,7 @@ public class TestingSetup {
             w.println("    image=$(get_image \"$repo_name\")");
             w.println("    echo \"[$(date '+%H:%M:%S')] Starting: $repo_name ($image)\"");
             w.println("    docker run --rm \\");
+            w.println("        --user $(id -u):$(id -g) \\");
             w.println("        -v \"${repo_dir}\":/workspace \\");
             w.println("        -v \"$HOME/.m2\":/root/.m2 \\");
             w.println("        \"$image\" \\");
