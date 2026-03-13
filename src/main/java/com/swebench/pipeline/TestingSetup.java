@@ -342,7 +342,12 @@ public class TestingSetup {
             writer.println("cd \"$REPO_DIR\"");
             writer.println();
             writer.println("# Normalize line endings so patches apply cleanly on Linux containers");
-            writer.println("git config --global core.autocrlf input");
+            writer.println("# Use --local to avoid ~/.gitconfig lock contention during parallel runs");
+            writer.println("git config --local core.autocrlf input");
+            writer.println();
+            writer.println("# Recreate git-errors.log safely (previous Docker run may have created it as root)");
+            writer.println("rm -f \"$SCRIPT_DIR/git-errors.log\" 2>/dev/null || true");
+            writer.println("touch \"$SCRIPT_DIR/git-errors.log\" 2>/dev/null || true");
             writer.println();
             writer.println("# Result tracking");
             writer.println("VALID_COUNT=0");
