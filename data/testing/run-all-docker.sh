@@ -107,7 +107,6 @@ echo "Starting parallel validation..."
 echo "Logs → $LOG_DIR/"
 echo ""
 
-RUN_TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
 START_TIME=$(date +%s)
 
 echo "$REPOS_TO_RUN" | tr ' ' '\n' | grep -v '^$' | \
@@ -165,8 +164,7 @@ done
 SUCCESS_RATE=0
 [ "$TOTAL_TASKS" -gt 0 ] && SUCCESS_RATE=$((TOTAL_VALID * 100 / TOTAL_TASKS))
 
-TIMESTAMPED_SUMMARY="$SCRIPT_DIR/TESTING_SUMMARY_${RUN_TIMESTAMP}.md"
-cat > "$TIMESTAMPED_SUMMARY" << SUMMARYEOF
+cat > "$SCRIPT_DIR/TESTING_SUMMARY.md" << SUMMARYEOF
 # Testing Directory Summary
 
 **Last Updated:** $(date '+%Y-%m-%d %H:%M:%S')
@@ -214,10 +212,8 @@ $(echo -e "$SUMMARY_ROWS")
 
 **Total Docker runtime:** ${DURATION}s ($((DURATION/60))m $((DURATION%60))s)
 SUMMARYEOF
-cp "$TIMESTAMPED_SUMMARY" "$SCRIPT_DIR/TESTING_SUMMARY.md"
 
 echo ""
-echo "TESTING_SUMMARY_${RUN_TIMESTAMP}.md written"
 echo "TESTING_SUMMARY.md updated in: $SCRIPT_DIR"
 echo ""
 echo "Done! Check logs/ for details."
