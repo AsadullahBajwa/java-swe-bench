@@ -37,7 +37,7 @@ public class AttributeFilter {
     private static final Logger logger = LoggerFactory.getLogger(AttributeFilter.class);
     private static final String INPUT_FILE = "data/raw/discovered_repositories.json";
     private static final String OUTPUT_DIR = "data/processed";
-    private static final int MAX_TASKS_PER_REPO = 20;  // Fair cap per repo so no repo starves others
+    private static final int MAX_TASKS_PER_REPO = 35;  // Fair cap per repo so no repo starves others
     private static final int MAX_FILES_CHANGED = 100;
     private static final int MAX_PRS_PER_REPO = 300; // How many PRs to check per repo
 
