@@ -804,9 +804,12 @@ public class TestingSetup {
             w.println("    image=$(get_image \"$repo_name\")");
             w.println("    echo \"[$(date '+%H:%M:%S')] Starting: $repo_name ($image)\"");
             w.println("    docker run --rm \\");
-            w.println("        --user $(id -u):$(id -g) \\");
+            w.println("        --user \"$(id -u):$(id -g)\" \\");
             w.println("        -v \"${repo_dir}\":/workspace \\");
-            w.println("        -v \"$HOME/.m2\":/root/.m2 \\");
+            w.println("        -v \"$HOME/.m2\":/m2cache \\");
+            w.println("        -e HOME=/tmp \\");
+            w.println("        -e MAVEN_OPTS=\"-Dmaven.repo.local=/m2cache\" \\");
+            w.println("        -e GRADLE_USER_HOME=/m2cache/gradle \\");
             w.println("        \"$image\" \\");
             w.println("        bash /workspace/run-validation.sh > \"$log_file\" 2>&1");
             w.println("    local exit_code=$?");

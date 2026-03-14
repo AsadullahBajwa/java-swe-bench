@@ -60,6 +60,7 @@ validate_repo_docker() {
         --user "$(id -u):$(id -g)" \
         -v "${repo_dir}":/workspace \
         -v "$HOME/.m2":/m2cache \
+        -e HOME=/tmp \
         -e MAVEN_OPTS="-Dmaven.repo.local=/m2cache" \
         -e GRADLE_USER_HOME=/m2cache/gradle \
         "$image" \
