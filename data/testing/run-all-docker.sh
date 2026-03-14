@@ -57,8 +57,11 @@ validate_repo_docker() {
     echo "[$(date '+%H:%M:%S')] Starting: $repo_name ($image)"
 
     docker run --rm \
+        --user "$(id -u):$(id -g)" \
         -v "${repo_dir}":/workspace \
-        -v "$HOME/.m2":/root/.m2 \
+        -v "$HOME/.m2":/m2cache \
+        -e MAVEN_OPTS="-Dmaven.repo.local=/m2cache" \
+        -e GRADLE_USER_HOME=/m2cache/gradle \
         "$image" \
         bash /workspace/run-validation.sh > "$log_file" 2>&1
     local exit_code=$?
