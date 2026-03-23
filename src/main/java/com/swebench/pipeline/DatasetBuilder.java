@@ -98,10 +98,11 @@ public class DatasetBuilder {
     /**
      * Parses TASKS_STATUS.md and returns the set of instance_ids that are VALID.
      *
-     * Table rows look like:
-     *   | 1591 | 7bcb03a... | ClassUtilsTest | FAIL (1) | PASS (0) | **VALID** | |
+     * Supports two table formats:
+     *   Short: | PR # | Status | After test_patch | After code_patch |
+     *   Long:  | PR # | Base Commit | Test Class(es) | After test_patch | After code_patch | Status | Notes |
      *
-     * The PR number (1st field) is matched against each task's instance_id suffix.
+     * The header row is parsed first to discover which column index holds "Status" and "PR #".
      */
     private Set<String> parseValidInstanceIds(File statusFile, List<TaskInstance> tasks)
             throws IOException {
@@ -121,20 +122,32 @@ public class DatasetBuilder {
         Set<String> validIds = new HashSet<>();
         List<String> lines = Files.readAllLines(statusFile.toPath());
 
+        int prColIndex = 1;      // default: PR # is always first data column
+        int statusColIndex = -1; // discovered from header
+
         for (String line : lines) {
-            // Only process table data rows (start with |, not header/separator)
             if (!line.startsWith("|")) continue;
-            if (line.contains("---")) continue;      // separator row
-            if (line.contains("PR #")) continue;     // header row
+            if (line.contains("---")) continue; // separator row
 
             String[] fields = line.split("\\|");
-            // fields[0] = "" (before first |), fields[1] = PR#, ..., fields[6] = Status
-            if (fields.length < 7) continue;
 
-            String status = fields[6].trim();
+            // Parse header row to discover column positions
+            if (line.contains("PR #") || line.contains("PR#")) {
+                for (int i = 0; i < fields.length; i++) {
+                    String f = fields[i].trim().toLowerCase();
+                    if (f.equals("pr #") || f.equals("pr#")) prColIndex = i;
+                    if (f.equals("status")) statusColIndex = i;
+                }
+                continue;
+            }
+
+            if (statusColIndex < 0 || fields.length <= statusColIndex) continue;
+
+            String status = fields[statusColIndex].trim();
             if (!status.contains("VALID") || status.contains("INVALID")) continue;
 
-            String prNum = fields[1].trim();
+            if (fields.length <= prColIndex) continue;
+            String prNum = fields[prColIndex].trim();
             String instanceId = prToInstanceId.get(prNum);
             if (instanceId != null) {
                 validIds.add(instanceId);
