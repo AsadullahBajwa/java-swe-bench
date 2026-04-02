@@ -1,4 +1,3 @@
-// Part of the benchmark validation pipeline
 package com.swebench.pipeline;
 
 import com.swebench.model.TaskInstance;
