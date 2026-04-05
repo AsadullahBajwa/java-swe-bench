@@ -1,6 +1,8 @@
 package com.swebench;
 
 import com.swebench.evaluation.PatchApplicationRunner;
+import com.swebench.evaluation.PatchEvaluationRunner;
+import com.swebench.evaluation.ResultsReporter;
 import com.swebench.pipeline.RepositoryDiscovery;
 import com.swebench.pipeline.AttributeFilter;
 import com.swebench.pipeline.ExecutionFilter;
@@ -47,6 +49,12 @@ public class Main {
                     break;
                 case "patch-apply":
                     runPatchApplication(args);
+                    break;
+                case "evaluate":
+                    runEvaluation(args);
+                    break;
+                case "report":
+                    runReport(args);
                     break;
                 default:
                     logger.error("Unknown command: {}", command);
@@ -96,6 +104,28 @@ public class Main {
         runner.execute(modelName);
     }
 
+    private static void runEvaluation(String[] args) throws Exception {
+        String modelName = (args.length > 1) ? args[1] : null;
+        if (modelName == null) {
+            logger.error("Usage: evaluate <model-name>");
+            return;
+        }
+        logger.info("Running evaluation harness (model={})", modelName);
+        PatchEvaluationRunner runner = new PatchEvaluationRunner();
+        runner.execute(modelName);
+    }
+
+    private static void runReport(String[] args) throws Exception {
+        String modelName = (args.length > 1) ? args[1] : null;
+        if (modelName == null) {
+            logger.error("Usage: report <model-name>");
+            return;
+        }
+        logger.info("Generating results report (model={})", modelName);
+        ResultsReporter reporter = new ResultsReporter();
+        reporter.execute(modelName);
+    }
+
     private static void runFullPipeline(String[] args) {
         logger.info("Running full pipeline");
         runDiscovery(args);
@@ -115,14 +145,19 @@ public class Main {
         System.out.println("  setup-testing - Setup testing directory structure with patch files");
         System.out.println("  pipeline      - Run full pipeline (all stages)");
         System.out.println("  dataset       - Build validated_tasks.json from VALID tasks in data/testing/");
-        System.out.println("  patch-apply   - Apply AI patches from data/predictions/<model>/ and record outcomes");
-        System.out.println("                  Optional arg: model name (e.g. 'gpt-4o')");
+        System.out.println("  patch-apply   - Apply patches from data/predictions/<model>/ and record outcomes");
+        System.out.println("                  Required arg: model name (e.g. 'gpt-4o')");
+        System.out.println("  evaluate      - Run tests on patched repos to determine if issue is resolved");
+        System.out.println("                  Required arg: model name");
+        System.out.println("  report        - Generate markdown + JSON summary report from evaluation results");
+        System.out.println("                  Required arg: model name");
         System.out.println();
         System.out.println("Examples:");
         System.out.println("  java -jar java-swe-bench.jar discover");
         System.out.println("  java -jar java-swe-bench.jar setup-testing");
         System.out.println("  java -jar java-swe-bench.jar pipeline");
         System.out.println("  java -jar java-swe-bench.jar patch-apply gpt-4o");
-        System.out.println("  java -jar java-swe-bench.jar patch-apply claude-3-5-sonnet");
+        System.out.println("  java -jar java-swe-bench.jar evaluate gpt-4o");
+        System.out.println("  java -jar java-swe-bench.jar report gpt-4o");
     }
 }
