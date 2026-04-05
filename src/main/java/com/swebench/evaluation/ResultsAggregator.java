@@ -65,7 +65,7 @@ public class ResultsAggregator {
 
         // Per-repo stats
         Map<String, RepoStats> repoStats = new LinkedHashMap<>();
-        for (Map.Entry<String, List<Map<?, ?>>> entry : byRepo.entrySet()) {
+        for (Map.Entry<String, List<Map<String, Object>>> entry : byRepo.entrySet()) {
             repoStats.put(entry.getKey(), computeRepoStats(entry.getValue()));
         }
 
