@@ -127,7 +127,7 @@ public class ResultsReporter {
         // Resolved tasks list
         sb.append("## Resolved Tasks\n\n");
         boolean any = false;
-        for (Map<?, ?> r : results.allRecords) {
+        for (Map<String, Object> r : results.allRecords) {
             if ("resolved".equals(r.get("status"))) {
                 sb.append("- ").append(r.get("instance_id")).append("\n");
                 any = true;
@@ -141,7 +141,7 @@ public class ResultsReporter {
         sb.append("## Not Resolved Tasks\n\n");
         sb.append("| Instance ID | Status | Error |\n");
         sb.append("|---|---|---|\n");
-        for (Map<?, ?> r : results.allRecords) {
+        for (Map<String, Object> r : results.allRecords) {
             String status = (String) r.get("status");
             if (!"resolved".equals(status)) {
                 String error = r.get("error") != null ? r.get("error").toString() : "";

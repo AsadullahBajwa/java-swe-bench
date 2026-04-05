@@ -45,10 +45,11 @@ public class ResultsAggregator {
             return new AggregatedResults(Collections.emptyList(), Collections.emptyMap());
         }
 
-        List<Map<?, ?>> records = new ArrayList<>();
+        List<Map<String, Object>> records = new ArrayList<>();
         for (File f : files) {
             try {
-                Map<?, ?> record = mapper.readValue(f, Map.class);
+                @SuppressWarnings("unchecked")
+                Map<String, Object> record = mapper.readValue(f, Map.class);
                 records.add(record);
             } catch (IOException e) {
                 logger.warn("[ResultsAggregator] Skipping malformed file {}: {}", f.getName(), e.getMessage());
@@ -56,8 +57,8 @@ public class ResultsAggregator {
         }
 
         // Group by repository
-        Map<String, List<Map<?, ?>>> byRepo = new LinkedHashMap<>();
-        for (Map<?, ?> r : records) {
+        Map<String, List<Map<String, Object>>> byRepo = new LinkedHashMap<>();
+        for (Map<String, Object> r : records) {
             String repo = (String) r.getOrDefault("repo", "unknown");
             byRepo.computeIfAbsent(repo, k -> new ArrayList<>()).add(r);
         }
@@ -71,12 +72,12 @@ public class ResultsAggregator {
         return new AggregatedResults(records, repoStats);
     }
 
-    private RepoStats computeRepoStats(List<Map<?, ?>> records) {
+    private RepoStats computeRepoStats(List<Map<String, Object>> records) {
         int total    = records.size();
         int resolved = 0;
         Map<String, Integer> byStatus = new LinkedHashMap<>();
 
-        for (Map<?, ?> r : records) {
+        for (Map<String, Object> r : records) {
             String status = (String) r.getOrDefault("status", "unknown");
             byStatus.merge(status, 1, Integer::sum);
             if ("resolved".equals(status)) resolved++;
@@ -90,10 +91,10 @@ public class ResultsAggregator {
     // -------------------------------------------------------------------------
 
     public static class AggregatedResults {
-        public final List<Map<?, ?>>        allRecords;
-        public final Map<String, RepoStats> byRepo;
+        public final List<Map<String, Object>> allRecords;
+        public final Map<String, RepoStats>    byRepo;
 
-        public AggregatedResults(List<Map<?, ?>> allRecords, Map<String, RepoStats> byRepo) {
+        public AggregatedResults(List<Map<String, Object>> allRecords, Map<String, RepoStats> byRepo) {
             this.allRecords = allRecords;
             this.byRepo     = byRepo;
         }
@@ -114,7 +115,7 @@ public class ResultsAggregator {
         /** Count of each status value across all tasks. */
         public Map<String, Integer> statusBreakdown() {
             Map<String, Integer> counts = new LinkedHashMap<>();
-            for (Map<?, ?> r : allRecords) {
+            for (Map<String, Object> r : allRecords) {
                 String status = (String) r.getOrDefault("status", "unknown");
                 counts.merge(status, 1, Integer::sum);
             }
