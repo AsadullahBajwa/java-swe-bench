@@ -41,6 +41,7 @@ public class AiPatchGenerator {
 
     private static final String ANTHROPIC_URL  = "https://api.anthropic.com/v1/messages";
     private static final String OPENAI_URL     = "https://api.openai.com/v1/chat/completions";
+    private static final String DEEPSEEK_URL   = "https://api.deepseek.com/v1/chat/completions";
     private static final String ANTHROPIC_VER  = "2023-06-01";
 
     private final OkHttpClient http;
@@ -96,7 +97,8 @@ public class AiPatchGenerator {
         try {
             return switch (provider) {
                 case "anthropic" -> callAnthropic(prompt);
-                case "openai"    -> callOpenAi(prompt);
+                case "openai"    -> callOpenAiCompatible(OPENAI_URL, prompt);
+                case "deepseek"  -> callOpenAiCompatible(DEEPSEEK_URL, prompt);
                 default -> {
                     logger.error("[AiPatchGenerator] Unknown provider: {}", provider);
                     yield null;
@@ -168,7 +170,7 @@ public class AiPatchGenerator {
         }
     }
 
-    private String callOpenAi(String prompt) throws IOException {
+    private String callOpenAiCompatible(String url, String prompt) throws IOException {
         ObjectNode body = mapper.createObjectNode();
         body.put("model", model);
         body.put("max_tokens", maxTokens);
@@ -180,7 +182,7 @@ public class AiPatchGenerator {
         msg.put("content", prompt);
 
         Request request = new Request.Builder()
-                .url(OPENAI_URL)
+                .url(url)
                 .addHeader("Authorization", "Bearer " + apiKey)
                 .addHeader("content-type", "application/json")
                 .post(RequestBody.create(mapper.writeValueAsString(body), JSON_MEDIA))
@@ -189,7 +191,7 @@ public class AiPatchGenerator {
         try (Response response = http.newCall(request).execute()) {
             String responseBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
-                logger.error("[AiPatchGenerator] OpenAI API error {}: {}", response.code(), responseBody);
+                logger.error("[AiPatchGenerator] API error {} from {}: {}", response.code(), url, responseBody);
                 return null;
             }
             JsonNode json = mapper.readTree(responseBody);
